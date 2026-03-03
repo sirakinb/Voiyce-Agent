@@ -1,0 +1,578 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		AC5C59682F575CEE00F7CB9A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AC5C59522F575CED00F7CB9A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC5C59592F575CED00F7CB9A;
+			remoteInfo = "Voiyce-Agent";
+		};
+		AC5C59722F575CEE00F7CB9A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AC5C59522F575CED00F7CB9A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC5C59592F575CED00F7CB9A;
+			remoteInfo = "Voiyce-Agent";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AC5C595A2F575CED00F7CB9A /* Voiyce-Agent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Voiyce-Agent.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC5C59672F575CEE00F7CB9A /* Voiyce-AgentTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Voiyce-AgentTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC5C59712F575CEE00F7CB9A /* Voiyce-AgentUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Voiyce-AgentUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AC5C595C2F575CED00F7CB9A /* Voiyce-Agent */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Voiyce-Agent";
+			sourceTree = "<group>";
+		};
+		AC5C596A2F575CEE00F7CB9A /* Voiyce-AgentTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Voiyce-AgentTests";
+			sourceTree = "<group>";
+		};
+		AC5C59742F575CEE00F7CB9A /* Voiyce-AgentUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Voiyce-AgentUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AC5C59572F575CED00F7CB9A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5C59642F575CEE00F7CB9A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5C596E2F575CEE00F7CB9A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AC5C59512F575CED00F7CB9A = {
+			isa = PBXGroup;
+			children = (
+				AC5C595C2F575CED00F7CB9A /* Voiyce-Agent */,
+				AC5C596A2F575CEE00F7CB9A /* Voiyce-AgentTests */,
+				AC5C59742F575CEE00F7CB9A /* Voiyce-AgentUITests */,
+				AC5C595B2F575CED00F7CB9A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AC5C595B2F575CED00F7CB9A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AC5C595A2F575CED00F7CB9A /* Voiyce-Agent.app */,
+				AC5C59672F575CEE00F7CB9A /* Voiyce-AgentTests.xctest */,
+				AC5C59712F575CEE00F7CB9A /* Voiyce-AgentUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AC5C59592F575CED00F7CB9A /* Voiyce-Agent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC5C597B2F575CEE00F7CB9A /* Build configuration list for PBXNativeTarget "Voiyce-Agent" */;
+			buildPhases = (
+				AC5C59562F575CED00F7CB9A /* Sources */,
+				AC5C59572F575CED00F7CB9A /* Frameworks */,
+				AC5C59582F575CED00F7CB9A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AC5C595C2F575CED00F7CB9A /* Voiyce-Agent */,
+			);
+			name = "Voiyce-Agent";
+			packageProductDependencies = (
+			);
+			productName = "Voiyce-Agent";
+			productReference = AC5C595A2F575CED00F7CB9A /* Voiyce-Agent.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AC5C59662F575CEE00F7CB9A /* Voiyce-AgentTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC5C597E2F575CEE00F7CB9A /* Build configuration list for PBXNativeTarget "Voiyce-AgentTests" */;
+			buildPhases = (
+				AC5C59632F575CEE00F7CB9A /* Sources */,
+				AC5C59642F575CEE00F7CB9A /* Frameworks */,
+				AC5C59652F575CEE00F7CB9A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AC5C59692F575CEE00F7CB9A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AC5C596A2F575CEE00F7CB9A /* Voiyce-AgentTests */,
+			);
+			name = "Voiyce-AgentTests";
+			packageProductDependencies = (
+			);
+			productName = "Voiyce-AgentTests";
+			productReference = AC5C59672F575CEE00F7CB9A /* Voiyce-AgentTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AC5C59702F575CEE00F7CB9A /* Voiyce-AgentUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC5C59812F575CEE00F7CB9A /* Build configuration list for PBXNativeTarget "Voiyce-AgentUITests" */;
+			buildPhases = (
+				AC5C596D2F575CEE00F7CB9A /* Sources */,
+				AC5C596E2F575CEE00F7CB9A /* Frameworks */,
+				AC5C596F2F575CEE00F7CB9A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AC5C59732F575CEE00F7CB9A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AC5C59742F575CEE00F7CB9A /* Voiyce-AgentUITests */,
+			);
+			name = "Voiyce-AgentUITests";
+			packageProductDependencies = (
+			);
+			productName = "Voiyce-AgentUITests";
+			productReference = AC5C59712F575CEE00F7CB9A /* Voiyce-AgentUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AC5C59522F575CED00F7CB9A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					AC5C59592F575CED00F7CB9A = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					AC5C59662F575CEE00F7CB9A = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = AC5C59592F575CED00F7CB9A;
+					};
+					AC5C59702F575CEE00F7CB9A = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = AC5C59592F575CED00F7CB9A;
+					};
+				};
+			};
+			buildConfigurationList = AC5C59552F575CED00F7CB9A /* Build configuration list for PBXProject "Voiyce-Agent" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AC5C59512F575CED00F7CB9A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AC5C595B2F575CED00F7CB9A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AC5C59592F575CED00F7CB9A /* Voiyce-Agent */,
+				AC5C59662F575CEE00F7CB9A /* Voiyce-AgentTests */,
+				AC5C59702F575CEE00F7CB9A /* Voiyce-AgentUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AC5C59582F575CED00F7CB9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5C59652F575CEE00F7CB9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5C596F2F575CEE00F7CB9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AC5C59562F575CED00F7CB9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5C59632F575CEE00F7CB9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5C596D2F575CEE00F7CB9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AC5C59692F575CEE00F7CB9A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC5C59592F575CED00F7CB9A /* Voiyce-Agent */;
+			targetProxy = AC5C59682F575CEE00F7CB9A /* PBXContainerItemProxy */;
+		};
+		AC5C59732F575CEE00F7CB9A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC5C59592F575CED00F7CB9A /* Voiyce-Agent */;
+			targetProxy = AC5C59722F575CEE00F7CB9A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AC5C59792F575CEE00F7CB9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AC5C597A2F575CEE00F7CB9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		AC5C597C2F575CEE00F7CB9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "business.Voiyce-Agent";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AC5C597D2F575CEE00F7CB9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "business.Voiyce-Agent";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AC5C597F2F575CEE00F7CB9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "business.Voiyce-AgentTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Voiyce-Agent.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Voiyce-Agent";
+			};
+			name = Debug;
+		};
+		AC5C59802F575CEE00F7CB9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "business.Voiyce-AgentTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Voiyce-Agent.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Voiyce-Agent";
+			};
+			name = Release;
+		};
+		AC5C59822F575CEE00F7CB9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "business.Voiyce-AgentUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "Voiyce-Agent";
+			};
+			name = Debug;
+		};
+		AC5C59832F575CEE00F7CB9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R28KUQ4KQP;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "business.Voiyce-AgentUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "Voiyce-Agent";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AC5C59552F575CED00F7CB9A /* Build configuration list for PBXProject "Voiyce-Agent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC5C59792F575CEE00F7CB9A /* Debug */,
+				AC5C597A2F575CEE00F7CB9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC5C597B2F575CEE00F7CB9A /* Build configuration list for PBXNativeTarget "Voiyce-Agent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC5C597C2F575CEE00F7CB9A /* Debug */,
+				AC5C597D2F575CEE00F7CB9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC5C597E2F575CEE00F7CB9A /* Build configuration list for PBXNativeTarget "Voiyce-AgentTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC5C597F2F575CEE00F7CB9A /* Debug */,
+				AC5C59802F575CEE00F7CB9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC5C59812F575CEE00F7CB9A /* Build configuration list for PBXNativeTarget "Voiyce-AgentUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC5C59822F575CEE00F7CB9A /* Debug */,
+				AC5C59832F575CEE00F7CB9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AC5C59522F575CED00F7CB9A /* Project object */;
+}
