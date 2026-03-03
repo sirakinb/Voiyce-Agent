@@ -2,23 +2,40 @@
 //  ContentView.swift
 //  Voiyce-Agent
 //
-//  Created by Akinyemi Bajulaiye on 3/3/26.
-//
 
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @Environment(AppState.self) private var appState
 
-#Preview {
-    ContentView()
+    var body: some View {
+        @Bindable var appState = appState
+
+        NavigationSplitView {
+            SidebarView(selectedTab: $appState.selectedTab)
+                .navigationSplitViewColumnWidth(AppTheme.sidebarWidth)
+        } detail: {
+            detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AppTheme.backgroundPrimary)
+        }
+        .navigationSplitViewStyle(.prominentDetail)
+        .frame(minWidth: 900, minHeight: 600)
+    }
+
+    @ViewBuilder
+    private var detailView: some View {
+        switch appState.selectedTab {
+        case .dashboard:
+            DashboardView()
+        case .transcripts:
+            TranscriptsView()
+        case .agent:
+            AgentChatView()
+        case .integrations:
+            IntegrationsView()
+        case .settings:
+            SettingsView()
+        }
+    }
 }
