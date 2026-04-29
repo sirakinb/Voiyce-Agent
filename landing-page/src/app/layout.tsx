@@ -13,12 +13,37 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://voiyce-mac-app.vercel.app"),
   title: {
-    default: "Voiyce — Voice dictation for macOS",
+    default: "Write at the speed of thought.",
     template: "%s — Voiyce",
   },
   description:
-    "Speak at the speed of thought. Voiyce turns voice into polished text on your Mac.",
+    "Download Voiyce for macOS and turn natural speech into polished text in any app.",
+  openGraph: {
+    title: "Write at the speed of thought.",
+    description:
+      "Download Voiyce for macOS and turn natural speech into polished text in any app.",
+    url: "https://voiyce-mac-app.vercel.app",
+    siteName: "Voiyce",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Voiyce - Write at the speed of thought. Download for macOS.",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Write at the speed of thought.",
+    description:
+      "Download Voiyce for macOS and turn natural speech into polished text in any app.",
+    images: ["/opengraph-image"],
+  },
 };
 
 export default function RootLayout({
