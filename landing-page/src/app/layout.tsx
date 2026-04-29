@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: "Voiyce",
     images: [
       {
-        url: "/opengraph-image",
+        url: "/og-header.png",
         width: 1200,
         height: 630,
         alt: "Voiyce - Write at the speed of thought. Download for macOS.",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     title: "Write at the speed of thought.",
     description:
       "Download Voiyce for macOS and turn natural speech into polished text in any app.",
-    images: ["/opengraph-image"],
+    images: ["/og-header.png"],
   },
 };
 
