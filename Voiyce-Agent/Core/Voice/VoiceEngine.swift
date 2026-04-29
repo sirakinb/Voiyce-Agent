@@ -33,7 +33,7 @@ final class VoiceEngine {
 
     /// Start recording audio to a temporary WAV file
     func startRecording() throws {
-        stopRecording()
+        _ = stopRecording()
         currentTranscript = ""
         error = nil
 
@@ -77,7 +77,14 @@ final class VoiceEngine {
             guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCount) else { return }
 
             var error: NSError?
+            var didProvideInput = false
             converter.convert(to: convertedBuffer, error: &error) { _, outStatus in
+                guard !didProvideInput else {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+
+                didProvideInput = true
                 outStatus.pointee = .haveData
                 return buffer
             }
@@ -99,6 +106,10 @@ final class VoiceEngine {
 
     /// Stop recording and return the audio file URL
     func stopRecording() -> URL? {
+        guard isRecording || audioEngine != nil else {
+            return nil
+        }
+
         let url = recordingURL
 
         audioEngine?.stop()

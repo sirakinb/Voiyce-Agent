@@ -7,7 +7,15 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
+    @Environment(AuthenticationManager.self) private var authenticationManager
+    @Environment(BillingManager.self) private var billingManager
     @State private var selectedSettingsTab = 0
+    @State private var isBillingPlanPickerPresented = false
+    @State private var betaAccessCode = ""
+    @State private var isRedeemingBetaCode = false
+    #if DEBUG
+    @State private var onboardingResetStatus: String?
+    #endif
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -24,8 +32,7 @@ struct SettingsView: View {
                 Text("General").tag(0)
                 Text("Hotkeys").tag(1)
                 Text("Permissions").tag(2)
-                Text("API Keys").tag(3)
-                Text("About").tag(4)
+                Text("About").tag(3)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 24)
@@ -38,8 +45,7 @@ struct SettingsView: View {
                     case 0: generalTab
                     case 1: hotkeysTab
                     case 2: permissionsTab
-                    case 3: apiKeysTab
-                    case 4: aboutTab
+                    case 3: aboutTab
                     default: EmptyView()
                     }
                 }
@@ -48,13 +54,120 @@ struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(AppTheme.backgroundPrimary)
+        .background(GroovedBackground())
+        .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
     // MARK: - General Tab
 
     private var generalTab: some View {
         VStack(alignment: .leading, spacing: AppTheme.spacing) {
+            settingsSection(title: "Account") {
+                settingsRow(
+                    icon: "person.crop.circle.fill",
+                    title: authenticationManager.currentUserDisplayName,
+                    subtitle: authenticationManager.currentUserEmail.isEmpty
+                        ? "No signed-in account"
+                        : authenticationManager.currentUserEmail
+                ) {
+                    if authenticationManager.isWorking {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button("Sign Out") {
+                            Task {
+                                await authenticationManager.signOut()
+                            }
+                        }
+                        .font(AppTheme.captionFont)
+                        .foregroundStyle(AppTheme.accent)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.accent.opacity(0.14))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            settingsSection(title: "Billing") {
+                settingsRow(
+                    icon: "creditcard.fill",
+                    title: billingManager.planTitle,
+                    subtitle: billingManager.planSubtitle
+                ) {
+                    Button(billingActionTitle) {
+                        openBillingDestination()
+                    }
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.accent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.accent.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .buttonStyle(.plain)
+                    .disabled(isBillingBusy)
+                }
+            }
+
+            settingsSection(title: "PROMO CODE") {
+                settingsRow(
+                    icon: "sparkles",
+                    title: betaAccessTitle,
+                    subtitle: betaAccessSubtitle
+                ) {
+                    HStack(spacing: 8) {
+                        TextField("Code", text: $betaAccessCode)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 120)
+                            .disabled(billingManager.hasBetaAccess || isRedeemingBetaCode)
+                            .onSubmit {
+                                redeemBetaAccessCode()
+                            }
+
+                        Button(betaAccessButtonTitle) {
+                            redeemBetaAccessCode()
+                        }
+                        .font(AppTheme.captionFont)
+                        .foregroundStyle(AppTheme.accent)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.accent.opacity(0.14))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .buttonStyle(.plain)
+                        .disabled(
+                            billingManager.hasBetaAccess
+                            || isRedeemingBetaCode
+                            || betaAccessCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
+                    }
+                }
+            }
+
+            if let infoMessage = authenticationManager.infoMessage {
+                Text(infoMessage)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            if let errorMessage = authenticationManager.errorMessage {
+                Text(errorMessage)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.destructive)
+            }
+
+            if let infoMessage = billingManager.infoMessage {
+                Text(infoMessage)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            if let errorMessage = billingManager.errorMessage {
+                Text(errorMessage)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.destructive)
+            }
+
             settingsSection(title: "Startup") {
                 settingsRow(icon: "power", title: "Launch at Login", subtitle: "Start Voiyce when you log in") {
                     Toggle("", isOn: .constant(false))
@@ -63,12 +176,13 @@ struct SettingsView: View {
                 }
             }
 
-            settingsSection(title: "Voice") {
-                @Bindable var state = appState
-                settingsRow(icon: "speaker.wave.2", title: "Voice Output", subtitle: "Enable spoken responses from the agent") {
-                    Toggle("", isOn: $state.voiceOutputEnabled)
-                        .toggleStyle(.switch)
-                        .tint(AppTheme.accent)
+            settingsSection(title: "Dictation") {
+                settingsRow(
+                    icon: "text.word.spacing",
+                    title: "Current Hotkey",
+                    subtitle: "Hold the control key anywhere to start dictating"
+                ) {
+                    hotkeyBadge(appState.dictationHotkey)
                 }
             }
         }
@@ -81,10 +195,6 @@ struct SettingsView: View {
             settingsSection(title: "Keyboard Shortcuts") {
                 settingsRow(icon: "mic.fill", title: "Dictation Mode", subtitle: "Hold to activate voice dictation") {
                     hotkeyBadge(appState.dictationHotkey)
-                }
-
-                settingsRow(icon: "bubble.left.and.bubble.right.fill", title: "Agent Mode", subtitle: "Press to activate the AI agent") {
-                    hotkeyBadge(appState.agentHotkey)
                 }
             }
 
@@ -103,7 +213,7 @@ struct SettingsView: View {
                 permissionRow(
                     icon: "mic.fill",
                     title: "Microphone",
-                    description: "Required for voice dictation and agent mode."
+                    description: "Required for voice dictation."
                 )
 
                 permissionRow(
@@ -113,7 +223,7 @@ struct SettingsView: View {
                 )
 
                 permissionRow(
-                    icon: "universal.access",
+                    icon: "accessibility",
                     title: "Accessibility",
                     description: "Required for inserting text and global hotkeys."
                 )
@@ -141,179 +251,153 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - API Keys Tab
-
-    @State private var claudeSaveStatus: String?
-    @State private var composioSaveStatus: String?
-    @State private var openAISaveStatus: String?
-
-    private var apiKeysTab: some View {
-        @Bindable var state = appState
-
-        return VStack(alignment: .leading, spacing: AppTheme.spacing) {
-            settingsSection(title: "OpenAI API (Whisper Speech-to-Text)") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("API Key")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-
-                    SecureField("Enter your OpenAI API key", text: $state.openAIAPIKey)
-                        .textFieldStyle(.plain)
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(10)
-                        .background(AppTheme.backgroundTertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    HStack {
-                        if let status = openAISaveStatus {
-                            Text(status)
-                                .font(AppTheme.captionFont)
-                                .foregroundStyle(AppTheme.success)
-                        }
-                        Spacer()
-                        Button("Save") {
-                            do {
-                                try KeychainManager.save(
-                                    key: AppConstants.openAIAPIKeyKey,
-                                    value: appState.openAIAPIKey
-                                )
-                                openAISaveStatus = "Saved!"
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                    openAISaveStatus = nil
-                                }
-                            } catch {
-                                openAISaveStatus = "Error saving"
-                            }
-                        }
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            settingsSection(title: "Claude API") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("API Key")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-
-                    SecureField("Enter your Claude API key", text: $state.claudeAPIKey)
-                        .textFieldStyle(.plain)
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(10)
-                        .background(AppTheme.backgroundTertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    HStack {
-                        if let status = claudeSaveStatus {
-                            Text(status)
-                                .font(AppTheme.captionFont)
-                                .foregroundStyle(AppTheme.success)
-                        }
-                        Spacer()
-                        Button("Save") {
-                            do {
-                                try KeychainManager.save(
-                                    key: AppConstants.claudeAPIKeyKey,
-                                    value: appState.claudeAPIKey
-                                )
-                                claudeSaveStatus = "Saved!"
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                    claudeSaveStatus = nil
-                                }
-                            } catch {
-                                claudeSaveStatus = "Error saving"
-                            }
-                        }
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            settingsSection(title: "Composio API") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("API Key")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-
-                    SecureField("Enter your Composio API key", text: $state.composioAPIKey)
-                        .textFieldStyle(.plain)
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(10)
-                        .background(AppTheme.backgroundTertiary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    HStack {
-                        if let status = composioSaveStatus {
-                            Text(status)
-                                .font(AppTheme.captionFont)
-                                .foregroundStyle(AppTheme.success)
-                        }
-                        Spacer()
-                        Button("Save") {
-                            do {
-                                try KeychainManager.save(
-                                    key: AppConstants.composioAPIKeyKey,
-                                    value: appState.composioAPIKey
-                                )
-                                composioSaveStatus = "Saved!"
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                    composioSaveStatus = nil
-                                }
-                            } catch {
-                                composioSaveStatus = "Error saving"
-                            }
-                        }
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - About Tab
 
     private var aboutTab: some View {
-        VStack(alignment: .leading, spacing: AppTheme.spacing) {
-            settingsSection(title: "Voiyce Agent") {
-                VStack(alignment: .leading, spacing: 12) {
-                    infoRow(label: "Version", value: "1.0.0")
-                    infoRow(label: "Build", value: "1")
-                    infoRow(label: "Platform", value: "macOS")
+        VStack(alignment: .leading, spacing: 24) {
+            // App info
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Voiyce")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                HStack(spacing: 24) {
+                    aboutDetail(label: "Version", value: "1.0.0")
+                    aboutDetail(label: "Build", value: "1")
+                    aboutDetail(label: "Platform", value: "macOS")
                 }
             }
 
-            settingsSection(title: "Credits") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Built with Swift and SwiftUI")
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(AppTheme.textPrimary)
+            AppTheme.ridge.frame(height: 1)
 
-                    Text("Powered by Claude AI (Anthropic) and Composio")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
+            // Credits
+            Text("Powered by Pentridge Media")
+                .font(AppTheme.captionFont)
+                .foregroundStyle(AppTheme.textSecondary)
+
+            #if DEBUG
+            AppTheme.ridge.frame(height: 1)
+
+            settingsSection(title: "Testing") {
+                settingsRow(
+                    icon: "arrow.counterclockwise.circle.fill",
+                    title: "Replay Onboarding",
+                    subtitle: "Clears the local onboarding flag and returns this Mac to the setup flow."
+                ) {
+                    Button("Replay") {
+                        replayOnboardingForTesting()
+                    }
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.accent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.accent.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .buttonStyle(.plain)
                 }
             }
+
+            if let onboardingResetStatus {
+                Text(onboardingResetStatus)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+            #endif
+        }
+    }
+
+    #if DEBUG
+    private func replayOnboardingForTesting() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: AppConstants.onboardingCompleteKey)
+        defaults.removeObject(forKey: AppConstants.onboardingDiscoverySourceKey)
+        defaults.removeObject(forKey: AppConstants.onboardingRoleKey)
+        defaults.removeObject(forKey: AppConstants.onboardingPrivacyPreferenceKey)
+        appState.selectedTab = .dashboard
+        appState.recordingState = .idle
+        appState.isDictationActive = false
+        appState.currentTranscript = ""
+        appState.isOnboardingComplete = false
+        appState.onboardingDiscoverySource = ""
+        appState.onboardingRole = ""
+        appState.onboardingPrivacyPreference = .unset
+        onboardingResetStatus = "Onboarding reset for this Mac."
+    }
+    #endif
+
+    private func aboutDetail(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(AppTheme.captionFont)
+                .foregroundStyle(AppTheme.textSecondary)
+            Text(value)
+                .font(AppTheme.bodyFont)
+                .foregroundStyle(AppTheme.textPrimary)
+        }
+    }
+
+    private var isBillingBusy: Bool {
+        billingManager.isRefreshing || billingManager.isOpeningCheckout || billingManager.isOpeningPortal
+    }
+
+    private var billingActionTitle: String {
+        if billingManager.isOpeningCheckout {
+            return "Opening Checkout..."
+        }
+
+        if billingManager.isOpeningPortal {
+            return "Opening Portal..."
+        }
+
+        return billingManager.primaryActionTitle
+    }
+
+    private var betaAccessTitle: String {
+        if billingManager.hasBetaAccess {
+            return billingManager.betaMonthlyCapReached ? "Monthly Budget Used" : "Unlocked"
+        }
+
+        return "Redeem Code"
+    }
+
+    private var betaAccessSubtitle: String {
+        if billingManager.hasBetaAccess {
+            return "Rate limits may apply."
+        }
+
+        return ""
+    }
+
+    private var betaAccessButtonTitle: String {
+        isRedeemingBetaCode ? "Unlocking..." : "Unlock"
+    }
+
+    private func openBillingDestination() {
+        if billingManager.canManageSubscription {
+            Task {
+                await billingManager.openBillingPortal()
+            }
+            return
+        }
+
+        isBillingPlanPickerPresented = true
+    }
+
+    private func redeemBetaAccessCode() {
+        guard !isRedeemingBetaCode else { return }
+
+        isRedeemingBetaCode = true
+        Task {
+            await billingManager.redeemBetaAccessCode(betaAccessCode)
+            appState.accessState = billingManager.accessState(
+                isAuthenticated: authenticationManager.isAuthenticated
+            )
+
+            if billingManager.hasBetaAccess {
+                betaAccessCode = ""
+            }
+
+            isRedeemingBetaCode = false
         }
     }
 
@@ -353,9 +437,11 @@ struct SettingsView: View {
                     .font(AppTheme.bodyFont)
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text(subtitle)
-                    .font(AppTheme.captionFont)
-                    .foregroundStyle(AppTheme.textSecondary)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(AppTheme.captionFont)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
             }
 
             Spacer()

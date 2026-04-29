@@ -30,6 +30,10 @@ struct TranscriptsView: View {
     @State private var searchText = ""
     @State private var transcripts: [TranscriptItem] = []
 
+    private var isShowingSearchEmptyState: Bool {
+        !searchText.isEmpty && transcripts.isEmpty == false && filteredTranscripts.isEmpty
+    }
+
     private var filteredTranscripts: [TranscriptItem] {
         if searchText.isEmpty {
             return transcripts
@@ -139,13 +143,31 @@ struct TranscriptsView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
 
-            Text("No transcripts yet")
+            Text(isShowingSearchEmptyState ? "No Matching Transcripts" : "No Transcripts Yet")
                 .font(AppTheme.headlineFont)
                 .foregroundStyle(AppTheme.textSecondary)
 
-            Text("Start dictating to see your transcripts here.")
+            Text(
+                isShowingSearchEmptyState
+                    ? "None of your saved transcripts match your current search."
+                    : "Voiyce has not saved any dictation transcripts on this Mac yet."
+            )
                 .font(AppTheme.bodyFont)
                 .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                .multilineTextAlignment(.center)
+
+            Text("What to do")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            Text(
+                isShowingSearchEmptyState
+                    ? "Clear the search field or try a different keyword to see matching transcripts."
+                    : "Finish onboarding, dictate once with the Control shortcut, then come back here to review the saved transcript."
+            )
+                .font(AppTheme.captionFont)
+                .foregroundStyle(AppTheme.textSecondary)
+                .multilineTextAlignment(.center)
 
             Spacer()
         }

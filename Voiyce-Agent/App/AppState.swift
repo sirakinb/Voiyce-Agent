@@ -9,9 +9,6 @@ import SwiftUI
 
 enum SidebarTab: String, CaseIterable, Identifiable {
     case dashboard
-    case transcripts
-    case agent
-    case integrations
     case settings
 
     nonisolated var id: String { rawValue }
@@ -19,9 +16,6 @@ enum SidebarTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .dashboard: "Dashboard"
-        case .transcripts: "Transcripts"
-        case .agent: "Agent"
-        case .integrations: "Integrations"
         case .settings: "Settings"
         }
     }
@@ -29,9 +23,6 @@ enum SidebarTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dashboard: "house"
-        case .transcripts: "doc.text"
-        case .agent: "bubble.left.and.bubble.right"
-        case .integrations: "square.grid.2x2"
         case .settings: "gearshape"
         }
     }
@@ -61,6 +52,40 @@ enum RecordingState {
     }
 }
 
+enum AccessState {
+    case active
+    case signedOut
+    case paymentRequired
+}
+
+enum OnboardingPrivacyPreference: String {
+    case unset
+    case standard
+    case privateMode
+
+    var title: String {
+        switch self {
+        case .unset:
+            return "Not Chosen"
+        case .standard:
+            return "Help Improve Voiyce"
+        case .privateMode:
+            return "Privacy Mode"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .unset:
+            return "Pick the data mode that fits your comfort level."
+        case .standard:
+            return "Allows anonymized usage improvements while you evaluate the product."
+        case .privateMode:
+            return "Keeps your dictation data out of product-improvement training while still using Voiyce transcription."
+        }
+    }
+}
+
 // MARK: - AppState
 
 @Observable
@@ -68,15 +93,13 @@ final class AppState {
     var selectedTab: SidebarTab = .dashboard
     var recordingState: RecordingState = .idle
     var isDictationActive: Bool = false
-    var isAgentActive: Bool = false
     var currentTranscript: String = ""
     var wordsToday: Int = 0
-    var tasksCompleted: Int = 0
-    var claudeAPIKey: String = ""
-    var composioAPIKey: String = ""
-    var openAIAPIKey: String = ""
+    var dictationSessionsToday: Int = 0
     var isOnboardingComplete: Bool = false
     var dictationHotkey: String = "Control"
-    var agentHotkey: String = "Option+Space"
-    var voiceOutputEnabled: Bool = false
+    var accessState: AccessState = .signedOut
+    var onboardingDiscoverySource: String = ""
+    var onboardingRole: String = ""
+    var onboardingPrivacyPreference: OnboardingPrivacyPreference = .unset
 }

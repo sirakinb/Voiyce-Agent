@@ -7,11 +7,36 @@ final class PermissionsManager {
     var microphoneGranted = false
     var speechRecognitionGranted = false
     var accessibilityGranted = false
+    private var permissionRefreshTimer: Timer?
+    private var notificationObservers: [NSObjectProtocol] = []
+
+    private let permissionRefreshInterval: TimeInterval = 0.75
+
+    init() {
+        let center = NotificationCenter.default
+
+        notificationObservers.append(
+            center.addObserver(
+                forName: NSApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.checkAllPermissions()
+            }
+        )
+    }
+
+    deinit {
+        permissionRefreshTimer?.invalidate()
+
+        let center = NotificationCenter.default
+        for observer in notificationObservers {
+            center.removeObserver(observer)
+        }
+    }
 
     func checkAllPermissions() {
-        checkMicrophonePermission()
-        checkSpeechRecognitionPermission()
-        checkAccessibilityPermission()
+        refreshPermissions()
     }
 
     // MARK: - Microphone
@@ -23,12 +48,11 @@ final class PermissionsManager {
     func requestMicrophonePermission() {
         AVAudioApplication.requestRecordPermission { [weak self] granted in
             Task { @MainActor in
-                if granted {
-                    self?.microphoneGranted = true
-                } else {
-                    // Permission denied or can't be determined - open Settings
-                    self?.microphoneGranted = false
+                self?.microphoneGranted = granted
+                if !granted {
                     self?.openMicrophoneSettings()
+                } else {
+                    self?.refreshPermissions()
                 }
             }
         }
@@ -38,6 +62,8 @@ final class PermissionsManager {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
             NSWorkspace.shared.open(url)
         }
+
+        startPermissionRefreshTimer()
     }
 
     // MARK: - Speech Recognition
@@ -59,6 +85,7 @@ final class PermissionsManager {
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             Task { @MainActor in
                 self?.speechRecognitionGranted = (status == .authorized)
+                self?.refreshPermissions()
             }
         }
     }
@@ -66,7 +93,7 @@ final class PermissionsManager {
     // MARK: - Accessibility
 
     func checkAccessibilityPermission() {
-        accessibilityGranted = AXIsProcessTrusted()
+        accessibilityGranted = currentAccessibilityTrustState()
     }
 
     func requestAccessibilityPermission() {
@@ -77,15 +104,67 @@ final class PermissionsManager {
         let options = [promptKey: true] as CFDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
         accessibilityGranted = trusted
+
+        updatePermissionRefreshState()
     }
 
     func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
+
+        startPermissionRefreshTimer()
+    }
+
+    func openPrivacySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+            NSWorkspace.shared.open(url)
+        }
+
+        startPermissionRefreshTimer()
     }
 
     var allPermissionsGranted: Bool {
         microphoneGranted && speechRecognitionGranted && accessibilityGranted
+    }
+
+    private func currentAccessibilityTrustState() -> Bool {
+        AXIsProcessTrusted()
+    }
+
+    private func refreshPermissions() {
+        checkMicrophonePermission()
+        checkSpeechRecognitionPermission()
+        checkAccessibilityPermission()
+        updatePermissionRefreshState()
+    }
+
+    private func updatePermissionRefreshState() {
+        if allPermissionsGranted {
+            stopPermissionRefreshTimer()
+        } else {
+            startPermissionRefreshTimer()
+        }
+    }
+
+    private func startPermissionRefreshTimer() {
+        guard permissionRefreshTimer == nil else { return }
+
+        let timer = Timer(timeInterval: permissionRefreshInterval, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            self.refreshPermissions()
+        }
+
+        permissionRefreshTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func stopPermissionRefreshTimer() {
+        permissionRefreshTimer?.invalidate()
+        permissionRefreshTimer = nil
     }
 }

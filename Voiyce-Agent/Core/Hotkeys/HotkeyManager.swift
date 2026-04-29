@@ -1,28 +1,23 @@
-import HotKey
 import Cocoa
 
 @Observable
 final class HotkeyManager {
     var isDictationHotkeyPressed = false
-    var isAgentHotkeyPressed = false
 
     var onDictationStart: (() -> Void)?
     var onDictationStop: (() -> Void)?
-    var onAgentStart: (() -> Void)?
-    var onAgentStop: (() -> Void)?
 
-    private var agentHotKey: HotKey?
     private var globalMonitor: Any?
     private var localMonitor: Any?
 
     func setup() {
+        teardown()
         setupControlKeyMonitor()
-        setupAgentHotkey()
         print("[HotkeyManager] Hotkeys registered. Accessibility: \(AXIsProcessTrusted())")
     }
 
     func teardown() {
-        agentHotKey = nil
+        isDictationHotkeyPressed = false
         if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
         }
@@ -64,25 +59,6 @@ final class HotkeyManager {
                 self.isDictationHotkeyPressed = false
                 print("[HotkeyManager] Control released - stopping dictation")
                 self.onDictationStop?()
-            }
-        }
-    }
-
-    // MARK: - Option+Space (agent mode) - press to toggle
-
-    private func setupAgentHotkey() {
-        agentHotKey = HotKey(key: .space, modifiers: [.option])
-
-        agentHotKey?.keyDownHandler = { [weak self] in
-            guard let self else { return }
-            if !self.isAgentHotkeyPressed {
-                self.isAgentHotkeyPressed = true
-                print("[HotkeyManager] Option+Space pressed - starting agent")
-                self.onAgentStart?()
-            } else {
-                self.isAgentHotkeyPressed = false
-                print("[HotkeyManager] Option+Space pressed - stopping agent")
-                self.onAgentStop?()
             }
         }
     }
