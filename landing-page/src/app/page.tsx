@@ -401,6 +401,39 @@ export default function LandingPage() {
             ))}
           </div>
 
+          {/* Pentridge Labs Upsell */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-10 rounded-[2rem] border border-purple-500/20 bg-gradient-to-r from-[#0F0A18] via-[#110D17] to-[#0F0A18] p-8 md:p-10 relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_left,rgba(168,85,247,0.08)_0%,transparent_60%)]" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/20 text-purple-200 text-xs font-semibold mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                  Pentridge Labs
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-3">
+                  Get the full suite for $20/mo
+                </h3>
+                <p className="text-[#999] text-lg font-light leading-relaxed max-w-xl">
+                  Access AlignoPM, AlignoCRM, Voiyce &amp; DropCard with one subscription.
+                </p>
+              </div>
+              <a
+                href="https://pentridgemedia.com/labs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-4 text-lg font-semibold text-white shadow-[0_0_30px_-8px_rgba(168,85,247,0.4)] transition-all hover:shadow-[0_0_40px_-8px_rgba(168,85,247,0.6)] hover:scale-[1.02]"
+              >
+                Learn More
+                <Icon icon="mdi:arrow-right" className="w-5 h-5" />
+              </a>
+            </div>
+          </motion.div>
+
           <div className="text-center mt-10 max-w-3xl mx-auto">
             <p className="text-sm text-[#666666] leading-relaxed">
               Trial ends when 7 days pass or 2,500 words are used, whichever comes first. After that, choose Monthly or Yearly inside the app to keep dictating with unlimited words.

@@ -47,6 +47,23 @@ alter table public.billing_profiles
 alter table public.billing_profiles
     add column if not exists beta_unlocked_at timestamptz;
 
+-- Pentridge Labs subscription columns
+alter table public.billing_profiles
+    add column if not exists pentridge_subscription_active boolean not null default false;
+
+alter table public.billing_profiles
+    add column if not exists pentridge_tier text;
+
+alter table public.billing_profiles
+    add column if not exists pentridge_checked_at timestamptz;
+
+alter table public.billing_profiles
+    drop constraint if exists billing_profiles_pentridge_tier_check;
+
+alter table public.billing_profiles
+    add constraint billing_profiles_pentridge_tier_check
+    check (pentridge_tier in ('standard', 'pro') or pentridge_tier is null);
+
 alter table public.billing_profiles
     drop constraint if exists billing_profiles_preferred_plan_check;
 
@@ -172,7 +189,7 @@ returns date
 language sql
 stable
 as $$
-    select date_trunc('month', timezone('utc', now()))::date
+    select date_trunc('month', timezone('America/New_York', now()))::date
 $$;
 
 create or replace function public.beta_monthly_spend_limit_usd()
@@ -192,6 +209,18 @@ as $$
     from public.beta_transcription_usage
     where usage_month = public.current_beta_usage_month()
       and status in ('reserved', 'succeeded')
+$$;
+
+create or replace function public.pentridge_word_limit(p_tier text)
+returns integer
+language sql
+immutable
+as $$
+    select case
+        when p_tier = 'pro' then 2147483647  -- unlimited
+        when p_tier = 'standard' then 10000
+        else 0
+    end
 $$;
 
 create or replace function public.billing_status_for_profile(
@@ -214,7 +243,10 @@ returns table (
     beta_monthly_spend_limit_usd numeric,
     beta_monthly_spend_used_usd numeric,
     beta_monthly_spend_remaining_usd numeric,
-    beta_monthly_cap_reached boolean
+    beta_monthly_cap_reached boolean,
+    pentridge_subscription_active boolean,
+    pentridge_tier text,
+    pentridge_word_limit integer
 )
 language plpgsql
 stable
@@ -225,6 +257,9 @@ declare
     v_limit numeric := public.beta_monthly_spend_limit_usd();
     v_used numeric := public.beta_monthly_spend_used_usd();
     v_beta_cap_reached boolean := v_used >= v_limit;
+    v_pentridge_active boolean := coalesce(p_profile.pentridge_subscription_active, false);
+    v_pentridge_tier text := p_profile.pentridge_tier;
+    v_pentridge_word_limit integer := public.pentridge_word_limit(v_pentridge_tier);
 begin
     return query
     select
@@ -239,6 +274,7 @@ begin
         p_profile.trial_ends_at,
         (
             not v_has_active
+            and not v_pentridge_active
             and not (v_has_beta_access and not v_beta_cap_reached)
             and (
                 p_profile.free_words_used >= p_profile.free_words_limit
@@ -251,7 +287,10 @@ begin
         v_limit,
         v_used,
         greatest(v_limit - v_used, 0),
-        v_beta_cap_reached;
+        v_beta_cap_reached,
+        v_pentridge_active,
+        v_pentridge_tier,
+        v_pentridge_word_limit;
 end;
 $$;
 
@@ -275,7 +314,10 @@ returns table (
     beta_monthly_spend_limit_usd numeric,
     beta_monthly_spend_used_usd numeric,
     beta_monthly_spend_remaining_usd numeric,
-    beta_monthly_cap_reached boolean
+    beta_monthly_cap_reached boolean,
+    pentridge_subscription_active boolean,
+    pentridge_tier text,
+    pentridge_word_limit integer
 )
 language plpgsql
 security definer
@@ -336,7 +378,10 @@ returns table (
     beta_monthly_spend_limit_usd numeric,
     beta_monthly_spend_used_usd numeric,
     beta_monthly_spend_remaining_usd numeric,
-    beta_monthly_cap_reached boolean
+    beta_monthly_cap_reached boolean,
+    pentridge_subscription_active boolean,
+    pentridge_tier text,
+    pentridge_word_limit integer
 )
 language plpgsql
 security definer
@@ -374,7 +419,8 @@ begin
     v_has_active := public.subscription_is_active(v_profile.subscription_status);
     v_has_beta_access := v_profile.beta_unlocked_at is not null;
 
-    if not v_has_active and not v_has_beta_access and v_word_count > 0 then
+    -- Skip word counting for active Stripe subscribers, beta users, and Pentridge Labs subscribers
+    if not v_has_active and not v_has_beta_access and not coalesce(v_profile.pentridge_subscription_active, false) and v_word_count > 0 then
         update public.billing_profiles as billing_profile
         set free_words_used = least(
             billing_profile.free_words_used + v_word_count,
@@ -416,7 +462,10 @@ returns table (
     beta_monthly_spend_limit_usd numeric,
     beta_monthly_spend_used_usd numeric,
     beta_monthly_spend_remaining_usd numeric,
-    beta_monthly_cap_reached boolean
+    beta_monthly_cap_reached boolean,
+    pentridge_subscription_active boolean,
+    pentridge_tier text,
+    pentridge_word_limit integer
 )
 language plpgsql
 security definer
