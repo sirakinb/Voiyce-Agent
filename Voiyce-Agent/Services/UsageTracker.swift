@@ -24,6 +24,11 @@ struct DailyUsage: Identifiable {
 final class UsageTracker {
     private let defaults = UserDefaults.standard
     private let statsKeyPrefix = "voiyce_daily_"
+    private var activeUserID: String?
+
+    func configure(userID: String?) {
+        activeUserID = userID
+    }
 
     /// Record words dictated for today.
     func addWords(_ count: Int) {
@@ -60,7 +65,15 @@ final class UsageTracker {
     private func dayKey(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        return statsKeyPrefix + formatter.string(from: date)
+        return statsKeyPrefix + accountScope + "_" + formatter.string(from: date)
+    }
+
+    private var accountScope: String {
+        guard let activeUserID, !activeUserID.isEmpty else {
+            return "signed_out"
+        }
+
+        return activeUserID
     }
 
     private func loadToday() -> DailyUsage {

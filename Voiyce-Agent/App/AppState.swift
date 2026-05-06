@@ -102,4 +102,5 @@ final class AppState {
     var onboardingDiscoverySource: String = ""
     var onboardingRole: String = ""
     var onboardingPrivacyPreference: OnboardingPrivacyPreference = .unset
+    var isDemoVideoPresented: Bool = false
 }

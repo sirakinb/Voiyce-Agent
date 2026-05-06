@@ -3,12 +3,14 @@
 //  Voiyce-Agent
 //
 
+import InsForgeAuth
 import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @Environment(AuthenticationManager.self) private var authenticationManager
     @Environment(BillingManager.self) private var billingManager
+    @Environment(PermissionsManager.self) private var permissions
     @State private var selectedSettingsTab = 0
     @State private var isBillingPlanPickerPresented = false
     @State private var betaAccessCode = ""
@@ -55,6 +57,17 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(GroovedBackground())
+        .onAppear {
+            permissions.checkAllPermissions()
+        }
+        .onChange(of: selectedSettingsTab) { _, tab in
+            if tab == 2 {
+                permissions.checkAllPermissions()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            permissions.checkAllPermissions()
+        }
         .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
@@ -185,6 +198,25 @@ struct SettingsView: View {
                     hotkeyBadge(appState.dictationHotkey)
                 }
             }
+
+            settingsSection(title: "Help") {
+                settingsRow(
+                    icon: "play.rectangle.fill",
+                    title: "Demo Video",
+                    subtitle: "Replay the Voiyce walkthrough."
+                ) {
+                    Button("View") {
+                        appState.isDemoVideoPresented = true
+                    }
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.accent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.accent.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -213,19 +245,27 @@ struct SettingsView: View {
                 permissionRow(
                     icon: "mic.fill",
                     title: "Microphone",
-                    description: "Required for voice dictation."
+                    description: "Required for voice dictation.",
+                    isGranted: permissions.microphoneGranted,
+                    action: { permissions.requestMicrophonePermission() }
                 )
 
                 permissionRow(
                     icon: "waveform",
                     title: "Speech Recognition",
-                    description: "Required for transcribing your voice to text."
+                    description: "Required for transcribing your voice to text.",
+                    isGranted: permissions.speechRecognitionGranted,
+                    action: { permissions.requestSpeechRecognitionPermission() }
                 )
 
                 permissionRow(
                     icon: "accessibility",
                     title: "Accessibility",
-                    description: "Required for inserting text and global hotkeys."
+                    description: permissions.accessibilityGranted
+                        ? "Required for inserting text and global hotkeys."
+                        : "If enabled in System Settings, restart Voiyce or toggle it off and on.",
+                    isGranted: permissions.accessibilityGranted,
+                    action: { permissions.requestAccessibilityPermission() }
                 )
             }
 
@@ -263,7 +303,7 @@ struct SettingsView: View {
 
                 HStack(spacing: 24) {
                     aboutDetail(label: "Version", value: "1.0.0")
-                    aboutDetail(label: "Build", value: "1")
+                    aboutDetail(label: "Build", value: "14")
                     aboutDetail(label: "Platform", value: "macOS")
                 }
             }
@@ -308,11 +348,13 @@ struct SettingsView: View {
 
     #if DEBUG
     private func replayOnboardingForTesting() {
+        let userID = authenticationManager.currentUser?.id
         let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: AppConstants.onboardingCompleteKey)
-        defaults.removeObject(forKey: AppConstants.onboardingDiscoverySourceKey)
-        defaults.removeObject(forKey: AppConstants.onboardingRoleKey)
-        defaults.removeObject(forKey: AppConstants.onboardingPrivacyPreferenceKey)
+        defaults.removeObject(forKey: AppConstants.accountScopedKey(AppConstants.onboardingCompleteKey, userID: userID))
+        defaults.removeObject(forKey: AppConstants.accountScopedKey(AppConstants.onboardingDiscoverySourceKey, userID: userID))
+        defaults.removeObject(forKey: AppConstants.accountScopedKey(AppConstants.onboardingRoleKey, userID: userID))
+        defaults.removeObject(forKey: AppConstants.accountScopedKey(AppConstants.onboardingPrivacyPreferenceKey, userID: userID))
+        defaults.removeObject(forKey: AppConstants.accountScopedKey(AppConstants.demoVideoSeenKey, userID: userID))
         appState.selectedTab = .dashboard
         appState.recordingState = .idle
         appState.isDictationActive = false
@@ -451,11 +493,17 @@ struct SettingsView: View {
         .padding(AppTheme.cardPadding)
     }
 
-    private func permissionRow(icon: String, title: String, description: String) -> some View {
+    private func permissionRow(
+        icon: String,
+        title: String,
+        description: String,
+        isGranted: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15))
-                .foregroundStyle(AppTheme.warning)
+                .foregroundStyle(isGranted ? AppTheme.success : AppTheme.warning)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -470,9 +518,22 @@ struct SettingsView: View {
 
             Spacer()
 
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.warning)
+            if isGranted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.success)
+            } else {
+                Button("Grant") {
+                    action()
+                }
+                .font(AppTheme.captionFont)
+                .foregroundStyle(AppTheme.accent)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(AppTheme.accent.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .buttonStyle(.plain)
+            }
         }
         .padding(AppTheme.cardPadding)
     }

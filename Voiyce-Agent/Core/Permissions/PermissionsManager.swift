@@ -129,7 +129,9 @@ final class PermissionsManager {
     }
 
     private func currentAccessibilityTrustState() -> Bool {
-        AXIsProcessTrusted()
+        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let options = [promptKey: false] as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
     }
 
     private func refreshPermissions() {

@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 import InsForge
 import InsForgeCore
 import InsForgeFunctions
@@ -8,16 +9,19 @@ final class WhisperService {
 
     /// Transcribe an audio file using the authenticated InsForge function.
     func transcribe(audioFileURL: URL, duration: TimeInterval? = nil) async throws -> String {
-        let audioData = try Data(contentsOf: audioFileURL)
+        let uploadURL = try await Self.compressedAudioURL(for: audioFileURL)
+        let audioData = try Data(contentsOf: uploadURL)
+        let fileName = "recording.\(uploadURL.pathExtension.isEmpty ? "m4a" : uploadURL.pathExtension)"
+        let mimeType = Self.mimeType(for: uploadURL)
         let request = TranscriptionFunctionRequest(
             audioBase64: audioData.base64EncodedString(),
-            fileName: "recording.wav",
-            mimeType: "audio/wav",
+            fileName: fileName,
+            mimeType: mimeType,
             language: "en",
             durationSeconds: duration
         )
 
-        print("[WhisperService] Sending \(audioData.count / 1024)KB audio to InsForge transcription function...")
+        print("[WhisperService] Sending \(audioData.count / 1024)KB \(mimeType) audio to InsForge transcription function...")
 
         let result: WhisperResponse
 
@@ -69,6 +73,55 @@ final class WhisperService {
 
         print("[WhisperService] Transcription: \(result.text)")
         return result.text
+    }
+
+    private static func compressedAudioURL(for sourceURL: URL) async throws -> URL {
+        guard sourceURL.pathExtension.lowercased() != "m4a" else {
+            return sourceURL
+        }
+
+        let destinationURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voiyce_upload_\(UUID().uuidString).m4a")
+        let asset = AVURLAsset(url: sourceURL)
+
+        guard let exportSession = AVAssetExportSession(
+            asset: asset,
+            presetName: AVAssetExportPresetAppleM4A
+        ) else {
+            print("[WhisperService] Could not create m4a export session; uploading original audio.")
+            return sourceURL
+        }
+
+        exportSession.outputURL = destinationURL
+        exportSession.outputFileType = .m4a
+        exportSession.shouldOptimizeForNetworkUse = true
+
+        return try await withCheckedThrowingContinuation { continuation in
+            exportSession.exportAsynchronously {
+                switch exportSession.status {
+                case .completed:
+                    continuation.resume(returning: destinationURL)
+                case .failed, .cancelled:
+                    let error = exportSession.error ?? WhisperError.requestFailed("Audio compression failed.")
+                    continuation.resume(throwing: error)
+                default:
+                    continuation.resume(throwing: WhisperError.requestFailed("Audio compression did not finish."))
+                }
+            }
+        }
+    }
+
+    private static func mimeType(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "m4a":
+            return "audio/mp4"
+        case "mp3":
+            return "audio/mpeg"
+        case "wav":
+            return "audio/wav"
+        default:
+            return "application/octet-stream"
+        }
     }
 }
 

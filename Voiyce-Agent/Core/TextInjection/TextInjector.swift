@@ -5,6 +5,10 @@ import ApplicationServices
 final class TextInjector {
     private var lastInjection: (text: String, appName: String, timestamp: Date)?
     private let duplicateSuppressionWindow: TimeInterval = 0.75
+    private let pasteboardPropagationDelay: TimeInterval = 0.08
+    private let targetReactivationDelay: TimeInterval = 0.18
+    private let clipboardRestoreDelay: TimeInterval = 1.0
+    private var activeInjectionID: UUID?
 
     /// Inject a chunk of text into the currently focused app using pasteboard + Cmd+V.
     /// This is the most reliable method on modern macOS.
@@ -66,9 +70,15 @@ final class TextInjector {
         lastInjection = (text: text, appName: destinationAppName, timestamp: now)
         let pasteboard = NSPasteboard.general
         let previousContents = pasteboard.string(forType: .string)
+        let injectionID = UUID()
+        activeInjectionID = injectionID
 
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        pasteboard.declareTypes([.string], owner: nil)
+        let didWriteTranscript = pasteboard.setString(text, forType: .string)
+        guard didWriteTranscript, pasteboard.string(forType: .string) == text else {
+            print("[TextInjector] Failed to publish transcript to pasteboard")
+            return
+        }
 
         let shouldReactivateTarget = {
             guard let targetApplication, let targetBundleIdentifier else { return false }
@@ -81,16 +91,25 @@ final class TextInjector {
             print("[TextInjector] Restored focus to \(destinationAppName): \(activated)")
         }
 
-        let pasteDelay = shouldReactivateTarget ? 0.12 : 0.02
+        let pasteDelay = shouldReactivateTarget ? targetReactivationDelay : pasteboardPropagationDelay
         DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay) {
+            guard self.activeInjectionID == injectionID else { return }
             self.postPasteCommand()
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay + 0.18) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay + clipboardRestoreDelay) {
+            guard self.activeInjectionID == injectionID else { return }
+            guard pasteboard.string(forType: .string) == text else {
+                // The user or another app changed the clipboard after paste; do not overwrite it.
+                self.activeInjectionID = nil
+                return
+            }
+
             if let previous = previousContents {
-                pasteboard.clearContents()
+                pasteboard.declareTypes([.string], owner: nil)
                 pasteboard.setString(previous, forType: .string)
             }
+            self.activeInjectionID = nil
         }
     }
 

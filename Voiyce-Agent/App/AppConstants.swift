@@ -11,6 +11,7 @@ enum AppConstants {
     static let onboardingDiscoverySourceKey = "onboarding_discovery_source"
     static let onboardingRoleKey = "onboarding_role"
     static let onboardingPrivacyPreferenceKey = "onboarding_privacy_preference"
+    static let demoVideoSeenKey = "demo_video_seen"
     static let insForgeBaseURL = URL(string: "https://25565ha3.us-east.insforge.app")!
     static let insForgeAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTU3NzZ9.TNf0vhTmcr7vDUf5v9-ovbpLT6MAIbUOWJe2PMXMACg"
     static let insForgeRedirectScheme = "voiyceagent"
@@ -24,6 +25,11 @@ enum AppConstants {
     static let proYearlyPriceDisplay = "$120/year"
     static let proYearlyEffectiveMonthlyPriceDisplay = "$10/month"
     static let maxDictationDuration: TimeInterval = 55
+
+    static func accountScopedKey(_ baseKey: String, userID: String?) -> String {
+        guard let userID, !userID.isEmpty else { return baseKey }
+        return "\(baseKey)_\(userID)"
+    }
 
     static func bundledResourceURL(named name: String, fileExtension: String) -> URL? {
         if let directURL = Bundle.main.url(forResource: name, withExtension: fileExtension) {

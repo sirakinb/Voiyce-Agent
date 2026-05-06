@@ -120,6 +120,7 @@ struct Voiyce_AgentApp: App {
         hotkeyManager.onDictationStop = { [self] in
             appState.recordingState = .processing
             appState.isDictationActive = false
+            owlOverlay.showProcessing()
             dictationCoordinator.stopDictation { result in
                 switch result {
                 case .success(let transcript):
@@ -148,8 +149,8 @@ struct Voiyce_AgentApp: App {
                 }
 
                 appState.recordingState = .idle
+                owlOverlay.hide()
             }
-            owlOverlay.hide()
         }
 
         hotkeyManager.setup()

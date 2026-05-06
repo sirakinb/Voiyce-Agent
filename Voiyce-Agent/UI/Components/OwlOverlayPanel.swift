@@ -8,6 +8,7 @@
 import AppKit
 import AVFoundation
 import CoreImage
+import SwiftUI
 
 final class OwlOverlayPanel {
     private var panel: NSPanel?
@@ -108,6 +109,58 @@ final class OwlOverlayPanel {
         self.panel = overlayPanel
     }
 
+    func showProcessing() {
+        let size = NSSize(width: 260, height: 92)
+        let view = NSHostingView(rootView: ProcessingOverlayView())
+        view.frame = NSRect(origin: .zero, size: size)
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.clear.cgColor
+
+        stopVideoRendering()
+
+        if let panel {
+            panel.contentView = view
+            panel.setContentSize(size)
+            position(panel, size: size)
+            panel.alphaValue = 1
+            panel.orderFrontRegardless()
+            return
+        }
+
+        let overlayPanel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        overlayPanel.isOpaque = false
+        overlayPanel.backgroundColor = .clear
+        overlayPanel.hasShadow = true
+        overlayPanel.level = .floating
+        overlayPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        overlayPanel.isMovableByWindowBackground = true
+        overlayPanel.contentView = view
+        position(overlayPanel, size: size)
+        overlayPanel.orderFrontRegardless()
+
+        overlayPanel.alphaValue = 0
+        overlayPanel.setFrame(
+            overlayPanel.frame.insetBy(dx: 12, dy: 12),
+            display: false
+        )
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            overlayPanel.animator().alphaValue = 1
+            overlayPanel.animator().setFrame(
+                overlayPanel.frame.insetBy(dx: -12, dy: -12),
+                display: true
+            )
+        }
+
+        self.panel = overlayPanel
+    }
+
     func hide() {
         guard let panel = panel else { return }
 
@@ -115,14 +168,7 @@ final class OwlOverlayPanel {
             context.duration = 0.2
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            self?.renderView?.stopRendering()
-            self?.player?.pause()
-            if let obs = self?.playerLooper {
-                NotificationCenter.default.removeObserver(obs)
-            }
-            self?.player = nil
-            self?.playerLooper = nil
-            self?.renderView = nil
+            self?.stopVideoRendering()
             panel.orderOut(nil)
             self?.panel = nil
         })
@@ -180,6 +226,77 @@ final class OwlOverlayPanel {
         )
         print("[OwlOverlay] BG color: R=\(rT/corners.count) G=\(gT/corners.count) B=\(bT/corners.count)")
         return color
+    }
+
+    private func position(_ panel: NSPanel, size: NSSize) {
+        guard let screen = NSScreen.main else { return }
+
+        let screenFrame = screen.visibleFrame
+        let x = screenFrame.maxX - size.width - 24
+        let y = screenFrame.minY + 24
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    private func stopVideoRendering() {
+        renderView?.stopRendering()
+        player?.pause()
+        if let obs = playerLooper {
+            NotificationCenter.default.removeObserver(obs)
+        }
+        player = nil
+        playerLooper = nil
+        renderView = nil
+    }
+}
+
+private struct ProcessingOverlayView: View {
+    @State private var isAnimating = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(AppTheme.accent.opacity(0.16))
+                    .frame(width: 48, height: 48)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .scaleEffect(isAnimating ? 1.12 : 0.92)
+                    .opacity(isAnimating ? 1 : 0.72)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Processing...")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Text("Transcribing your audio")
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+
+            ProgressView()
+                .controlSize(.small)
+                .tint(AppTheme.accent)
+        }
+        .padding(.horizontal, 16)
+        .frame(width: 260, height: 92)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(AppTheme.backgroundSecondary.opacity(0.94))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.24), lineWidth: 1)
+                )
+        )
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
+        }
     }
 }
 

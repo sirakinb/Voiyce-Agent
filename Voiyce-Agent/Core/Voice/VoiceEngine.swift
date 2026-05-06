@@ -31,7 +31,7 @@ final class VoiceEngine {
         return false
     }
 
-    /// Start recording audio to a temporary WAV file
+    /// Start recording audio to a temporary WAV file.
     func startRecording() throws {
         _ = stopRecording()
         currentTranscript = ""
@@ -44,53 +44,19 @@ final class VoiceEngine {
         guard recordingFormat.sampleRate > 0 else {
             error = "Microphone not available"
             print("[VoiceEngine] ERROR: Sample rate is 0")
-            return
+            throw VoiceEngineError.microphoneUnavailable
         }
 
-        // Create a 16kHz mono format for smaller file size
-        guard let outputFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: 16000,
-            channels: 1,
-            interleaved: false
-        ) else {
-            error = "Failed to create audio format"
-            return
-        }
-
-        // Create temp file
         let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent("voiyce_recording_\(UUID().uuidString).wav")
         recordingURL = fileURL
 
-        let audioFile = try AVAudioFile(forWriting: fileURL, settings: outputFormat.settings)
+        let audioFile = try AVAudioFile(forWriting: fileURL, settings: recordingFormat.settings)
         self.audioFile = audioFile
 
-        // Install tap with format conversion
-        guard let converter = AVAudioConverter(from: recordingFormat, to: outputFormat) else {
-            error = "Failed to create audio converter"
-            return
-        }
-
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { buffer, _ in
-            let frameCount = AVAudioFrameCount(outputFormat.sampleRate * Double(buffer.frameLength) / recordingFormat.sampleRate)
-            guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCount) else { return }
-
-            var error: NSError?
-            var didProvideInput = false
-            converter.convert(to: convertedBuffer, error: &error) { _, outStatus in
-                guard !didProvideInput else {
-                    outStatus.pointee = .noDataNow
-                    return nil
-                }
-
-                didProvideInput = true
-                outStatus.pointee = .haveData
-                return buffer
-            }
-
             do {
-                try audioFile.write(from: convertedBuffer)
+                try audioFile.write(from: buffer)
             } catch {
                 print("[VoiceEngine] Write error: \(error)")
             }
@@ -129,6 +95,20 @@ final class VoiceEngine {
         if let url = recordingURL {
             try? FileManager.default.removeItem(at: url)
             recordingURL = nil
+        }
+    }
+}
+
+enum VoiceEngineError: LocalizedError {
+    case microphoneUnavailable
+    case outputFormatUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .microphoneUnavailable:
+            return "Microphone not available."
+        case .outputFormatUnavailable:
+            return "Could not create the recording format."
         }
     }
 }

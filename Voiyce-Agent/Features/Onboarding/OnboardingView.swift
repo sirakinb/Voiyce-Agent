@@ -1,4 +1,5 @@
 import AppKit
+import InsForgeAuth
 import SwiftUI
 
 enum SetupStage: String, CaseIterable, Identifiable {
@@ -13,6 +14,7 @@ enum SetupStage: String, CaseIterable, Identifiable {
 
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
+    @Environment(AuthenticationManager.self) private var authenticationManager
     @Environment(BillingManager.self) private var billingManager
     @Environment(PermissionsManager.self) private var permissions
     @Environment(DictationCoordinator.self) private var dictationCoordinator
@@ -278,6 +280,11 @@ struct OnboardingView: View {
 
     private var dictationErrorMessage: SystemStatusMessage? {
         guard let error = dictationCoordinator.errorState else { return nil }
+        if let lastErrorAt = dictationCoordinator.lastErrorAt,
+           let lastSuccessfulTranscriptionAt = dictationCoordinator.lastSuccessfulTranscriptionAt,
+           lastSuccessfulTranscriptionAt >= lastErrorAt {
+            return nil
+        }
 
         switch error {
         case .microphonePermissionDenied where !permissions.microphoneGranted:
@@ -581,7 +588,9 @@ struct OnboardingView: View {
                 PermissionStatusCard(
                     icon: "accessibility",
                     title: "Accessibility",
-                    description: "Allows Voiyce to type the finished transcript back into your active app.",
+                    description: permissions.accessibilityGranted
+                        ? "Allows Voiyce to type the finished transcript back into your active app."
+                        : "If enabled in System Settings, restart Voiyce or toggle it off and on.",
                     isGranted: permissions.accessibilityGranted,
                     primaryTitle: "Grant Access",
                     primaryAction: { permissions.requestAccessibilityPermission() },
@@ -825,12 +834,19 @@ struct OnboardingView: View {
     }
 
     private func persistOnboardingAnswers() {
+        let userID = authenticationManager.currentUser?.id
         let defaults = UserDefaults.standard
-        defaults.set(appState.onboardingDiscoverySource, forKey: AppConstants.onboardingDiscoverySourceKey)
-        defaults.set(appState.onboardingRole, forKey: AppConstants.onboardingRoleKey)
+        defaults.set(
+            appState.onboardingDiscoverySource,
+            forKey: AppConstants.accountScopedKey(AppConstants.onboardingDiscoverySourceKey, userID: userID)
+        )
+        defaults.set(
+            appState.onboardingRole,
+            forKey: AppConstants.accountScopedKey(AppConstants.onboardingRoleKey, userID: userID)
+        )
         defaults.set(
             appState.onboardingPrivacyPreference.rawValue,
-            forKey: AppConstants.onboardingPrivacyPreferenceKey
+            forKey: AppConstants.accountScopedKey(AppConstants.onboardingPrivacyPreferenceKey, userID: userID)
         )
     }
 
@@ -894,7 +910,13 @@ struct OnboardingView: View {
 
     private func finishOnboarding() {
         persistOnboardingAnswers()
-        UserDefaults.standard.set(true, forKey: AppConstants.onboardingCompleteKey)
+        UserDefaults.standard.set(
+            true,
+            forKey: AppConstants.accountScopedKey(
+                AppConstants.onboardingCompleteKey,
+                userID: authenticationManager.currentUser?.id
+            )
+        )
         appState.selectedTab = .dashboard
         appState.isOnboardingComplete = true
     }

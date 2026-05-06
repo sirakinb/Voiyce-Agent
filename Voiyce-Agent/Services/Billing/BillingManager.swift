@@ -67,6 +67,9 @@ struct BillingStatusSnapshot: Decodable, Sendable {
     let betaMonthlySpendUsedUSD: Decimal
     let betaMonthlySpendRemainingUSD: Decimal
     let betaMonthlyCapReached: Bool
+    let pentridgeSubscriptionActive: Bool
+    let pentridgeTier: String?
+    let pentridgeWordLimit: Int
 
     enum CodingKeys: String, CodingKey {
         case freeWordsLimit = "free_words_limit"
@@ -86,6 +89,9 @@ struct BillingStatusSnapshot: Decodable, Sendable {
         case betaMonthlySpendUsedUSD = "beta_monthly_spend_used_usd"
         case betaMonthlySpendRemainingUSD = "beta_monthly_spend_remaining_usd"
         case betaMonthlyCapReached = "beta_monthly_cap_reached"
+        case pentridgeSubscriptionActive = "pentridge_subscription_active"
+        case pentridgeTier = "pentridge_tier"
+        case pentridgeWordLimit = "pentridge_word_limit"
     }
 
     init(from decoder: Decoder) throws {
@@ -107,6 +113,9 @@ struct BillingStatusSnapshot: Decodable, Sendable {
         betaMonthlySpendUsedUSD = try container.decodeIfPresent(Decimal.self, forKey: .betaMonthlySpendUsedUSD) ?? 0
         betaMonthlySpendRemainingUSD = try container.decodeIfPresent(Decimal.self, forKey: .betaMonthlySpendRemainingUSD) ?? 20
         betaMonthlyCapReached = try container.decodeIfPresent(Bool.self, forKey: .betaMonthlyCapReached) ?? false
+        pentridgeSubscriptionActive = try container.decodeIfPresent(Bool.self, forKey: .pentridgeSubscriptionActive) ?? false
+        pentridgeTier = try container.decodeIfPresent(String.self, forKey: .pentridgeTier)
+        pentridgeWordLimit = try container.decodeIfPresent(Int.self, forKey: .pentridgeWordLimit) ?? 0
     }
 }
 
@@ -117,6 +126,16 @@ private struct BillingURLResponse: Decodable {
 private struct SyncBillingResponse: Decodable {
     let synced: Bool
     let hasSubscription: Bool
+}
+
+private struct PentridgeSubscriptionResponse: Decodable {
+    let hasSubscription: Bool
+    let tier: String?
+
+    enum CodingKeys: String, CodingKey {
+        case hasSubscription = "has_subscription"
+        case tier
+    }
 }
 
 @MainActor
@@ -151,12 +170,36 @@ final class BillingManager {
         status?.betaMonthlyCapReached ?? false
     }
 
+    var hasPentridgeSubscription: Bool {
+        status?.pentridgeSubscriptionActive ?? false
+    }
+
+    var pentridgeTier: String? {
+        status?.pentridgeTier
+    }
+
+    var pentridgeTierDisplay: String {
+        switch pentridgeTier {
+        case "pro":
+            return "Pro"
+        case "standard":
+            return "Standard"
+        default:
+            return "Unknown"
+        }
+    }
+
+    var pentridgeWordLimitDisplay: String {
+        guard let tier = pentridgeTier else { return "" }
+        return tier == "pro" ? "Unlimited" : "10,000 words/month"
+    }
+
     var betaMonthlySpendRemainingDisplay: String {
-        currencyDisplay(status?.betaMonthlySpendRemainingUSD ?? 0)
+        betaCurrencyDisplay(status?.betaMonthlySpendRemainingUSD ?? 0)
     }
 
     var betaMonthlySpendUsedDisplay: String {
-        currencyDisplay(status?.betaMonthlySpendUsedUSD ?? 0)
+        betaCurrencyDisplay(status?.betaMonthlySpendUsedUSD ?? 0)
     }
 
     var betaMonthlySpendLimitDisplay: String {
@@ -184,6 +227,10 @@ final class BillingManager {
     }
 
     var requiresSubscription: Bool {
+        if hasPentridgeSubscription {
+            return false
+        }
+
         if status?.needsSubscription == true {
             return true
         }
@@ -204,6 +251,10 @@ final class BillingManager {
     }
 
     var planTitle: String {
+        if hasPentridgeSubscription {
+            return "Pentridge Labs \(pentridgeTierDisplay)"
+        }
+
         if hasActiveSubscription {
             if let activeSubscriptionPlan {
                 return "Voiyce \(activeSubscriptionPlan.title)"
@@ -224,6 +275,10 @@ final class BillingManager {
     }
 
     var planSubtitle: String {
+        if hasPentridgeSubscription {
+            return "Voiyce is included in your Pentridge Labs subscription. \(pentridgeWordLimitDisplay) dictation."
+        }
+
         if hasActiveSubscription {
             if let activeSubscriptionPlan, cancelAtPeriodEnd, let renewalDateLabel {
                 return "\(activeSubscriptionPlan.title) is active through \(renewalDateLabel). Subscription ends at period close."
@@ -346,6 +401,15 @@ final class BillingManager {
         return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "$\(value)"
     }
 
+    private func betaCurrencyDisplay(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 4
+        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "$\(value)"
+    }
+
     func reset() {
         status = nil
         errorMessage = nil
@@ -381,6 +445,14 @@ final class BillingManager {
             }
         } catch {
             errorMessage = friendlyMessage(for: error)
+        }
+    }
+
+    func checkPentridgeSubscription() async {
+        do {
+            let _: PentridgeSubscriptionResponse = try await client.functions.invoke("check-pentridge-subscription")
+        } catch {
+            print("[BillingManager] Pentridge subscription check failed: \(error.localizedDescription)")
         }
     }
 

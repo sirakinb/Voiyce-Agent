@@ -17,6 +17,8 @@ final class DictationCoordinator {
     var isStarting = false
     var isTranscribing = false
     var errorState: DictationErrorState?
+    var lastSuccessfulTranscriptionAt: Date?
+    var lastErrorAt: Date?
 
     var isRecording: Bool { voiceEngine.isRecording }
     var isActive: Bool { isStarting || voiceEngine.isRecording || isTranscribing }
@@ -57,6 +59,7 @@ final class DictationCoordinator {
                 isStarting = false
                 let error = DictationErrorState.microphonePermissionDenied
                 errorState = error
+                lastErrorAt = Date()
                 print("[DictationCoordinator] Microphone permission not granted")
                 completion?(.failure(error))
                 return
@@ -82,6 +85,7 @@ final class DictationCoordinator {
                 pendingStopRequest = nil
                 let mappedError = mapError(error)
                 errorState = mappedError
+                lastErrorAt = Date()
                 print("[DictationCoordinator] Failed to start: \(error)")
                 completion?(.failure(mappedError))
             }
@@ -111,6 +115,7 @@ final class DictationCoordinator {
         guard let audioURL = voiceEngine.stopRecording() else {
             let error = DictationErrorState.noAudioCaptured
             errorState = error
+            lastErrorAt = Date()
             print("[DictationCoordinator] No audio file to transcribe")
             completion?(.failure(error))
             return
@@ -139,6 +144,7 @@ final class DictationCoordinator {
                     let error = DictationErrorState.emptyTranscript
                     await MainActor.run {
                         errorState = error
+                        lastErrorAt = Date()
                         print("[DictationCoordinator] Empty transcript")
                         completion?(.failure(error))
                     }
@@ -149,6 +155,7 @@ final class DictationCoordinator {
                     totalInjectedText = transcript
                     latestTranscript = transcript
                     errorState = nil
+                    lastSuccessfulTranscriptionAt = Date()
                     print("[DictationCoordinator] Transcribed: \(transcript)")
                     if injectText {
                         textInjector.injectText(
@@ -166,6 +173,7 @@ final class DictationCoordinator {
                 let mappedError = mapError(error)
                 await MainActor.run {
                     errorState = mappedError
+                    lastErrorAt = Date()
                     print("[DictationCoordinator] Transcription error: \(error)")
                     completion?(.failure(mappedError))
                 }

@@ -16,7 +16,7 @@ DMG_STAGING_DIR="$BUILD_DIR/dmg-root"
 RESULT_BUNDLE_PATH="$BUILD_DIR/$SCHEME.xcresult"
 DMG_NAME="Voiyce"
 DMG_PATH="$BUILD_DIR/$DMG_NAME.dmg"
-VOLUME_NAME="Voiyce"
+VOLUME_NAME="Voiyce Installer"
 
 NOTARIZE=1
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"
@@ -174,6 +174,7 @@ rm -rf "$DMG_STAGING_DIR"
 mkdir -p "$DMG_STAGING_DIR"
 ditto "$APP_PATH" "$DMG_STAGING_DIR/$APP_NAME.app"
 ln -s /Applications "$DMG_STAGING_DIR/Applications"
+xattr -cr "$DMG_STAGING_DIR" 2>/dev/null || true
 
 log "Creating DMG"
 rm -f "$DMG_PATH"

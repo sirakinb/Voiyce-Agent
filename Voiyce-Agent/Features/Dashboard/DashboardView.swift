@@ -160,6 +160,11 @@ struct DashboardView: View {
 
     private var dictationErrorMessage: SystemStatusMessage? {
         guard let error = dictationCoordinator.errorState else { return nil }
+        if let lastErrorAt = dictationCoordinator.lastErrorAt,
+           let lastSuccessfulTranscriptionAt = dictationCoordinator.lastSuccessfulTranscriptionAt,
+           lastSuccessfulTranscriptionAt >= lastErrorAt {
+            return nil
+        }
 
         switch error {
         case .microphonePermissionDenied where !permissions.microphoneGranted:
@@ -304,7 +309,13 @@ struct DashboardView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(GroovedBackground())
-        .onAppear(perform: refreshWeeklyData)
+        .onAppear {
+            refreshWeeklyData()
+            permissions.checkAllPermissions()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            permissions.checkAllPermissions()
+        }
         .onChange(of: appState.wordsToday) { _, _ in
             refreshWeeklyData()
         }
@@ -342,7 +353,25 @@ struct DashboardView: View {
                 .buttonStyle(.plain)
             }
 
-            if billingManager.hasBetaAccess {
+            if billingManager.hasPentridgeSubscription {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Pentridge Labs \(billingManager.pentridgeTierDisplay)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+
+                        Spacer()
+
+                        Text(billingManager.pentridgeWordLimitDisplay)
+                            .font(AppTheme.captionFont)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+
+                    Text("Voiyce is included in your Pentridge Labs subscription. No individual billing required.")
+                        .font(AppTheme.captionFont)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            } else if billingManager.hasBetaAccess {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Text("\(billingManager.betaMonthlySpendRemainingDisplay) total beta budget left")
@@ -623,7 +652,9 @@ struct DashboardView: View {
                 PermissionRow(
                     icon: "accessibility",
                     title: "Accessibility",
-                    description: "Required for global hotkeys and inserting dictated text.",
+                    description: permissions.accessibilityGranted
+                        ? "Required for global hotkeys and inserting dictated text."
+                        : "If enabled in System Settings, restart Voiyce or toggle it off and on.",
                     isGranted: permissions.accessibilityGranted,
                     action: { permissions.requestAccessibilityPermission() }
                 )
