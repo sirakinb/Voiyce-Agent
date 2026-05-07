@@ -329,6 +329,13 @@ export default function LandingPage() {
             <p className="text-xl md:text-2xl text-[#888888] font-light leading-relaxed">
               Every account starts with a free Voiyce Pro trial. You get up to 2,500 words over 7 days, no credit card required. If it fits your workflow, choose the plan that keeps you flowing.
             </p>
+
+            <p className="mt-4 text-base text-purple-300/70 font-light">
+              Already subscribed to Pentridge? Voiyce is included in your subscription.{" "}
+              <a href="#pentridge-labs" className="text-purple-300 underline underline-offset-4 decoration-purple-400/30 hover:decoration-purple-400/60 transition-colors">
+                See details below
+              </a>
+            </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
@@ -403,13 +410,14 @@ export default function LandingPage() {
 
           {/* Pentridge Labs Upsell */}
           <motion.div
+            id="pentridge-labs"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mt-10 rounded-[2rem] border border-purple-500/20 bg-gradient-to-r from-[#0F0A18] via-[#110D17] to-[#0F0A18] p-8 md:p-10 relative overflow-hidden"
+            className="scroll-mt-36 mt-10 rounded-[2rem] border border-purple-500/20 bg-gradient-to-r from-[#0F0A18] via-[#110D17] to-[#0F0A18] p-8 md:p-10 relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_left,rgba(168,85,247,0.08)_0%,transparent_60%)]" />
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="relative z-10 flex flex-col md:flex-row items-start justify-between gap-8">
               <div className="flex-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/20 text-purple-200 text-xs font-semibold mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
@@ -418,9 +426,14 @@ export default function LandingPage() {
                 <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-3">
                   Get the full suite for $20/mo
                 </h3>
-                <p className="text-[#999] text-lg font-light leading-relaxed max-w-xl">
-                  Access AlignoPM, AlignoCRM, Voiyce &amp; DropCard with one subscription.
+                <p className="text-[#999] text-lg font-light leading-relaxed max-w-xl mb-5">
+                  One subscription. Four tools. Access AlignoPM, AlignoCRM, Voiyce &amp; DropCard — no separate billing for each app.
                 </p>
+                <div className="flex flex-wrap gap-3">
+                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">Voiyce included</span>
+                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">Up to unlimited words</span>
+                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">All apps, one price</span>
+                </div>
               </div>
               <a
                 href="https://pentridgemedia.com/labs"
@@ -436,7 +449,7 @@ export default function LandingPage() {
 
           <div className="text-center mt-10 max-w-3xl mx-auto">
             <p className="text-sm text-[#666666] leading-relaxed">
-              Trial ends when 7 days pass or 2,500 words are used, whichever comes first. After that, choose Monthly or Yearly inside the app to keep dictating with unlimited words.
+              Trial ends when 7 days pass or 2,500 words are used, whichever comes first. After that, choose Monthly, Yearly, or subscribe through Pentridge Labs to keep dictating.
             </p>
           </div>
         </motion.div>

@@ -70,7 +70,7 @@ developer_id_identity() {
     search_args+=("$KEYCHAIN_PATH")
   fi
 
-  security find-identity -v -p codesigning "${search_args[@]}" \
+  security find-identity -v -p codesigning ${search_args[@]+"${search_args[@]}"} \
     | sed -n "s/.*\"\\(Developer ID Application: .*(${TEAM_ID})\\)\"/\\1/p" \
     | head -n 1
 }
