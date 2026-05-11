@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var isBillingPlanPickerPresented = false
     @State private var betaAccessCode = ""
     @State private var isRedeemingBetaCode = false
+    @State private var googleWorkspace = GoogleWorkspaceManager.shared
     #if DEBUG
     @State private var onboardingResetStatus: String?
     #endif
@@ -32,9 +33,10 @@ struct SettingsView: View {
             // Tab picker
             Picker("", selection: $selectedSettingsTab) {
                 Text("General").tag(0)
-                Text("Hotkeys").tag(1)
-                Text("Permissions").tag(2)
-                Text("About").tag(3)
+                Text("Integrations").tag(1)
+                Text("Hotkeys").tag(2)
+                Text("Permissions").tag(3)
+                Text("About").tag(4)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 24)
@@ -45,9 +47,10 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: AppTheme.spacing) {
                     switch selectedSettingsTab {
                     case 0: generalTab
-                    case 1: hotkeysTab
-                    case 2: permissionsTab
-                    case 3: aboutTab
+                    case 1: integrationsTab
+                    case 2: hotkeysTab
+                    case 3: permissionsTab
+                    case 4: aboutTab
                     default: EmptyView()
                     }
                 }
@@ -61,7 +64,7 @@ struct SettingsView: View {
             permissions.checkAllPermissions()
         }
         .onChange(of: selectedSettingsTab) { _, tab in
-            if tab == 2 {
+            if tab == 3 {
                 permissions.checkAllPermissions()
             }
         }
@@ -216,6 +219,57 @@ struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .buttonStyle(.plain)
                 }
+            }
+        }
+    }
+
+    // MARK: - Integrations Tab
+
+    private var integrationsTab: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacing) {
+            settingsSection(title: "Google") {
+                googleConnectionCard(
+                    icon: "envelope.fill",
+                    title: "Gmail",
+                    subtitle: "Read Gmail, create drafts, and send confirmed messages."
+                )
+
+                googleConnectionCard(
+                    icon: "calendar",
+                    title: "Google Calendar",
+                    subtitle: "Check availability and read upcoming calendar events."
+                )
+
+                if googleWorkspace.isConnected {
+                    settingsRow(
+                        icon: "g.circle.fill",
+                        title: "Google Account",
+                        subtitle: googleWorkspace.connectedEmail ?? "Connected"
+                    ) {
+                        Button("Disconnect") {
+                            googleWorkspace.disconnect()
+                        }
+                        .font(AppTheme.captionFont)
+                        .foregroundStyle(AppTheme.destructive)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.destructive.opacity(0.14))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if let infoMessage = googleWorkspace.infoMessage {
+                Text(infoMessage)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            if let errorMessage = googleWorkspace.errorMessage {
+                Text(errorMessage)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.destructive)
             }
         }
     }
@@ -441,6 +495,52 @@ struct SettingsView: View {
 
             isRedeemingBetaCode = false
         }
+    }
+
+    private func googleConnectionCard(icon: String, title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15))
+                .foregroundStyle(googleWorkspace.isConnected ? AppTheme.success : AppTheme.accent)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(AppTheme.bodyFont)
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Text(googleWorkspace.isConnected ? googleWorkspace.connectedEmail ?? "Connected" : subtitle)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            Spacer()
+
+            if googleWorkspace.isConnected {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                    Text("Connected")
+                        .font(AppTheme.captionFont)
+                }
+                .foregroundStyle(AppTheme.success)
+            } else {
+                Button(googleWorkspace.isConnecting ? "Opening..." : "Connect") {
+                    Task {
+                        await googleWorkspace.connect()
+                    }
+                }
+                .font(AppTheme.captionFont)
+                .foregroundStyle(AppTheme.accent)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(AppTheme.accent.opacity(0.14))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .buttonStyle(.plain)
+                .disabled(googleWorkspace.isConnecting)
+            }
+        }
+        .padding(AppTheme.cardPadding)
     }
 
     // MARK: - Reusable Components

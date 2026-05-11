@@ -429,10 +429,10 @@ export default function LandingPage() {
                 <p className="text-[#999] text-lg font-light leading-relaxed max-w-xl mb-5">
                   One subscription. Four tools. Access AlignoPM, AlignoCRM, Voiyce &amp; DropCard — no separate billing for each app.
                 </p>
-                <div className="flex flex-wrap gap-3">
-                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">Voiyce included</span>
-                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">Up to unlimited words</span>
-                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">All apps, one price</span>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#999]">
+                  <span className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400" />Voiyce included</span>
+                  <span className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400" />Unlimited words</span>
+                  <span className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400" />All apps, one price</span>
                 </div>
               </div>
               <a

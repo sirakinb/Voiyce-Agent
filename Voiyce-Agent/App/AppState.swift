@@ -9,6 +9,7 @@ import SwiftUI
 
 enum SidebarTab: String, CaseIterable, Identifiable {
     case dashboard
+    case agent
     case settings
 
     nonisolated var id: String { rawValue }
@@ -16,6 +17,7 @@ enum SidebarTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .dashboard: "Dashboard"
+        case .agent: "Agent"
         case .settings: "Settings"
         }
     }
@@ -23,6 +25,7 @@ enum SidebarTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dashboard: "house"
+        case .agent: "waveform.and.mic"
         case .settings: "gearshape"
         }
     }
@@ -98,6 +101,8 @@ final class AppState {
     var dictationSessionsToday: Int = 0
     var isOnboardingComplete: Bool = false
     var dictationHotkey: String = "Control"
+    var agentHotkey: String = "Option"
+    var agentActivationNonce: Int = 0
     var accessState: AccessState = .signedOut
     var onboardingDiscoverySource: String = ""
     var onboardingRole: String = ""

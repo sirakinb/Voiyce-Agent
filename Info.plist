@@ -15,8 +15,16 @@
 	</array>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>GoogleOAuthClientID</key>
+	<string>$(GOOGLE_OAUTH_CLIENT_ID)</string>
+	<key>GoogleOAuthClientSecret</key>
+	<string>$(GOOGLE_OAUTH_CLIENT_SECRET)</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voiyce Agent needs microphone access for voice dictation and agent commands.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Voiyce Agent needs calendar access so the voice agent can check availability and read your schedule when you ask.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Voiyce Agent needs calendar access so the voice agent can check availability and read your schedule when you ask.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Voiyce Agent uses speech recognition to transcribe your voice.</string>
 </dict>

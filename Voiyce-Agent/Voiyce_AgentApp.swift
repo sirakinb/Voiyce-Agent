@@ -153,6 +153,16 @@ struct Voiyce_AgentApp: App {
             }
         }
 
+        hotkeyManager.onAgentStart = { [self] in
+            appState.selectedTab = .agent
+            appState.agentActivationNonce += 1
+            activateMainWindow()
+        }
+
+        hotkeyManager.onAgentStop = {
+            NotificationCenter.default.post(name: .voiyceAgentStopRequested, object: nil)
+        }
+
         hotkeyManager.setup()
         hotkeysConfigured = true
     }
@@ -210,4 +220,8 @@ struct Voiyce_AgentApp: App {
         return environment["__XCODE_BUILT_PRODUCTS_DIR_PATHS"] != nil
             || environment["OS_ACTIVITY_DT_MODE"] == "YES"
     }
+}
+
+extension Notification.Name {
+    static let voiyceAgentStopRequested = Notification.Name("voiyceAgentStopRequested")
 }

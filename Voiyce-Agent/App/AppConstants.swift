@@ -18,6 +18,21 @@ enum AppConstants {
     static let insForgeRedirectURL = URL(string: "\(insForgeRedirectScheme)://auth/callback")!
     static let billingCallbackHost = "billing"
     static let billingCallbackURL = URL(string: "\(insForgeRedirectScheme)://\(billingCallbackHost)/refresh")!
+    static let googleOAuthClientIDKey = "google_oauth_client_id"
+    static let googleOAuthClientSecretKey = "google_oauth_client_secret"
+    static let googleOAuthTokenKey = "google_oauth_token"
+    static let googleOAuthClientIDInfoKey = "GoogleOAuthClientID"
+    static let googleOAuthClientSecretInfoKey = "GoogleOAuthClientSecret"
+    static let googleOAuthScopes = [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/calendar.freebusy",
+        "https://www.googleapis.com/auth/calendar.events.readonly"
+    ]
     static let freeWordLimit = 2500
     static let trialLengthDays = 7
     static let averageTypingWordsPerMinute = 45
@@ -26,9 +41,36 @@ enum AppConstants {
     static let proYearlyEffectiveMonthlyPriceDisplay = "$10/month"
     static let maxDictationDuration: TimeInterval = 55
 
+    static var googleOAuthClientID: String {
+        firstUsableConfigValue(
+            ProcessInfo.processInfo.environment["GOOGLE_OAUTH_CLIENT_ID"],
+            Bundle.main.object(forInfoDictionaryKey: googleOAuthClientIDInfoKey) as? String,
+            UserDefaults.standard.string(forKey: googleOAuthClientIDKey)
+        )
+    }
+
+    static var googleOAuthClientSecret: String {
+        firstUsableConfigValue(
+            ProcessInfo.processInfo.environment["GOOGLE_OAUTH_CLIENT_SECRET"],
+            Bundle.main.object(forInfoDictionaryKey: googleOAuthClientSecretInfoKey) as? String,
+            UserDefaults.standard.string(forKey: googleOAuthClientSecretKey)
+        )
+    }
+
     static func accountScopedKey(_ baseKey: String, userID: String?) -> String {
         guard let userID, !userID.isEmpty else { return baseKey }
         return "\(baseKey)_\(userID)"
+    }
+
+    private static func firstUsableConfigValue(_ values: String?...) -> String {
+        for value in values {
+            let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !trimmed.isEmpty, !trimmed.hasPrefix("$(") {
+                return trimmed
+            }
+        }
+
+        return ""
     }
 
     static func bundledResourceURL(named name: String, fileExtension: String) -> URL? {
