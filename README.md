@@ -1,86 +1,121 @@
-# Voiyce Mac App
+# Voiyce
 
-Voiyce is a native macOS voice workflow for people who want to write without slowing down to type. The premise is simple: speak naturally, and Voiyce turns that speech into clean, formatted text that can be inserted into whatever app you are already using.
+**Speak. It types.**
 
-The product is built around the idea that dictation should feel ambient, fast, and reliable. Instead of asking users to switch into a separate writing tool, Voiyce lives on the Mac, listens when invoked, transcribes short voice sessions, cleans up the result, and places the final text back into the active workflow. The goal is to make voice input feel like a system-level productivity layer rather than another destination app.
+Voiyce is an open-source macOS app that turns your voice into clean, formatted text — instantly injected into whatever app you're already using. No switching windows. No copying and pasting. Just hold a key, talk, and keep moving.
 
-## What This Repository Contains
+Built for people who think faster than they type.
 
-This repository contains the full Voiyce product surface:
+---
 
-- `Voiyce-Agent/` - the native macOS Swift app, including onboarding, authentication, billing state, dictation, transcript persistence, menu bar UI, and text injection.
-- `landing-page/` - the Next.js marketing, auth, download, pricing, privacy, and terms site.
-- `backend/` - a FastAPI backend intended for local or hosted agent workflows.
-- `insforge/` - InsForge edge functions and SQL for authentication, billing, checkout, portal sessions, Stripe webhook handling, and transcription support.
-- `docs/` - release, billing, Cloudflare R2, and user-flow documentation.
-- `scripts/` - release and publishing helpers for the macOS app.
+## The Problem
 
-## Product Premise
+You're mid-flow — drafting an email, writing code comments, filling out a form — and your fingers can't keep up with your brain. You know exactly what you want to say, but typing slows you down. Existing dictation tools feel clunky, live in separate windows, or produce messy output you have to clean up.
 
-Typing is still the bottleneck in many knowledge-work flows. People often know what they want to say before they can get it into an email, document, prompt, note, or chat. Voiyce aims to close that gap by making speech-to-text feel polished enough for real work:
+Voiyce was built to fix that.
 
-- Capture voice quickly from the Mac.
-- Transcribe and format the spoken thought.
-- Remove friction like filler words and manual punctuation.
-- Insert the result into the current app.
-- Track usage and subscription state without disrupting the workflow.
+## How It Works
 
-The landing page positions this as "write at the speed of thought": a Mac-first dictation product for turning natural speech into ready-to-use text.
+1. **Hold Control** anywhere on your Mac
+2. **Speak naturally** — no special commands, no "period" or "new line"
+3. **Release** — your words appear as clean text in whatever app you're using
 
-## Core Components
+That's it. Voiyce lives in your menu bar, listens when you ask it to, transcribes your speech, cleans up filler words and punctuation, and injects the result directly into the active text field. It feels like a system-level superpower, not another app.
 
-### macOS App
+## What's Inside
 
-The Swift app is the primary product experience. It handles the local user interface, permission onboarding, microphone capture, hotkeys, transcript storage, usage limits, billing awareness, and system text insertion.
+This is the full source code for Voiyce — the same app available as a [signed download](https://pub-4e78e629768e4c8fa39fdab493de9a41.r2.dev/Voiyce.dmg). You can build it yourself or grab the ready-to-go version.
+
+### Core (open source)
+- **Hold-to-dictate** — system-wide hotkey that works in any app
+- **Smart transcription** — cleans up filler words, adds punctuation, formats naturally
+- **Text injection** — output goes straight into the active text field
+- **Menu bar presence** — always accessible, never in the way
+- **Onboarding & permissions** — guides you through macOS microphone and accessibility setup
+- **Usage tracking** — see your words per day, sessions, and streaks
+- **Subscription billing** — Stripe-powered plans with free trial
+
+### Pro (included in paid download)
+- **Realtime AI Agent** — a voice-controlled desktop agent powered by OpenAI's Realtime API via WebRTC. Hold Option, speak naturally, and it takes action: opens apps, clicks buttons, types text, runs scripts. This isn't a chatbot — it's an agent that operates your Mac.
+- **Google Workspace** — connect Gmail and Google Calendar. The agent can check your schedule, read emails, draft responses, and send messages — all by voice.
+
+## Why Open Source?
+
+We believe the best tools are the ones people can trust, inspect, and learn from. Open-sourcing Voiyce means:
+
+- **Transparency** — you can see exactly what the app does with your microphone and your data
+- **Community** — if you have ideas for making voice input better, you can contribute
+- **Learning** — this is a real, shipping macOS app built with Swift, SwiftUI, WebRTC, and native system APIs. If you're building something similar, take what you need.
+
+If you just want a polished app that works out of the box — with the AI agent, Google integrations, code signing, automatic updates, and no setup required — [download Voiyce](https://pub-4e78e629768e4c8fa39fdab493de9a41.r2.dev/Voiyce.dmg) and subscribe to a plan.
+
+## Build It Yourself
+
+### Requirements
+- macOS 15.0+
+- Xcode 16+
+- An Apple Developer account (for code signing, or run unsigned locally)
+
+### Steps
+
+```bash
+git clone https://github.com/sirakinb/Voiyce-Agent.git
+cd Voiyce-Agent
+open Voiyce-Agent.xcodeproj
+```
+
+Hit **Run** in Xcode. The app will ask for microphone and accessibility permissions on first launch.
+
+> **Note:** When you build from source, Pro features (Realtime Agent, Google Workspace) are included by default. The `VOIYCE_PRO` compilation flag controls this — remove it from the target's Swift compilation conditions in Xcode Build Settings if you want the open-source-only build.
 
 ### Landing Page
 
-The Next.js site is the public funnel for the product. It introduces Voiyce, routes users through authentication, presents pricing, and provides the Mac download flow.
-
-For Vercel, import this repository and set the project root directory to:
-
-```text
-landing-page
-```
-
-### Backend And Services
-
-The backend and InsForge functions support account, billing, checkout, webhook, portal, and transcription-related flows. Secrets should be configured in the relevant hosting provider and never committed to the repository.
-
-## Local Development
-
-Run the landing page:
+The marketing site lives in `landing-page/` and is a Next.js app:
 
 ```bash
 cd landing-page
 npm install
-npm run dev -- -p 9201
+npm run dev
 ```
 
-Open:
+## Project Structure
 
-```text
-http://localhost:9201
+```
+Voiyce-Agent/              # macOS Swift app
+  App/                     # App entry point, state, constants
+  Core/                    # Hotkeys, text injection, system integration
+  Features/                # Dashboard, settings, onboarding, realtime agent
+  Services/                # Google Workspace, realtime agent server
+  UI/                      # Sidebar, menu bar, visual components
+
+landing-page/              # Next.js marketing & download site
+backend/                   # FastAPI backend for agent workflows
+insforge/                  # Edge functions (auth, billing, Stripe webhooks)
+scripts/                   # Release & publish automation
+docs/                      # Internal documentation
 ```
 
-Run the macOS app from Xcode by opening:
+## The Tech
 
-```text
-Voiyce-Agent.xcodeproj
-```
+- **Swift + SwiftUI** — native macOS, no Electron
+- **Apple Speech Recognition** — on-device transcription
+- **CGEvent + Accessibility APIs** — system-wide text injection
+- **WebRTC + OpenAI Realtime API** — low-latency voice agent (Pro)
+- **InsForge** — authentication and backend services
+- **Stripe** — subscription billing
+- **Cloudflare R2** — DMG hosting and distribution
+- **Next.js on Vercel** — landing page
 
-## Deployment Notes
+## Contributing
 
-The easiest web deployment path is:
+Pull requests are welcome. If you're fixing a bug or improving the core dictation experience, go for it. For larger changes, open an issue first so we can discuss the approach.
 
-1. Push this repository to GitHub.
-2. Import it into Vercel.
-3. Set the Vercel root directory to `landing-page`.
-4. Configure any required public environment variables for the landing page.
-5. Deploy.
+## License
 
-The macOS app release flow is documented in `docs/` and supported by the release scripts in `scripts/`.
+MIT — use it, learn from it, build on it.
 
-## Security Notes
+## About
 
-Do not commit `.env`, `.env.*`, Vercel local state, Cloudflare local cache, `node_modules`, build artifacts, or generated Xcode derived data. Runtime secrets for InsForge, Stripe, Anthropic, Cloudflare, and other integrations should live in the provider dashboards or local environment files.
+Voiyce is built by [Pentridge Media](https://pentridgemedia.com). We make tools that help people work faster with AI.
+
+Questions? Ideas? [Open an issue](https://github.com/sirakinb/Voiyce-Agent/issues) or reach out at hello@pentridgemedia.com.

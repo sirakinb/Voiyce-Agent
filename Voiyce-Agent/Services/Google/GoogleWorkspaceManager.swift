@@ -1,3 +1,4 @@
+#if VOIYCE_PRO
 import AppKit
 import CryptoKit
 import Foundation
@@ -716,3 +717,4 @@ private extension Sequence {
         return values
     }
 }
+#endif

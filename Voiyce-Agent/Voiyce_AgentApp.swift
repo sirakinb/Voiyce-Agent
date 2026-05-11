@@ -153,6 +153,7 @@ struct Voiyce_AgentApp: App {
             }
         }
 
+        #if VOIYCE_PRO
         hotkeyManager.onAgentStart = { [self] in
             appState.selectedTab = .agent
             appState.agentActivationNonce += 1
@@ -162,6 +163,7 @@ struct Voiyce_AgentApp: App {
         hotkeyManager.onAgentStop = {
             NotificationCenter.default.post(name: .voiyceAgentStopRequested, object: nil)
         }
+        #endif
 
         hotkeyManager.setup()
         hotkeysConfigured = true

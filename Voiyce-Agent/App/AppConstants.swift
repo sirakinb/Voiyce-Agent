@@ -18,6 +18,7 @@ enum AppConstants {
     static let insForgeRedirectURL = URL(string: "\(insForgeRedirectScheme)://auth/callback")!
     static let billingCallbackHost = "billing"
     static let billingCallbackURL = URL(string: "\(insForgeRedirectScheme)://\(billingCallbackHost)/refresh")!
+    #if VOIYCE_PRO
     static let googleOAuthClientIDKey = "google_oauth_client_id"
     static let googleOAuthClientSecretKey = "google_oauth_client_secret"
     static let googleOAuthTokenKey = "google_oauth_token"
@@ -33,6 +34,7 @@ enum AppConstants {
         "https://www.googleapis.com/auth/calendar.freebusy",
         "https://www.googleapis.com/auth/calendar.events.readonly"
     ]
+    #endif
     static let freeWordLimit = 2500
     static let trialLengthDays = 7
     static let averageTypingWordsPerMinute = 45
@@ -41,6 +43,7 @@ enum AppConstants {
     static let proYearlyEffectiveMonthlyPriceDisplay = "$10/month"
     static let maxDictationDuration: TimeInterval = 55
 
+    #if VOIYCE_PRO
     static var googleOAuthClientID: String {
         firstUsableConfigValue(
             ProcessInfo.processInfo.environment["GOOGLE_OAUTH_CLIENT_ID"],
@@ -56,6 +59,7 @@ enum AppConstants {
             UserDefaults.standard.string(forKey: googleOAuthClientSecretKey)
         )
     }
+    #endif
 
     static func accountScopedKey(_ baseKey: String, userID: String?) -> String {
         guard let userID, !userID.isEmpty else { return baseKey }

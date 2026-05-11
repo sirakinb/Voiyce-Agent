@@ -1,3 +1,4 @@
+#if VOIYCE_PRO
 import SwiftUI
 import WebKit
 
@@ -152,3 +153,4 @@ struct RealtimeAgentWebView: NSViewRepresentable {
         }
     }
 }
+#endif

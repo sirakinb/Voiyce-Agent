@@ -3,12 +3,16 @@ import Cocoa
 @Observable
 final class HotkeyManager {
     var isDictationHotkeyPressed = false
+    #if VOIYCE_PRO
     var isAgentHotkeyPressed = false
+    #endif
 
     var onDictationStart: (() -> Void)?
     var onDictationStop: (() -> Void)?
+    #if VOIYCE_PRO
     var onAgentStart: (() -> Void)?
     var onAgentStop: (() -> Void)?
+    #endif
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -21,7 +25,9 @@ final class HotkeyManager {
 
     func teardown() {
         isDictationHotkeyPressed = false
+        #if VOIYCE_PRO
         isAgentHotkeyPressed = false
+        #endif
         if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
         }
@@ -54,7 +60,6 @@ final class HotkeyManager {
 
     private func handleModifierKeys(_ event: NSEvent) {
         let controlPressed = event.modifierFlags.contains(.control)
-        let optionPressed = event.modifierFlags.contains(.option)
         Task { @MainActor in
             if controlPressed && !self.isDictationHotkeyPressed {
                 self.isDictationHotkeyPressed = true
@@ -66,6 +71,8 @@ final class HotkeyManager {
                 self.onDictationStop?()
             }
 
+            #if VOIYCE_PRO
+            let optionPressed = event.modifierFlags.contains(.option)
             if optionPressed && !self.isAgentHotkeyPressed {
                 self.isAgentHotkeyPressed = true
                 print("[HotkeyManager] Option pressed - starting agent")
@@ -75,6 +82,7 @@ final class HotkeyManager {
                 print("[HotkeyManager] Option released - stopping agent")
                 self.onAgentStop?()
             }
+            #endif
         }
     }
 }

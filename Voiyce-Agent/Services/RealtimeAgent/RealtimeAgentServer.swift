@@ -1,3 +1,4 @@
+#if VOIYCE_PRO
 import Foundation
 import Network
 import InsForge
@@ -1102,3 +1103,4 @@ nonisolated(unsafe) private let realtimeHTML = """
 </body>
 </html>
 """
+#endif

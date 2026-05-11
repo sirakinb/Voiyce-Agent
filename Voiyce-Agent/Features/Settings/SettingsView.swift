@@ -15,7 +15,9 @@ struct SettingsView: View {
     @State private var isBillingPlanPickerPresented = false
     @State private var betaAccessCode = ""
     @State private var isRedeemingBetaCode = false
+    #if VOIYCE_PRO
     @State private var googleWorkspace = GoogleWorkspaceManager.shared
+    #endif
     #if DEBUG
     @State private var onboardingResetStatus: String?
     #endif
@@ -33,7 +35,9 @@ struct SettingsView: View {
             // Tab picker
             Picker("", selection: $selectedSettingsTab) {
                 Text("General").tag(0)
+                #if VOIYCE_PRO
                 Text("Integrations").tag(1)
+                #endif
                 Text("Hotkeys").tag(2)
                 Text("Permissions").tag(3)
                 Text("About").tag(4)
@@ -47,7 +51,9 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: AppTheme.spacing) {
                     switch selectedSettingsTab {
                     case 0: generalTab
+                    #if VOIYCE_PRO
                     case 1: integrationsTab
+                    #endif
                     case 2: hotkeysTab
                     case 3: permissionsTab
                     case 4: aboutTab
@@ -223,6 +229,7 @@ struct SettingsView: View {
         }
     }
 
+    #if VOIYCE_PRO
     // MARK: - Integrations Tab
 
     private var integrationsTab: some View {
@@ -273,6 +280,7 @@ struct SettingsView: View {
             }
         }
     }
+    #endif
 
     // MARK: - Hotkeys Tab
 
@@ -497,6 +505,7 @@ struct SettingsView: View {
         }
     }
 
+    #if VOIYCE_PRO
     private func googleConnectionCard(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -542,6 +551,7 @@ struct SettingsView: View {
         }
         .padding(AppTheme.cardPadding)
     }
+    #endif
 
     // MARK: - Reusable Components
 

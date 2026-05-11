@@ -104,8 +104,10 @@ struct ContentView: View {
         switch appState.selectedTab {
         case .dashboard:
             DashboardView()
+        #if VOIYCE_PRO
         case .agent:
             RealtimeAgentView()
+        #endif
         case .settings:
             SettingsView()
         }
