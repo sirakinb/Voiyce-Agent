@@ -118,4 +118,4 @@ MIT — use it, learn from it, build on it.
 
 Voiyce is built by [Pentridge Media](https://pentridgemedia.com). We make tools that help people work faster with AI.
 
-Questions? Ideas? [Open an issue](https://github.com/sirakinb/Voiyce-Agent/issues) or reach out at hello@pentridgemedia.com.
+Questions? Ideas? [Open an issue](https://github.com/sirakinb/Voiyce-Agent/issues) or reach out at aki.b@pentridgemedia.com.
