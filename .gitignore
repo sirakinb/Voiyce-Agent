@@ -1,6 +1,7 @@
 # Xcode
 build/
 DerivedData/
+default.profraw
 *.xcuserstate
 *.xccheckout
 *.moved-aside
@@ -37,6 +38,7 @@ __pycache__/
 *.pyc
 
 # InsForge & AI agent skills
+.npm-cache/
 .insforge
 .wrangler/
 .agent

@@ -6,6 +6,7 @@ struct RealtimeAgentView: View {
     @Environment(AppState.self) private var appState
     @State private var server = RealtimeAgentServer()
     @State private var agentBridge = RealtimeAgentBridge()
+    @State private var videoDBMemory = VideoDBAgentMemory.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -14,7 +15,7 @@ struct RealtimeAgentView: View {
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text("A desktop-hosted WebRTC voice agent using OpenAI Realtime. Speak naturally; native tools handle apps, websites, text, clicks, keys, confirmations, and Gmail once Google OAuth is connected.")
+                Text("A desktop-hosted WebRTC voice agent using OpenAI Realtime, snapshot vision, and VideoDB session memory. Speak naturally; native tools handle apps, websites, text, clicks, keys, confirmations, Gmail, Calendar, and screen-aware context.")
                     .font(AppTheme.bodyFont)
                     .foregroundStyle(AppTheme.textSecondary)
             }
@@ -22,6 +23,9 @@ struct RealtimeAgentView: View {
             .padding(.top, 24)
 
             shortcutPanel
+                .padding(.horizontal, 24)
+
+            videoDBMemoryPanel
                 .padding(.horizontal, 24)
 
             if let url = server.url {
@@ -71,6 +75,38 @@ struct RealtimeAgentView: View {
         .background(AppTheme.accent.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
+
+    private var videoDBMemoryPanel: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(videoDBMemory.status == .running ? AppTheme.accent : AppTheme.textSecondary.opacity(0.6))
+                .frame(width: 10, height: 10)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("VideoDB Session Memory")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text(videoDBMemory.lastError ?? videoDBMemory.lastEvent)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            Text(videoDBMemory.status.rawValue.capitalized)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AppTheme.accent)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.black.opacity(0.18))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(AppTheme.ridge, lineWidth: 1)
+        )
+    }
 }
 
 @MainActor
@@ -93,12 +129,18 @@ final class RealtimeAgentBridge {
         }
 
         pendingConnect = false
-        webView.evaluateJavaScript("window.voiyceAgentConnect && window.voiyceAgentConnect();")
+        Task {
+            await VideoDBAgentMemory.shared.start()
+            _ = try? await webView.evaluateJavaScript("window.voiyceAgentConnect && window.voiyceAgentConnect();")
+        }
     }
 
     func stop() {
         pendingConnect = false
         webView?.evaluateJavaScript("window.voiyceAgentStop && window.voiyceAgentStop();")
+        Task {
+            await VideoDBAgentMemory.shared.stop()
+        }
     }
 }
 

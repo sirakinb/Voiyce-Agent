@@ -157,6 +157,8 @@ final class RealtimeAgentServer {
 private final class RealtimeAgentActionBridge {
     private let textInjector = TextInjector()
     private let googleWorkspace = GoogleWorkspaceManager.shared
+    private let screenContextProvider = ScreenContextProvider()
+    private let videoDBMemory = VideoDBAgentMemory.shared
     private var pendingActions: [String: PendingAgentAction] = [:]
 
     func handle(_ body: Data) async throws -> AgentToolResult {
@@ -189,6 +191,16 @@ private final class RealtimeAgentActionBridge {
             return clickScreen(arguments)
         case "press_key":
             return pressKey(arguments)
+        case "inspect_screen":
+            return await screenContextProvider.inspectScreen(prompt: cleaned(arguments["prompt"]))
+        case "request_screen_access":
+            return requestScreenAccess()
+        case "videodb_memory_status":
+            return videoDBMemory.currentToolResult()
+        case "search_session_memory":
+            return await videoDBMemory.search(cleaned(arguments["query"]))
+        case "summarize_session_memory":
+            return await videoDBMemory.summarize()
         default:
             return AgentToolResult(
                 ok: false,
@@ -456,6 +468,17 @@ private final class RealtimeAgentActionBridge {
         keyUp?.post(tap: .cgSessionEventTap)
 
         return AgentToolResult(ok: true, message: "Pressed \(key).", data: ["key": key, "modifiers": cleaned(arguments["modifiers"])])
+    }
+
+    private func requestScreenAccess() -> AgentToolResult {
+        let openedPrompt = screenContextProvider.requestScreenCaptureAccess()
+        return AgentToolResult(
+            ok: openedPrompt,
+            message: openedPrompt
+                ? "Requested Screen Recording permission. If macOS opens System Settings, enable Voiyce and restart the app."
+                : "Screen Recording permission is already granted or macOS did not show a prompt.",
+            data: ["permission": "screen_recording"]
+        )
     }
 
     private func candidateAppNames(for appName: String) -> [String] {
@@ -1028,12 +1051,66 @@ nonisolated(unsafe) private let realtimeHTML = """
                 },
                 required: ["key"]
               }
+            },
+            {
+              type: "function",
+              name: "inspect_screen",
+              description: "Inspect the user's current main display and return visible UI, visible text, and actionable context. Use this before acting on what the user is seeing.",
+              parameters: {
+                type: "object",
+                properties: {
+                  prompt: { type: "string", description: "Optional focus question, such as summarize the visible email or identify the button to click." }
+                },
+                required: []
+              }
+            },
+            {
+              type: "function",
+              name: "request_screen_access",
+              description: "Ask macOS for Screen Recording permission so Voiyce can inspect the current screen.",
+              parameters: {
+                type: "object",
+                properties: {},
+                required: []
+              }
+            },
+            {
+              type: "function",
+              name: "videodb_memory_status",
+              description: "Check whether VideoDB active-session screen/audio memory is recording and indexed.",
+              parameters: {
+                type: "object",
+                properties: {},
+                required: []
+              }
+            },
+            {
+              type: "function",
+              name: "search_session_memory",
+              description: "Search the active VideoDB screen memory for something the user saw or mentioned earlier in this agent session.",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: { type: "string", description: "Natural language search query over recent screen context, such as the visible date, an error message, or the email content from earlier." }
+                },
+                required: ["query"]
+              }
+            },
+            {
+              type: "function",
+              name: "summarize_session_memory",
+              description: "Summarize recent VideoDB screen and microphone memory for this active agent session.",
+              parameters: {
+                type: "object",
+                properties: {},
+                required: []
+              }
             }
           ],
           tool_choice: "auto"
         }
       });
-      log("Registered Gmail, Calendar, app, browser, text, click, key, and confirmation tools.");
+      log("Registered Gmail, Calendar, app, browser, text, click, key, screen, VideoDB memory, and confirmation tools.");
     }
     function handleEvent(event) {
       if (event.type === "error") return log(`Error: ${event.error?.message || "Unknown realtime error"}`);

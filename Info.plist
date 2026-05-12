@@ -21,6 +21,8 @@
 	<string>$(GOOGLE_OAUTH_CLIENT_SECRET)</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voiyce Agent needs microphone access for voice dictation and agent commands.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Voiyce Agent needs screen recording access so the realtime agent can inspect visible app context when you ask it to act on what you are seeing.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Voiyce Agent needs calendar access so the voice agent can check availability and read your schedule when you ask.</string>
 	<key>NSCalendarsUsageDescription</key>

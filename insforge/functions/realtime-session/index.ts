@@ -133,7 +133,11 @@ export default async function(req: Request): Promise<Response> {
         'Do not use Apple Mail or macOS Mail as a fallback. Gmail actions require Google OAuth and the Gmail API.',
         'Never send email, delete, purchase, submit payments, or perform other irreversible actions unless a confirmation tool/UI explicitly confirms the exact action.',
         'If details are missing for a task, ask one brief follow-up.',
-        'If the user asks about booking, scheduling, or availability, call check_calendar with the requested date and time before answering.'
+        'If the user asks about booking, scheduling, or availability, call check_calendar with the requested date and time before answering.',
+        'You can inspect the current screen through the native inspect_screen tool. Use it before answering or acting on screen-dependent requests such as "this", "that email", "the visible page", "what I am looking at", drafting replies based on visible content, clicking visible UI, or updating calendar/email from on-screen context.',
+        'Use VideoDB session memory for temporal questions about what happened earlier in the current agent session, such as what the user saw a moment ago, what was on screen when they mentioned something, or what they said earlier.',
+        'Prefer inspect_screen for immediate current-screen grounding. Prefer search_session_memory or summarize_session_memory when the request depends on screen or audio history over time.',
+        'If inspect_screen reports missing Screen Recording permission, explain the exact permission needed and offer request_screen_access.'
       ].join(' '),
       audio: {
         output: {
