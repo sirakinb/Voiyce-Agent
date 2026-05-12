@@ -163,6 +163,8 @@ final class VideoDBAgentMemory {
     private func launchCaptureProcess(sessionID: String, clientToken: String) throws {
         guard captureProcess == nil else { return }
 
+        removeStaleCaptureLocks()
+
         let process = Process()
         process.executableURL = capturePythonURL
         process.arguments = ["-u", "-c", Self.captureScript]
@@ -171,6 +173,8 @@ final class VideoDBAgentMemory {
         environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
         environment["VIDEODB_CAPTURE_SESSION_ID"] = sessionID
         environment["VIDEODB_CLIENT_TOKEN"] = clientToken
+        environment["NO_PROXY"] = "*"
+        environment["no_proxy"] = "*"
         process.environment = environment
 
         let stdout = Pipe()
@@ -191,10 +195,19 @@ final class VideoDBAgentMemory {
                 if self.status == .running {
                     self.status = terminatedProcess.terminationStatus == 0 ? .idle : .failed
                     if terminatedProcess.terminationStatus != 0 {
-                        self.lastError = "VideoDB capture helper exited with status \(terminatedProcess.terminationStatus)."
+                        if self.lastError == nil {
+                            self.lastError = "VideoDB capture helper exited with status \(terminatedProcess.terminationStatus)."
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private func removeStaleCaptureLocks() {
+        guard captureProcess == nil else { return }
+        for path in ["/tmp/capture.lock", "/private/tmp/capture.lock"] {
+            try? FileManager.default.removeItem(atPath: path)
         }
     }
 
@@ -298,6 +311,10 @@ final class VideoDBAgentMemory {
         guard let data = trimmed.data(using: .utf8),
               let event = try? JSONDecoder().decode(VideoDBCaptureEvent.self, from: data) else {
             return
+        }
+
+        if event.event == "error", let message = event.payload?.message {
+            lastError = message
         }
 
         if let payload = event.payload {
@@ -416,7 +433,20 @@ def jsonable(value):
             return {key: jsonable(item) for key, item in value.__dict__.items() if not key.startswith("_")}
         return str(value)
 
+def error_message(exc):
+    value = str(exc)
+    if "Insufficient credit" in value:
+        return "VideoDB account has insufficient credit. Add VideoDB credits, then reconnect the agent."
+    if "Payment Required" in value:
+        return "VideoDB rejected capture with Payment Required. Add VideoDB credits, then reconnect the agent."
+    if "Permission denied" in value or "PERMISSION_DENIED" in value:
+        return "VideoDB capture needs Microphone and Screen Recording permission."
+    return value
+
 async def main():
+    os.environ["NO_PROXY"] = "*"
+    os.environ["no_proxy"] = "*"
+
     try:
         from videodb.capture import CaptureClient
     except Exception as exc:
@@ -429,48 +459,65 @@ async def main():
         client = CaptureClient(session_token=client_token)
 
     try:
-        for permission in ("microphone", "screen_capture", "screen"):
+        for permission in ("microphone", "screen_capture"):
             try:
-                await client.request_permission(permission)
-            except Exception:
-                pass
+                await asyncio.wait_for(client.request_permission(permission), timeout=8)
+            except Exception as exc:
+                emit("permission_warning", {"permission": permission, "message": str(exc)})
 
-        channels = await client.list_channels()
+        channels = await asyncio.wait_for(client.list_channels(), timeout=12)
         mic = getattr(getattr(channels, "mics", None), "default", None)
         displays = getattr(channels, "displays", None)
-        display = getattr(displays, "primary", None) or getattr(displays, "default", None)
+        display = getattr(displays, "primary", None) or getattr(displays, "default", None) if displays is not None else None
         if display is None:
             try:
-                display = displays[1]
+                display = displays[0]
             except Exception:
                 try:
-                    display = displays[0]
+                    display = displays[1]
                 except Exception:
                     display = None
         system_audio = getattr(getattr(channels, "system_audio", None), "default", None)
         selected = [channel for channel in (mic, display, system_audio) if channel]
 
-        if not selected:
-            emit("error", {"message": "No VideoDB capture channels were available."})
+        if display is None:
+            emit("error", {"message": "VideoDB could not see an available display. Grant Screen Recording permission, then reconnect the agent."})
             return 2
 
-        primary_id = getattr(display, "name", None) or getattr(display, "id", None) if display else None
+        for channel in selected:
+            try:
+                channel.store = True
+            except Exception:
+                pass
+        try:
+            display.is_primary = True
+        except Exception:
+            pass
+
+        primary_id = getattr(display, "id", None) or getattr(display, "name", None) if display else None
         emit("capture_starting", {"session_id": session_id, "primary_video_channel_id": primary_id})
-        await client.start_session(
-            capture_session_id=session_id,
-            channels=selected,
-            primary_video_channel_id=primary_id
+        await asyncio.wait_for(
+            client.start_session(
+                capture_session_id=session_id,
+                channels=selected,
+                primary_video_channel_id=primary_id
+            ),
+            timeout=20
         )
         emit("capture_started", {"session_id": session_id})
 
         async for ev in client.events():
-            event_name = getattr(ev, "event", "event")
-            payload = getattr(ev, "payload", {})
+            if isinstance(ev, dict):
+                event_name = ev.get("event") or ev.get("type") or "event"
+                payload = ev.get("payload") or ev.get("result") or ev
+            else:
+                event_name = getattr(ev, "event", "event")
+                payload = getattr(ev, "payload", {})
             emit(event_name, payload)
             if event_name in ("recording-complete", "error"):
                 break
     except Exception as exc:
-        emit("error", {"message": str(exc)})
+        emit("error", {"message": error_message(exc), "detail": str(exc)})
         return 1
     finally:
         try:
@@ -552,6 +599,7 @@ private struct VideoDBCaptureEvent: Decodable {
         let channelName: String?
         let name: String?
         let type: String?
+        let message: String?
 
         enum CodingKeys: String, CodingKey {
             case id
@@ -561,6 +609,7 @@ private struct VideoDBCaptureEvent: Decodable {
             case channelName = "channel_name"
             case name
             case type
+            case message
         }
     }
 }
