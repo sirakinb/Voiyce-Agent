@@ -386,11 +386,30 @@ final class VideoDBAgentMemory {
         request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
         request.httpBody = body
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        var (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw VideoDBMemoryError.invalidBackendResponse
         }
 
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            let refreshed = try await client.auth.refreshAccessToken()
+            guard let accessToken = refreshed.accessToken else {
+                throw VideoDBMemoryError.authenticationRequired
+            }
+
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            (data, response) = try await URLSession.shared.data(for: request)
+            guard let refreshedResponse = response as? HTTPURLResponse else {
+                throw VideoDBMemoryError.invalidBackendResponse
+            }
+
+            return try decodeBackendResponse(data: data, response: refreshedResponse)
+        }
+
+        return try decodeBackendResponse(data: data, response: httpResponse)
+    }
+
+    private func decodeBackendResponse(data: Data, response httpResponse: HTTPURLResponse) throws -> VideoDBBackendResponse {
         if (200..<300).contains(httpResponse.statusCode) {
             return try JSONDecoder().decode(VideoDBBackendResponse.self, from: data)
         }

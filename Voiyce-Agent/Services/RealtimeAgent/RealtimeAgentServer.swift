@@ -132,11 +132,30 @@ final class RealtimeAgentServer {
         request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
         request.httpBody = body
 
-        let (data, urlResponse) = try await URLSession.shared.data(for: request)
+        var (data, urlResponse) = try await URLSession.shared.data(for: request)
         guard let httpResponse = urlResponse as? HTTPURLResponse else {
             throw RealtimeAgentServerError.invalidFunctionResponse
         }
 
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            let refreshed = try await client.auth.refreshAccessToken()
+            guard let accessToken = refreshed.accessToken else {
+                throw RealtimeAgentServerError.authenticationRequired
+            }
+
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            (data, urlResponse) = try await URLSession.shared.data(for: request)
+            guard let refreshedResponse = urlResponse as? HTTPURLResponse else {
+                throw RealtimeAgentServerError.invalidFunctionResponse
+            }
+
+            return try decodeRealtimeAnswer(data: data, response: refreshedResponse)
+        }
+
+        return try decodeRealtimeAnswer(data: data, response: httpResponse)
+    }
+
+    private func decodeRealtimeAnswer(data: Data, response httpResponse: HTTPURLResponse) throws -> String {
         if (200..<300).contains(httpResponse.statusCode) {
             return try JSONDecoder().decode(RealtimeSessionResponse.self, from: data).sdp
         }

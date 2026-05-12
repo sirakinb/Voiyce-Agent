@@ -56,30 +56,31 @@ final class ScreenContextProvider {
             request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
             request.httpBody = body
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            var (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 return AgentToolResult(ok: false, message: "Screen context service returned an invalid response.", data: nil)
             }
 
-            if (200..<300).contains(httpResponse.statusCode),
-               let screenContext = try? JSONDecoder().decode(ScreenContextResponse.self, from: data) {
-                return AgentToolResult(
-                    ok: true,
-                    message: screenContext.summary,
-                    data: [
-                        "summary": screenContext.summary,
-                        "visible_text": screenContext.visibleText,
-                        "actionable_context": screenContext.actionableContext
-                    ]
-                )
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                let refreshed = try await client.auth.refreshAccessToken()
+                guard let accessToken = refreshed.accessToken else {
+                    return AgentToolResult(
+                        ok: false,
+                        message: "Authentication is required before I can inspect the screen.",
+                        data: ["requires": "auth"]
+                    )
+                }
+
+                request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+                (data, response) = try await URLSession.shared.data(for: request)
+                guard let refreshedResponse = response as? HTTPURLResponse else {
+                    return AgentToolResult(ok: false, message: "Screen context service returned an invalid response.", data: nil)
+                }
+
+                return decodeScreenContextResult(data: data, response: refreshedResponse)
             }
 
-            let errorPayload = try? JSONDecoder().decode(ScreenContextErrorResponse.self, from: data)
-            return AgentToolResult(
-                ok: false,
-                message: errorPayload?.error ?? "Screen context request failed with HTTP \(httpResponse.statusCode).",
-                data: ["status": String(httpResponse.statusCode)]
-            )
+            return decodeScreenContextResult(data: data, response: httpResponse)
         } catch {
             return AgentToolResult(
                 ok: false,
@@ -87,6 +88,28 @@ final class ScreenContextProvider {
                 data: nil
             )
         }
+    }
+
+    private func decodeScreenContextResult(data: Data, response httpResponse: HTTPURLResponse) -> AgentToolResult {
+        if (200..<300).contains(httpResponse.statusCode),
+           let screenContext = try? JSONDecoder().decode(ScreenContextResponse.self, from: data) {
+            return AgentToolResult(
+                ok: true,
+                message: screenContext.summary,
+                data: [
+                    "summary": screenContext.summary,
+                    "visible_text": screenContext.visibleText,
+                    "actionable_context": screenContext.actionableContext
+                ]
+            )
+        }
+
+        let errorPayload = try? JSONDecoder().decode(ScreenContextErrorResponse.self, from: data)
+        return AgentToolResult(
+            ok: false,
+            message: errorPayload?.error ?? "Screen context request failed with HTTP \(httpResponse.statusCode).",
+            data: ["status": String(httpResponse.statusCode)]
+        )
     }
 
     func requestScreenCaptureAccess() -> Bool {
