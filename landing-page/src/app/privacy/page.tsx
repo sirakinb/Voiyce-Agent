@@ -8,27 +8,27 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalDocShell title="Privacy Policy" lastUpdated="March 28, 2026">
+    <LegalDocShell title="Privacy Policy" lastUpdated="May 14, 2026">
       <p>
-        Pentridge Media (“we,” “us,” or “our”) operates Voiyce, a macOS voice
-        dictation application and related services (collectively, the
-        “Service”). This Privacy Policy describes how we collect, use, disclose,
-        and protect information when you use the Service. By using the Service,
-        you agree to this Privacy Policy.
+        Voiyce (“we,” “us,” or “our”) operates the Voiyce macOS voice dictation
+        application and related services (collectively, the “Service”). This
+        Privacy Policy describes how we collect, use, disclose, and protect
+        information when you use the Service. By using the Service, you agree to
+        this Privacy Policy.
       </p>
 
       <h2>Contact</h2>
       <p>
-        Pentridge Media
+        Voiyce
         <br />
         Philadelphia, Pennsylvania, United States
         <br />
         Email:{" "}
         <a
-          href="mailto:aki.b@pentridgemedia.com"
+          href="mailto:support@voiyce.com"
           className="text-purple-400 underline-offset-2 hover:underline"
         >
-          aki.b@pentridgemedia.com
+          support@voiyce.com
         </a>
       </p>
 

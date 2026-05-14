@@ -8,27 +8,27 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalDocShell title="Terms of Service" lastUpdated="March 28, 2026">
+    <LegalDocShell title="Terms of Service" lastUpdated="May 14, 2026">
       <p>
         These Terms of Service (“Terms”) govern your access to and use of
-        Voiyce, a macOS application and related services operated by Pentridge
-        Media (“we,” “us,” or “our”). By downloading, installing, or using Voiyce
-        (“Service”), you agree to these Terms. If you do not agree, do not use
-        the Service.
+        Voiyce, a macOS application and related services operated as an
+        independent Voiyce platform (“we,” “us,” or “our”). By downloading,
+        installing, or using Voiyce (“Service”), you agree to these Terms. If
+        you do not agree, do not use the Service.
       </p>
 
       <h2>Contact</h2>
       <p>
-        Pentridge Media
+        Voiyce
         <br />
         Philadelphia, Pennsylvania, United States
         <br />
         Email:{" "}
         <a
-          href="mailto:aki.b@pentridgemedia.com"
+          href="mailto:support@voiyce.com"
           className="text-purple-400 underline-offset-2 hover:underline"
         >
-          aki.b@pentridgemedia.com
+          support@voiyce.com
         </a>
       </p>
 
@@ -183,7 +183,7 @@ export default function TermsPage() {
       <h2>Dispute resolution; arbitration</h2>
       <p>
         <strong>Informal resolution.</strong> Before filing a claim, you agree
-        to contact us at aki.b@pentridgemedia.com and attempt to resolve the
+        to contact us at support@voiyce.com and attempt to resolve the
         dispute informally for at least thirty (30) days.
       </p>
       <p>

@@ -83,6 +83,7 @@ function VoiceWaveform() {
       {Array.from({ length: bars }).map((_, i) => {
         const delay = i * 0.05;
         const baseHeight = 8 + Math.sin(i * 0.8) * 12;
+        const duration = 1.2 + (i % 5) * 0.08;
         return (
           <motion.div
             key={i}
@@ -91,7 +92,7 @@ function VoiceWaveform() {
               height: [baseHeight, baseHeight * 2.5, baseHeight * 0.6, baseHeight * 1.8, baseHeight],
             }}
             transition={{
-              duration: 1.2 + Math.random() * 0.4,
+              duration,
               repeat: Infinity,
               ease: "easeInOut",
               delay,

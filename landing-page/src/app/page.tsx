@@ -174,7 +174,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">Speak naturally. We handle the rest.</h2>
             <p className="text-xl text-[#888888] font-light max-w-2xl mx-auto">
-              Voiyce doesn't just transcribe—it understands context, removes filler words, and adds perfect punctuation instantly.
+              Voiyce doesn&apos;t just transcribe—it understands context, removes filler words, and adds perfect punctuation instantly.
             </p>
           </div>
 
@@ -250,11 +250,11 @@ export default function LandingPage() {
               <div className="relative z-10 flex-1">
                 <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">Your personal AI agent.</h3>
                 <p className="text-[#888888] text-xl leading-relaxed max-w-2xl font-light mb-8">
-                  Voiyce learns your specific vocabulary, acronyms, and teammates' names. It adapts to your style over time, so you never have to correct the same mistake twice.
+                  Voiyce learns your specific vocabulary, acronyms, and teammates&apos; names. It adapts to your style over time, so you never have to correct the same mistake twice.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-300">Custom Vocabulary</span>
-                  <span className="text-sm text-[#666666] flex items-center">"Kubernetes" not "coober netties"</span>
+                  <span className="text-sm text-[#666666] flex items-center">&quot;Kubernetes&quot; not &quot;coober netties&quot;</span>
                 </div>
               </div>
               
@@ -295,7 +295,7 @@ export default function LandingPage() {
               </div>
             </div>
             <p className="text-3xl md:text-5xl text-white font-medium mb-12 tracking-tight leading-tight">
-              "I stopped typing last month. It's like having a chief of staff sitting on my menu bar."
+              &quot;I stopped typing last month. It&apos;s like having a chief of staff sitting on my menu bar.&quot;
             </p>
             <div className="flex items-center justify-center gap-4">
               <div className="text-left">
@@ -330,12 +330,6 @@ export default function LandingPage() {
               Every account starts with a free Voiyce Pro trial. You get up to 2,500 words over 7 days, no credit card required. If it fits your workflow, choose the plan that keeps you flowing.
             </p>
 
-            <p className="mt-4 text-base text-purple-300/70 font-light">
-              Already subscribed to Pentridge? Voiyce is included in your subscription.{" "}
-              <a href="#pentridge-labs" className="text-purple-300 underline underline-offset-4 decoration-purple-400/30 hover:decoration-purple-400/60 transition-colors">
-                See details below
-              </a>
-            </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
@@ -408,48 +402,9 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Pentridge Labs Upsell */}
-          <motion.div
-            id="pentridge-labs"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="scroll-mt-36 mt-10 rounded-[2rem] border border-purple-500/20 bg-gradient-to-r from-[#0F0A18] via-[#110D17] to-[#0F0A18] p-8 md:p-10 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_left,rgba(168,85,247,0.08)_0%,transparent_60%)]" />
-            <div className="relative z-10 flex flex-col md:flex-row items-start justify-between gap-8">
-              <div className="flex-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/20 text-purple-200 text-xs font-semibold mb-4">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                  Pentridge Labs
-                </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-3">
-                  Get the full suite for $20/mo
-                </h3>
-                <p className="text-[#999] text-lg font-light leading-relaxed max-w-xl mb-5">
-                  One subscription. Four tools. Access AlignoPM, AlignoCRM, Voiyce &amp; DropCard — no separate billing for each app.
-                </p>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#999]">
-                  <span className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400" />Voiyce included</span>
-                  <span className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400" />Unlimited words</span>
-                  <span className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400" />All apps, one price</span>
-                </div>
-              </div>
-              <a
-                href="https://pentridgemedia.com/labs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-4 text-lg font-semibold text-white shadow-[0_0_30px_-8px_rgba(168,85,247,0.4)] transition-all hover:shadow-[0_0_40px_-8px_rgba(168,85,247,0.6)] hover:scale-[1.02]"
-              >
-                Learn More
-                <Icon icon="mdi:arrow-right" className="w-5 h-5" />
-              </a>
-            </div>
-          </motion.div>
-
           <div className="text-center mt-10 max-w-3xl mx-auto">
             <p className="text-sm text-[#666666] leading-relaxed">
-              Trial ends when 7 days pass or 2,500 words are used, whichever comes first. After that, choose Monthly, Yearly, or subscribe through Pentridge Labs to keep dictating.
+              Trial ends when 7 days pass or 2,500 words are used, whichever comes first. After that, choose Monthly or Yearly to keep dictating.
             </p>
           </div>
         </motion.div>
