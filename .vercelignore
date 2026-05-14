@@ -2,7 +2,7 @@ build/
 DerivedData/
 *.dmg
 *.xcarchive
-*.mp4
 .npm-cache/
 backend/
 Voiyce-Agent.xcodeproj/
+Voiyce-Agent/Resources/*.mp4
