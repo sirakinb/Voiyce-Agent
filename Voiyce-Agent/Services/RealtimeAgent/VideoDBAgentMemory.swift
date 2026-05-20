@@ -12,6 +12,9 @@ final class VideoDBAgentMemory {
     private var captureProcess: Process?
     private var stdoutTask: Task<Void, Never>?
     private var stderrTask: Task<Void, Never>?
+    private var privacyMonitorTask: Task<Void, Never>?
+    private var activeEventStore: AgentEventStore?
+    private var localCaptureStoppedBeforeBackendStop = false
     private var indexedStreamIDs = Set<String>()
     private var appSupportURL: URL {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -30,7 +33,7 @@ final class VideoDBAgentMemory {
     private(set) var displayStreamID: String?
     private(set) var micStreamID: String?
     private(set) var sceneIndexID: String?
-    private(set) var lastEvent: String = "VideoDB memory is idle."
+    private(set) var lastEvent: String = "Session context is idle."
     private(set) var lastError: String?
 
     var isRunning: Bool {
@@ -39,13 +42,44 @@ final class VideoDBAgentMemory {
         return false
     }
 
-    func start() async {
-        guard !isRunning else { return }
+    @discardableResult
+    func start() async -> AgentToolResult {
+        await start(privacyStore: .shared, contextSnapshot: .current(), eventStore: .shared)
+    }
+
+    @discardableResult
+    func start(
+        privacyStore: AgentLongTermMemoryStore,
+        contextSnapshot: AgentSessionContextSnapshot
+    ) async -> AgentToolResult {
+        await start(privacyStore: privacyStore, contextSnapshot: contextSnapshot, eventStore: .shared)
+    }
+
+    @discardableResult
+    func start(
+        privacyStore: AgentLongTermMemoryStore,
+        contextSnapshot: AgentSessionContextSnapshot,
+        eventStore: AgentEventStore
+    ) async -> AgentToolResult {
+        if let pausedResult = await pauseIfSessionContextBlocked(
+            privacyStore: privacyStore,
+            contextSnapshot: contextSnapshot,
+            eventStore: eventStore
+        ) {
+            return pausedResult
+        }
+
+        guard !isRunning else { return currentToolResult() }
 
         status = .starting
         lastError = nil
-        lastEvent = "Starting VideoDB screen and audio memory..."
+        lastEvent = "Starting session context capture..."
+        sessionID = nil
+        displayStreamID = nil
+        micStreamID = nil
+        sceneIndexID = nil
         indexedStreamIDs.removeAll()
+        localCaptureStoppedBeforeBackendStop = false
 
         do {
             let response = try await requestBackend(
@@ -59,20 +93,38 @@ final class VideoDBAgentMemory {
             try await ensureCaptureRuntime()
             try launchCaptureProcess(sessionID: sessionID, clientToken: token)
             status = .running
-            lastEvent = "VideoDB memory is recording this agent session."
+            lastEvent = "Session context is recording this Agent session."
+            activeEventStore = eventStore
+            logSessionContextStarted(sessionID: sessionID, eventStore: eventStore)
+            startPrivacyMonitor(privacyStore: privacyStore, eventStore: eventStore)
         } catch {
             status = .failed
-            lastError = error.localizedDescription
-            lastEvent = "VideoDB memory could not start."
+            lastError = Self.userFacingSessionContextMessage(error.localizedDescription)
+            lastEvent = "Session context could not start."
+            logSessionContextFailed(message: lastError ?? lastEvent, eventStore: eventStore)
+            return AgentToolResult(
+                ok: false,
+                message: lastError ?? lastEvent,
+                data: currentStateData(nextStep: Self.sessionContextNextStep)
+            )
         }
+
+        return currentToolResult()
     }
 
     func stop() async {
+        await stop(eventStore: activeEventStore ?? .shared)
+    }
+
+    func stop(eventStore: AgentEventStore) async {
         guard isRunning || captureProcess != nil || sessionID != nil else { return }
 
+        let stoppedSessionID = sessionID
         status = .stopping
-        lastEvent = "Stopping VideoDB memory..."
+        lastEvent = "Stopping session context..."
 
+        privacyMonitorTask?.cancel()
+        privacyMonitorTask = nil
         captureProcess?.terminate()
         captureProcess = nil
         stdoutTask?.cancel()
@@ -87,18 +139,100 @@ final class VideoDBAgentMemory {
         }
 
         status = .idle
-        lastEvent = "VideoDB memory stopped."
+        lastEvent = "Session context stopped."
+        sessionID = nil
+        displayStreamID = nil
+        micStreamID = nil
+        sceneIndexID = nil
+        activeEventStore = nil
+        if !localCaptureStoppedBeforeBackendStop {
+            logSessionContextStopped(sessionID: stoppedSessionID, eventStore: eventStore)
+        }
+        localCaptureStoppedBeforeBackendStop = false
+    }
+
+    func stopLocalCaptureForUserStop(eventStore: AgentEventStore? = nil) {
+        guard isRunning || captureProcess != nil || privacyMonitorTask != nil else { return }
+
+        stopLocalCaptureRuntime(
+            startingEvent: "Stopping session context because the Agent session stopped...",
+            stoppedEvent: "Session context capture stopped. Preparing the session summary...",
+            clearsSessionIDs: false
+        )
+        localCaptureStoppedBeforeBackendStop = true
+        logSessionContextStopped(sessionID: sessionID, eventStore: eventStore ?? activeEventStore ?? .shared)
+    }
+
+    func stopLocalCaptureForTermination(eventStore: AgentEventStore? = nil) {
+        stopLocalCapture(
+            startingEvent: "Stopping session context because Voiyce is quitting...",
+            stoppedEvent: "Session context stopped because Voiyce quit.",
+            eventStore: eventStore ?? .shared
+        )
+    }
+
+    func stopLocalCaptureForSystemSleep(eventStore: AgentEventStore? = nil) {
+        stopLocalCapture(
+            startingEvent: "Stopping session context because the Mac is going to sleep...",
+            stoppedEvent: "Session context stopped because the Mac went to sleep.",
+            eventStore: eventStore ?? .shared
+        )
+    }
+
+    private func stopLocalCapture(
+        startingEvent: String,
+        stoppedEvent: String,
+        eventStore: AgentEventStore
+    ) {
+        guard isRunning || captureProcess != nil || sessionID != nil || privacyMonitorTask != nil else { return }
+
+        let stoppedSessionID = sessionID
+        stopLocalCaptureRuntime(startingEvent: startingEvent, stoppedEvent: stoppedEvent, clearsSessionIDs: true)
+        logSessionContextStopped(sessionID: stoppedSessionID, eventStore: eventStore)
+    }
+
+    private func stopLocalCaptureRuntime(
+        startingEvent: String,
+        stoppedEvent: String,
+        clearsSessionIDs: Bool
+    ) {
+        status = .stopping
+        lastEvent = startingEvent
+
+        privacyMonitorTask?.cancel()
+        privacyMonitorTask = nil
+        captureProcess?.terminate()
+        captureProcess = nil
+        stdoutTask?.cancel()
+        stderrTask?.cancel()
+        stdoutTask = nil
+        stderrTask = nil
+
+        status = clearsSessionIDs ? .idle : .stopping
+        lastEvent = stoppedEvent
+        if clearsSessionIDs {
+            sessionID = nil
+            displayStreamID = nil
+            micStreamID = nil
+            sceneIndexID = nil
+            activeEventStore = nil
+            localCaptureStoppedBeforeBackendStop = false
+        }
     }
 
     func search(_ query: String) async -> AgentToolResult {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return AgentToolResult(ok: false, message: "query is required.", data: nil)
+            return AgentToolResult(
+                ok: false,
+                message: "Ask with a specific Session context search query.",
+                data: currentStateData(nextStep: AgentToolRecoveryCopy.missingDetailNextStep)
+            )
         }
 
         guard let displayStreamID, let sceneIndexID else {
             return AgentToolResult(
                 ok: false,
-                message: "VideoDB session memory is not indexed yet. Keep the agent active for a few more seconds, then try again.",
+                message: "Session context is not ready yet. Keep the Agent active for a few more seconds, then try again.",
                 data: currentStateData()
             )
         }
@@ -117,11 +251,15 @@ final class VideoDBAgentMemory {
 
             return AgentToolResult(
                 ok: true,
-                message: response.summary ?? "Searched VideoDB session memory.",
+                message: response.summary ?? "Searched this session's context.",
                 data: response.data ?? currentStateData()
             )
         } catch {
-            return AgentToolResult(ok: false, message: "VideoDB memory search failed: \(error.localizedDescription)", data: currentStateData())
+            return AgentToolResult(
+                ok: false,
+                message: "Session context search failed: \(Self.userFacingSessionContextMessage(error.localizedDescription))",
+                data: currentStateData(nextStep: Self.sessionContextNextStep)
+            )
         }
     }
 
@@ -129,8 +267,8 @@ final class VideoDBAgentMemory {
         guard displayStreamID != nil || micStreamID != nil else {
             return AgentToolResult(
                 ok: false,
-                message: "VideoDB memory has not received stream context yet.",
-                data: currentStateData()
+                message: "Session context has not received screen or microphone context yet.",
+                data: currentStateData(nextStep: "Keep the Agent active for a few more seconds, then try again.")
             )
         }
 
@@ -148,17 +286,144 @@ final class VideoDBAgentMemory {
 
             return AgentToolResult(
                 ok: true,
-                message: response.summary ?? "Summarized VideoDB session memory.",
+                message: response.summary ?? "Summarized this session's context.",
                 data: response.data ?? currentStateData()
             )
         } catch {
-            return AgentToolResult(ok: false, message: "VideoDB memory summary failed: \(error.localizedDescription)", data: currentStateData())
+            return AgentToolResult(
+                ok: false,
+                message: "Session context summary failed: \(Self.userFacingSessionContextMessage(error.localizedDescription))",
+                data: currentStateData(nextStep: Self.sessionContextNextStep)
+            )
         }
     }
 
     func currentToolResult() -> AgentToolResult {
         AgentToolResult(ok: isRunning, message: lastEvent, data: currentStateData())
     }
+
+    private func pauseIfSessionContextBlocked(
+        privacyStore: AgentLongTermMemoryStore,
+        contextSnapshot: AgentSessionContextSnapshot,
+        eventStore: AgentEventStore
+    ) async -> AgentToolResult? {
+        guard let blockReason = privacyStore.liveSessionContextBlockReason(for: contextSnapshot) else {
+            return nil
+        }
+
+        let shouldLogPause = lastEvent != blockReason
+        if isRunning || captureProcess != nil || sessionID != nil {
+            await stop(eventStore: eventStore)
+        }
+        status = .idle
+        lastError = nil
+        lastEvent = blockReason
+        if shouldLogPause {
+            logSessionContextPaused(reason: blockReason, contextSnapshot: contextSnapshot, eventStore: eventStore)
+        }
+        return AgentToolResult(
+            ok: false,
+            message: lastEvent,
+            data: currentStateData(nextStep: Self.sessionContextPausedNextStep)
+        )
+    }
+
+    private func startPrivacyMonitor(privacyStore: AgentLongTermMemoryStore, eventStore: AgentEventStore) {
+        privacyMonitorTask?.cancel()
+        privacyMonitorTask = Task { @MainActor [weak self, weak privacyStore, weak eventStore] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard !Task.isCancelled, let self, let privacyStore, let eventStore, self.isRunning else { return }
+
+                let contextSnapshot = AgentSessionContextSnapshot.current()
+                if await self.pauseIfSessionContextBlocked(
+                    privacyStore: privacyStore,
+                    contextSnapshot: contextSnapshot,
+                    eventStore: eventStore
+                ) != nil {
+                    return
+                }
+            }
+        }
+    }
+
+    private func logSessionContextStarted(sessionID: String, eventStore: AgentEventStore) {
+        eventStore.append(
+            category: .memory,
+            status: .done,
+            symbol: "record.circle",
+            title: "Session context capture started",
+            summary: "Voiyce started recording active session context.",
+            details: [
+                AgentLogEventDetail(key: "Session", value: sessionID)
+            ]
+        )
+    }
+
+    private func logSessionContextStopped(sessionID: String?, eventStore: AgentEventStore) {
+        eventStore.append(
+            category: .memory,
+            status: .done,
+            symbol: "stop.circle",
+            title: "Session context capture stopped",
+            summary: "Voiyce stopped active session context capture.",
+            details: [
+                AgentLogEventDetail(key: "Session", value: sessionID ?? "Not available")
+            ]
+        )
+    }
+
+    private func logSessionContextFailed(message: String, eventStore: AgentEventStore) {
+        eventStore.append(
+            category: .errors,
+            status: .failed,
+            symbol: "exclamationmark.triangle",
+            title: "Session context capture failed",
+            summary: message,
+            details: [
+                AgentLogEventDetail(key: "Feature", value: "Session context"),
+                AgentLogEventDetail(key: "Next step", value: "Try again, then contact support if it keeps happening.")
+            ]
+        )
+    }
+
+    private func logSessionContextPaused(
+        reason: String,
+        contextSnapshot: AgentSessionContextSnapshot,
+        eventStore: AgentEventStore
+    ) {
+        eventStore.append(
+            category: .memory,
+            status: .cancelled,
+            symbol: "hand.raised",
+            title: "Session context paused",
+            summary: reason,
+            details: [
+                AgentLogEventDetail(
+                    key: "App/site",
+                    value: contextSnapshot.displayName.isEmpty ? "Not available" : contextSnapshot.displayName
+                )
+            ]
+        )
+    }
+
+    #if DEBUG
+    func seedRunningSessionForTesting(
+        sessionID: String,
+        displayStreamID: String? = nil,
+        micStreamID: String? = nil,
+        sceneIndexID: String? = nil,
+        eventStore: AgentEventStore
+    ) {
+        status = .running
+        self.sessionID = sessionID
+        self.displayStreamID = displayStreamID
+        self.micStreamID = micStreamID
+        self.sceneIndexID = sceneIndexID
+        activeEventStore = eventStore
+        lastEvent = "Session context is recording this Agent session."
+    }
+    #endif
 
     private func launchCaptureProcess(sessionID: String, clientToken: String) throws {
         guard captureProcess == nil else { return }
@@ -196,7 +461,7 @@ final class VideoDBAgentMemory {
                     self.status = terminatedProcess.terminationStatus == 0 ? .idle : .failed
                     if terminatedProcess.terminationStatus != 0 {
                         if self.lastError == nil {
-                            self.lastError = "VideoDB capture helper exited with status \(terminatedProcess.terminationStatus)."
+                            self.lastError = "Session context helper exited with status \(terminatedProcess.terminationStatus)."
                         }
                     }
                 }
@@ -219,24 +484,24 @@ final class VideoDBAgentMemory {
             return
         }
 
-        lastEvent = "Installing VideoDB capture runtime..."
+        lastEvent = "Installing session context capture support..."
         try await runProcess(
             executableURL: URL(fileURLWithPath: "/usr/bin/env"),
             arguments: ["python3", "-m", "venv", captureRuntimeURL.appendingPathComponent("venv").path]
         )
-        lastEvent = "Updating VideoDB capture runtime..."
+        lastEvent = "Updating session context capture support..."
         try await runProcess(
             executableURL: capturePythonURL,
             arguments: ["-m", "pip", "install", "--upgrade", "pip"]
         )
-        lastEvent = "Installing VideoDB capture support..."
+        lastEvent = "Installing session context capture support..."
         try await runProcess(
             executableURL: capturePythonURL,
             arguments: ["-m", "pip", "install", "videodb[capture]"]
         )
 
         guard try await canImportVideoDBCapture() else {
-            throw VideoDBMemoryError.captureRuntimeUnavailable("VideoDB capture package installed, but videodb.capture could not be imported.")
+            throw VideoDBMemoryError.captureRuntimeUnavailable("Session context capture support installed, but could not be loaded.")
         }
     }
 
@@ -291,7 +556,10 @@ final class VideoDBAgentMemory {
                     self?.handleCaptureOutput(line, isError: isError)
                 }
             } catch {
-                self?.handleCaptureOutput("VideoDB capture log stream ended: \(error.localizedDescription)", isError: true)
+                self?.handleCaptureOutput(
+                    "Session context capture logging stopped. Restart the Agent if live context stops updating.",
+                    isError: true
+                )
             }
         }
     }
@@ -300,25 +568,51 @@ final class VideoDBAgentMemory {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        if let data = trimmed.data(using: .utf8),
+           let event = try? JSONDecoder().decode(VideoDBCaptureEvent.self, from: data) {
+            handleCaptureEvent(event)
+            return
+        }
+
         if isError {
-            lastError = trimmed
-            lastEvent = trimmed
-            return
-        }
-
-        lastEvent = trimmed
-
-        guard let data = trimmed.data(using: .utf8),
-              let event = try? JSONDecoder().decode(VideoDBCaptureEvent.self, from: data) else {
-            return
-        }
-
-        if event.event == "error", let message = event.payload?.message {
+            let message = Self.userFacingSessionContextMessage(trimmed)
             lastError = message
+            lastEvent = message
+            return
+        }
+
+        lastEvent = Self.userFacingSessionContextMessage(trimmed)
+    }
+
+    private func handleCaptureEvent(_ event: VideoDBCaptureEvent) {
+        if event.event == "error", let message = event.payload?.message {
+            let userMessage = Self.userFacingSessionContextMessage(message)
+            lastError = userMessage
+            lastEvent = userMessage
+            return
         }
 
         if let payload = event.payload {
             assignStreamIDs(from: payload)
+        }
+
+        switch event.event {
+        case "dependency_missing":
+            let message = Self.userFacingSessionContextMessage(
+                event.payload?.message ?? "Session context capture support is missing. Contact support, then reconnect the Agent."
+            )
+            lastError = message
+            lastEvent = message
+        case "permission_warning":
+            lastEvent = "Session context is waiting for Microphone and Screen Recording permission."
+        case "capture_starting":
+            lastEvent = "Session context capture is starting."
+        case "capture_started":
+            lastEvent = "Session context is recording this Agent session."
+        case "recording-complete":
+            lastEvent = "Session context finished recording this Agent session."
+        default:
+            lastEvent = "Session context is receiving screen and audio context."
         }
     }
 
@@ -365,7 +659,7 @@ final class VideoDBAgentMemory {
                     self.sceneIndexID = sceneIndexID
                 }
             } catch {
-                lastError = error.localizedDescription
+                lastError = Self.userFacingSessionContextMessage(error.localizedDescription)
             }
         }
     }
@@ -419,8 +713,70 @@ final class VideoDBAgentMemory {
         throw VideoDBMemoryError.backend("HTTP \(httpResponse.statusCode): \(error)")
     }
 
-    private func currentStateData() -> [String: String] {
-        [
+    nonisolated static func userFacingSessionContextMessage(_ message: String) -> String {
+        var sanitized = message
+        let lowerMessage = message.lowercased()
+
+        if lowerMessage.contains("insufficient credit") || lowerMessage.contains("payment required") {
+            return "Session context capture is temporarily unavailable because the connected capture account needs attention. Contact support, then reconnect the Agent."
+        }
+
+        let replacements = [
+            "VideoDB session memory": "Session context",
+            "VideoDB screen and audio memory": "Session context capture",
+            "VideoDB screen memory": "Session context",
+            "VideoDB memory": "Session context",
+            "VideoDB capture runtime": "Session context capture support",
+            "VideoDB capture support": "Session context capture support",
+            "VideoDB capture package": "Session context capture support",
+            "VideoDB capture": "Session context capture",
+            "VideoDB account": "Session context service account",
+            "VideoDB rejected capture": "Session context capture was rejected",
+            "VideoDB backend": "Session context service",
+            "videodb.capture": "session context capture support",
+            "videodb[capture]": "session context capture support",
+            "VideoDB": "Session context service"
+        ]
+
+        for (providerTerm, userFacingTerm) in replacements {
+            sanitized = sanitized.replacingOccurrences(of: providerTerm, with: userFacingTerm)
+        }
+
+        sanitized = sanitized
+            .replacingOccurrences(of: "Session context service capture package", with: "Session context capture support")
+            .replacingOccurrences(of: "Session context capture package", with: "Session context capture support")
+            .replacingOccurrences(of: "session context capture package", with: "session context capture support")
+
+        let forbiddenTerms = [
+            "http",
+            "backend",
+            "server",
+            "api",
+            "token",
+            "secret",
+            "authorization",
+            "traceback",
+            "stack trace",
+            "key",
+            "clienttoken",
+            "rts-"
+        ]
+
+        if forbiddenTerms.contains(where: { sanitized.localizedCaseInsensitiveContains($0) }) {
+            return "Session context capture could not finish. Check your connection and permissions, then restart the Agent."
+        }
+
+        return sanitized
+    }
+
+    private static let sessionContextNextStep = "Restart the Agent. If it keeps failing, export Agent Log and send it to support."
+    private static let sessionContextPausedNextStep = "Adjust Private Mode, app/site exclusions, or the current sensitive screen, then start Context again."
+
+    private func currentStateData(nextStep: String? = nil) -> [String: String] {
+        var data = [
+            "memory_source": "session_context",
+            "context_scope": "active_session",
+            "context_kind": "screen_and_audio",
             "status": status.rawValue,
             "session_id": sessionID ?? "",
             "display_stream_id": displayStreamID ?? "",
@@ -429,6 +785,10 @@ final class VideoDBAgentMemory {
             "last_event": lastEvent,
             "last_error": lastError ?? ""
         ]
+        if let nextStep, !nextStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            data["next_step"] = nextStep
+        }
+        return data
     }
 
     private static let captureScript = #"""
@@ -455,11 +815,11 @@ def jsonable(value):
 def error_message(exc):
     value = str(exc)
     if "Insufficient credit" in value:
-        return "VideoDB account has insufficient credit. Add VideoDB credits, then reconnect the agent."
+        return "Session context capture is temporarily unavailable because the connected capture account needs attention. Contact support, then reconnect the Agent."
     if "Payment Required" in value:
-        return "VideoDB rejected capture with Payment Required. Add VideoDB credits, then reconnect the agent."
+        return "Session context capture is temporarily unavailable because the connected capture account needs attention. Contact support, then reconnect the Agent."
     if "Permission denied" in value or "PERMISSION_DENIED" in value:
-        return "VideoDB capture needs Microphone and Screen Recording permission."
+        return "Session context capture needs Microphone and Screen Recording permission."
     return value
 
 async def main():
@@ -469,7 +829,7 @@ async def main():
     try:
         from videodb.capture import CaptureClient
     except Exception as exc:
-        emit("dependency_missing", {"message": "Install VideoDB capture support with: python3 -m pip install 'videodb[capture]'", "error": str(exc)})
+        emit("dependency_missing", {"message": "Session context capture support is missing. Contact support, then reconnect the Agent.", "error": str(exc)})
         return 86
 
     try:
@@ -500,7 +860,7 @@ async def main():
         selected = [channel for channel in (mic, display, system_audio) if channel]
 
         if display is None:
-            emit("error", {"message": "VideoDB could not see an available display. Grant Screen Recording permission, then reconnect the agent."})
+            emit("error", {"message": "Session context could not see an available display. Grant Screen Recording permission, then reconnect the Agent."})
             return 2
 
         for channel in selected:
@@ -552,6 +912,10 @@ async def main():
 if __name__ == "__main__":
     raise SystemExit(asyncio.run(main()))
 """#
+
+    static var captureScriptForTesting: String {
+        captureScript
+    }
 }
 
 enum VideoDBMemoryStatus: String {
@@ -571,13 +935,13 @@ private enum VideoDBMemoryError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .authenticationRequired:
-            return "Authentication is required before VideoDB memory can start."
+            return "Sign in to Voiyce before starting session context."
         case .invalidBackendResponse:
-            return "VideoDB backend returned an invalid response."
+            return "Session context received an unexpected response. Try again, then contact support if it keeps happening."
         case .backend(let message):
-            return message
+            return VideoDBAgentMemory.userFacingSessionContextMessage(message)
         case .captureRuntimeUnavailable(let message):
-            return "VideoDB capture runtime is unavailable: \(message)"
+            return "Session context capture is unavailable: \(VideoDBAgentMemory.userFacingSessionContextMessage(message))"
         }
     }
 }

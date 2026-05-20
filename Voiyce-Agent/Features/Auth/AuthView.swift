@@ -8,8 +8,17 @@ private enum AuthMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum SignInNetworkRecoveryCopy {
+    static let loadingTitle = "Waiting for internet connection"
+    static let loadingDetail = "Voiyce needs internet to check your sign-in. Reconnect Wi-Fi or Ethernet, then continue setup."
+    static let authTitle = "Reconnect to sign in"
+    static let authDetail = "Voiyce needs internet to check your account and finish setup on this Mac."
+    static let authNextStep = "No internet connection. Reconnect Wi-Fi or Ethernet, then sign in again."
+}
+
 struct AuthView: View {
     @Environment(AuthenticationManager.self) private var authenticationManager
+    @Environment(NetworkMonitor.self) private var networkMonitor
 
     @State private var authMode: AuthMode = .signIn
     @State private var fullName = ""
@@ -21,6 +30,28 @@ struct AuthView: View {
 
     private var isShowingVerification: Bool {
         authenticationManager.pendingVerificationEmail != nil
+    }
+
+    private var isOffline: Bool {
+        !networkMonitor.isConnected
+    }
+
+    private var titleText: String {
+        if isOffline {
+            return SignInNetworkRecoveryCopy.authTitle
+        }
+
+        return isShowingVerification ? "Verify your email" : "Finish signing in on your Mac"
+    }
+
+    private var subtitleText: String {
+        if isOffline {
+            return SignInNetworkRecoveryCopy.authDetail
+        }
+
+        return isShowingVerification
+            ? "Enter the 6-digit code we sent so Voiyce can continue setup on this Mac."
+            : "Use the same Google or email account you created on voiyce.com. The browser signup unlocks the download, and this sign-in unlocks permissions, mic testing, and your live shortcut."
     }
 
     private var bundledLogoImage: NSImage? {
@@ -67,6 +98,7 @@ struct AuthView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.black.opacity(0.18))
         }
+        .accessibilityIdentifier("auth-view")
         .onChange(of: authenticationManager.pendingVerificationEmail) { _, pendingEmail in
             if let pendingEmail {
                 email = pendingEmail
@@ -80,19 +112,17 @@ struct AuthView: View {
     private var authColumn: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 12) {
-                Text(isShowingVerification ? "Verify your email" : "Finish signing in on your Mac")
+                Text(titleText)
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text(
-                    isShowingVerification
-                    ? "Enter the 6-digit code we sent so Voiyce can continue setup on this Mac."
-                    : "Use the same Google or email account you created on voiyce.com. The browser signup unlocks the download, and this sign-in unlocks permissions, mic testing, and your live shortcut."
-                )
+                Text(subtitleText)
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
+
+            offlineRecoveryView
 
             if isShowingVerification {
                 verificationCard
@@ -185,11 +215,12 @@ struct AuthView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
-            .disabled(authenticationManager.isWorking)
+            .disabled(authenticationManager.isWorking || isOffline)
+            .accessibilityIdentifier("auth-submit-button")
 
             Text(
                 authMode == .signUp
-                ? "Email sign-up uses a 6-digit InsForge verification code before the first session starts."
+                ? "Email sign-up uses a 6-digit verification code before the first session starts."
                 : "Google opens a secure browser handoff. Email sign-in happens directly in the app."
             )
             .font(AppTheme.captionFont)
@@ -237,8 +268,10 @@ struct AuthView: View {
             .buttonStyle(.plain)
             .disabled(
                 authenticationManager.isWorking
+                || isOffline
                 || verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             )
+            .accessibilityIdentifier("auth-verify-button")
 
             HStack(spacing: 14) {
                 Button("Resend Code") {
@@ -247,6 +280,7 @@ struct AuthView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .disabled(authenticationManager.isWorking || isOffline)
                 .foregroundStyle(AppTheme.accent)
 
                 Button("Back to Sign In") {
@@ -283,12 +317,23 @@ struct AuthView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
-        .disabled(authenticationManager.isWorking)
+        .disabled(authenticationManager.isWorking || isOffline)
+        .accessibilityIdentifier("auth-google-button")
+    }
+
+    @ViewBuilder
+    private var offlineRecoveryView: some View {
+        if isOffline {
+            feedbackPill(SignInNetworkRecoveryCopy.authNextStep, color: AppTheme.accent)
+                .accessibilityIdentifier("auth-offline-feedback")
+        }
     }
 
     @ViewBuilder
     private var feedbackView: some View {
-        if let localErrorMessage {
+        if isOffline {
+            EmptyView()
+        } else if let localErrorMessage {
             feedbackPill(localErrorMessage, color: AppTheme.destructive)
         } else if let errorMessage = authenticationManager.errorMessage {
             feedbackPill(errorMessage, color: AppTheme.destructive)
@@ -360,6 +405,11 @@ struct AuthView: View {
 
     private func submitCredentials() {
         localErrorMessage = nil
+
+        guard !isOffline else {
+            localErrorMessage = SignInNetworkRecoveryCopy.authNextStep
+            return
+        }
 
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedEmail.isEmpty else {

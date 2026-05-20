@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalDocShell } from "@/components/LegalDocShell";
+import { supportEmail, supportMailto } from "@/lib/voiyce-config";
 
 export const metadata: Metadata = {
   title: "Terms of Service — Voiyce",
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalDocShell title="Terms of Service" lastUpdated="May 14, 2026">
+    <LegalDocShell title="Terms of Service" lastUpdated="May 17, 2026">
       <p>
         These Terms of Service (“Terms”) govern your access to and use of
         Voiyce, a macOS application and related services operated as an
@@ -25,10 +26,10 @@ export default function TermsPage() {
         <br />
         Email:{" "}
         <a
-          href="mailto:support@voiyce.com"
+          href={supportMailto}
           className="text-purple-400 underline-offset-2 hover:underline"
         >
-          support@voiyce.com
+          {supportEmail}
         </a>
       </p>
 
@@ -43,10 +44,12 @@ export default function TermsPage() {
 
       <h2>The Service</h2>
       <p>
-        Voiyce provides voice dictation and related features for macOS. Features,
-        limits, and availability may change. We may update the Service with or
-        without notice. We do not guarantee uninterrupted or error-free
-        operation.
+        Voiyce provides macOS voice, context capture, local memory, and agent handoff
+        features. Depending on the mode you choose, Voiyce may help with
+        dictation, current-screen context, reusable memory, and bounded app or
+        website actions. Features, limits, and availability may change. We may
+        update the Service with or without notice. We do not guarantee
+        uninterrupted or error-free operation.
       </p>
 
       <h2>Accounts</h2>
@@ -122,17 +125,19 @@ export default function TermsPage() {
       <p>
         You retain rights in content you create. To operate the Service, you
         grant us a limited license to host, process, transmit, and display your
-        content (including voice input and transcripts stored on our backend)
-        solely to provide and improve the Service, as described in our Privacy
-        Policy.
+        content (including voice input, transcripts, screen context, screenshots
+        you choose to process, memory records, connected-service content, and
+        support exports) solely to provide, secure, troubleshoot, and improve
+        the Service, as described in our Privacy Policy.
       </p>
 
       <h2>Third-party services</h2>
       <p>
         The Service integrates with third-party providers (for example, hosting,
-        authentication, speech recognition, analytics, email, and payments).
-        Their use is subject to their terms. We are not responsible for
-        third-party services.
+        authentication, AI model processing, speech recognition, media indexing,
+        connected Gmail and Calendar features, analytics, email, download
+        hosting, and payments). Their use is subject to their terms. We are not
+        responsible for third-party services.
       </p>
 
       <h2>Disclaimers</h2>
@@ -140,9 +145,10 @@ export default function TermsPage() {
         THE SERVICE IS PROVIDED “AS IS” AND “AS AVAILABLE.” TO THE MAXIMUM
         EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR
         IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-        NON-INFRINGEMENT. DICTATION AND AI-ASSISTED FEATURES MAY PRODUCE
-        INACCURATE OR INCOMPLETE OUTPUT; YOU ARE RESPONSIBLE FOR REVIEWING
-        OUTPUT BEFORE RELYING ON IT.
+        NON-INFRINGEMENT. DICTATION, SCREEN-CONTEXT, MEMORY, AND AGENT-ASSISTED
+        FEATURES MAY PRODUCE INACCURATE, INCOMPLETE, OR UNEXPECTED OUTPUT; YOU
+        ARE RESPONSIBLE FOR REVIEWING OUTPUT AND ACTIONS BEFORE RELYING ON
+        THEM.
       </p>
 
       <h2>Limitation of liability</h2>
@@ -183,7 +189,7 @@ export default function TermsPage() {
       <h2>Dispute resolution; arbitration</h2>
       <p>
         <strong>Informal resolution.</strong> Before filing a claim, you agree
-        to contact us at support@voiyce.com and attempt to resolve the
+        to contact us at {supportEmail} and attempt to resolve the
         dispute informally for at least thirty (30) days.
       </p>
       <p>
@@ -226,7 +232,7 @@ export default function TermsPage() {
         in connection with a merger, acquisition, or sale of assets.
       </p>
 
-      <p className="border-t border-white/10 pt-8 text-sm text-[#666666]">
+      <p className="border-t border-white/10 pt-8 text-sm text-[#8A8A8A]">
         These Terms are provided for informational purposes and do not
         constitute legal advice. Consult qualified counsel for your specific
         situation.

@@ -8,14 +8,15 @@ SCHEME="Voiyce-Agent"
 CONFIGURATION="Debug"
 BUNDLE_ID="business.Voiyce-Agent"
 BUILD_APP_PATH="$ROOT_DIR/DerivedData/Voiyce-Agent/Build/Products/Debug/Voiyce.app"
+INSTALLED_APP_PATH="/Applications/Voiyce.app"
 SKIP_BUILD=0
 
 usage() {
   cat <<'EOF'
 Usage: scripts/run-macos-debug.sh [--skip-build]
 
-Builds the macOS app in Debug, quits the currently running local app,
-and launches the fresh build from DerivedData.
+Builds the macOS app in Debug, installs it to /Applications, quits any
+running Voiyce process, and launches the installed bundle.
 
 Options:
   --skip-build   Reuse the existing Debug app bundle and just relaunch it.
@@ -44,13 +45,13 @@ end tell
 EOF
 
   for _ in {1..20}; do
-    if ! pgrep -f "$BUILD_APP_PATH/Contents/MacOS/Voiyce" >/dev/null 2>&1; then
+    if ! pgrep -f "/Voiyce.app/Contents/MacOS/Voiyce" >/dev/null 2>&1; then
       break
     fi
     sleep 0.2
   done
 
-  pkill -f "$BUILD_APP_PATH/Contents/MacOS/Voiyce" >/dev/null 2>&1 || true
+  pkill -f "/Voiyce.app/Contents/MacOS/Voiyce" >/dev/null 2>&1 || true
 }
 
 while [[ $# -gt 0 ]]; do
@@ -89,7 +90,13 @@ fi
 log "Quitting running app"
 quit_running_app
 
-log "Launching fresh Debug build"
-open "$BUILD_APP_PATH"
+log "Installing fresh Debug build to /Applications"
+rm -rf "$INSTALLED_APP_PATH"
+ditto "$BUILD_APP_PATH" "$INSTALLED_APP_PATH"
+xattr -dr com.apple.quarantine "$INSTALLED_APP_PATH" >/dev/null 2>&1 || true
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f -R -trusted "$INSTALLED_APP_PATH"
 
-printf 'App: %s\n' "$BUILD_APP_PATH"
+log "Launching installed app"
+open "$INSTALLED_APP_PATH"
+
+printf 'App: %s\n' "$INSTALLED_APP_PATH"

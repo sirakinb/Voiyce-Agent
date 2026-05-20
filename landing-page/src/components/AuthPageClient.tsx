@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -10,21 +11,64 @@ import {
   buildDownloadHref,
   buildAuthHref,
   normalizeIntent,
+  supportEmail,
 } from "@/lib/voiyce-config";
 
 type AuthMode = "signIn" | "signUp";
 
-function friendlyErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
+function authErrorText(error: unknown): string {
+  if (error instanceof Error) {
+    const message = error.message;
+    return message.trim();
   }
 
-  return "Something went wrong. Please try again.";
+  if (typeof error === "string") {
+    return error.trim();
+  }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") {
+      return message.trim();
+    }
+  }
+
+  return "";
+}
+
+function friendlyAuthErrorMessage(error: unknown): string {
+  const message = authErrorText(error).toLowerCase();
+
+  if (message.includes("network") || message.includes("fetch") || message.includes("offline")) {
+    return "Voiyce could not reach sign-in. Check your connection, then try again.";
+  }
+
+  if (message.includes("invalid") && (message.includes("credential") || message.includes("password"))) {
+    return "That email or password did not match. Check both fields and try again.";
+  }
+
+  if (message.includes("already") && (message.includes("registered") || message.includes("exist"))) {
+    return "That email already has an account. Switch to Sign in, or use another email.";
+  }
+
+  if (message.includes("password") && (message.includes("minimum") || message.includes("6"))) {
+    return "Use a password with at least 6 characters.";
+  }
+
+  if (message.includes("rate") || message.includes("too many")) {
+    return "Too many sign-in attempts. Wait a minute, then try again.";
+  }
+
+  if (message.includes("otp") || message.includes("code") || message.includes("expired")) {
+    return "That code is expired or incorrect. Check the latest email or resend a new code.";
+  }
+
+  return `Sign-in did not finish. Try again, or email ${supportEmail} if it keeps failing.`;
 }
 
 function requiresEmailVerification(error: unknown): boolean {
-  const message = friendlyErrorMessage(error).toLowerCase();
-  return message.includes("verify") && message.includes("email");
+  const message = authErrorText(error).toLowerCase();
+  return (message.includes("verify") || message.includes("confirm")) && message.includes("email");
 }
 
 function sessionUserFromResult(result: unknown): { email?: string | null } | null {
@@ -95,7 +139,7 @@ export default function AuthPageClient() {
         redirectTo,
       });
     } catch (error) {
-      setErrorMessage(friendlyErrorMessage(error));
+      setErrorMessage(friendlyAuthErrorMessage(error));
       setIsWorking(false);
     }
   }
@@ -145,7 +189,7 @@ export default function AuthPageClient() {
         setInfoMessage(`Enter the 6-digit code we sent to ${pendingEmail}.`);
         setVerificationCode("");
       } else {
-        setErrorMessage(friendlyErrorMessage(error));
+        setErrorMessage(friendlyAuthErrorMessage(error));
       }
     } finally {
       setIsWorking(false);
@@ -175,7 +219,7 @@ export default function AuthPageClient() {
 
       router.push(redirectHref);
     } catch (error) {
-      setErrorMessage(friendlyErrorMessage(error));
+      setErrorMessage(friendlyAuthErrorMessage(error));
     } finally {
       setIsWorking(false);
     }
@@ -201,7 +245,7 @@ export default function AuthPageClient() {
 
       setInfoMessage(`We sent a fresh code to ${verificationEmail}.`);
     } catch (error) {
-      setErrorMessage(friendlyErrorMessage(error));
+      setErrorMessage(friendlyAuthErrorMessage(error));
     } finally {
       setIsWorking(false);
     }
@@ -218,9 +262,12 @@ export default function AuthPageClient() {
         <div className="w-full max-w-[34rem]">
           <div className="mb-3 flex justify-center">
             <Link href="/" className="inline-flex items-center text-[#C9C9D1] transition-colors hover:text-white">
-              <img
+              <Image
                 src="/voiyce_logo.png"
                 alt="Voiyce"
+                width={384}
+                height={192}
+                priority
                 className="block h-[168px] w-auto max-w-full object-contain md:h-[192px]"
               />
             </Link>
@@ -229,7 +276,7 @@ export default function AuthPageClient() {
           <div className="w-full rounded-[2rem] border border-white/10 bg-[#111117]/95 p-8 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] md:p-10">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#73737D]">
+                <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#8A8A94]">
                   Web Signup
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">
@@ -262,7 +309,7 @@ export default function AuthPageClient() {
                   Continue with Google
                 </button>
 
-                <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-[0.28em] text-[#5F5F68]">
+                <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-[0.28em] text-[#8A8A94]">
                   <div className="h-px flex-1 bg-white/10" />
                   or
                   <div className="h-px flex-1 bg-white/10" />
@@ -304,7 +351,7 @@ export default function AuthPageClient() {
                         value={name}
                         onChange={(event) => setName(event.target.value)}
                         placeholder="Optional"
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#8A8A94] focus:border-white/20"
                       />
                     </label>
                   ) : null}
@@ -318,7 +365,7 @@ export default function AuthPageClient() {
                       placeholder="you@company.com"
                       autoComplete="email"
                       required
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#8A8A94] focus:border-white/20"
                     />
                   </label>
 
@@ -332,7 +379,7 @@ export default function AuthPageClient() {
                       autoComplete={authMode === "signUp" ? "new-password" : "current-password"}
                       required
                       minLength={6}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#8A8A94] focus:border-white/20"
                     />
                   </label>
 
@@ -371,7 +418,7 @@ export default function AuthPageClient() {
                     placeholder="123456"
                     required
                     maxLength={6}
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#8A8A94] focus:border-white/20"
                   />
                 </label>
 
@@ -420,7 +467,7 @@ export default function AuthPageClient() {
               </form>
             )}
 
-            <p className="mt-8 text-xs leading-6 text-[#6F6F77]">
+            <p className="mt-8 text-xs leading-6 text-[#92929C]">
               By continuing, you agree to the{" "}
               <Link href="/terms" className="text-[#D8D8DE] underline decoration-white/20 underline-offset-4">
                 Terms

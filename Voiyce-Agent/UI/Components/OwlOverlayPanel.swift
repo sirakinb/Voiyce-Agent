@@ -15,21 +15,31 @@ final class OwlOverlayPanel {
     private var player: AVPlayer?
     private var playerLooper: Any?  // holds strong ref to observer
     private var renderView: ChromaKeyVideoView?
+    private var pendingShowTask: Task<Void, Never>?
 
     func show() {
-        guard panel == nil else { return }
+        guard panel == nil, pendingShowTask == nil else { return }
 
         guard let url = AppConstants.bundledResourceURL(named: "talking_voice_owl", fileExtension: "mp4") else {
             print("[OwlOverlay] talking_voice_owl.mp4 not found in bundle")
             return
         }
 
-        let size = NSSize(width: 200, height: 200)
-
-        // Detect background color from first frame
         let asset = AVURLAsset(url: url)
-        let bgColor = detectBackgroundColor(asset: asset)
-        print("[OwlOverlay] Detected background: \(bgColor)")
+        pendingShowTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let bgColor = await Self.detectBackgroundColor(asset: asset)
+
+            defer { self.pendingShowTask = nil }
+            guard !Task.isCancelled, self.panel == nil else { return }
+
+            print("[OwlOverlay] Detected background: \(bgColor)")
+            self.presentVideoOverlay(asset: asset, backgroundColor: bgColor)
+        }
+    }
+
+    private func presentVideoOverlay(asset: AVAsset, backgroundColor: NSColor) {
+        let size = NSSize(width: 200, height: 200)
 
         // Set up player with video output
         let item = AVPlayerItem(asset: asset)
@@ -56,7 +66,7 @@ final class OwlOverlayPanel {
         // Create rendering view
         let view = ChromaKeyVideoView(frame: NSRect(origin: .zero, size: size))
         view.videoOutput = output
-        view.targetBgColor = bgColor
+        view.targetBgColor = backgroundColor
         view.buildFilter()
         view.wantsLayer = true
         view.layer?.cornerRadius = 100
@@ -110,6 +120,8 @@ final class OwlOverlayPanel {
     }
 
     func showProcessing() {
+        cancelPendingShow()
+
         let size = NSSize(width: 260, height: 92)
         let view = NSHostingView(rootView: ProcessingOverlayView())
         view.frame = NSRect(origin: .zero, size: size)
@@ -162,6 +174,8 @@ final class OwlOverlayPanel {
     }
 
     func hide() {
+        cancelPendingShow()
+
         guard let panel = panel else { return }
 
         NSAnimationContext.runAnimationGroup({ context in
@@ -178,13 +192,13 @@ final class OwlOverlayPanel {
 
     // MARK: - Background Detection
 
-    private func detectBackgroundColor(asset: AVAsset) -> NSColor {
+    private static func detectBackgroundColor(asset: AVAsset) async -> NSColor {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.5, preferredTimescale: 600)
 
-        guard let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) else {
+        guard let cgImage = await firstFrameImage(from: generator) else {
             print("[OwlOverlay] Could not generate image from asset")
             return .black
         }
@@ -226,6 +240,22 @@ final class OwlOverlayPanel {
         )
         print("[OwlOverlay] BG color: R=\(rT/corners.count) G=\(gT/corners.count) B=\(bT/corners.count)")
         return color
+    }
+
+    private static func firstFrameImage(from generator: AVAssetImageGenerator) async -> CGImage? {
+        await withCheckedContinuation { continuation in
+            generator.generateCGImageAsynchronously(for: .zero) { image, _, error in
+                if error != nil {
+                    print("[OwlOverlay] First-frame generation failed.")
+                }
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
+    private func cancelPendingShow() {
+        pendingShowTask?.cancel()
+        pendingShowTask = nil
     }
 
     private func position(_ panel: NSPanel, size: NSSize) {

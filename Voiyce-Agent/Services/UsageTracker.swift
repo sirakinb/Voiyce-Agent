@@ -101,26 +101,4 @@ final class UsageTracker {
         defaults.set(dict, forKey: key)
     }
 
-    /// Seed sample data for the past week (for demo purposes).
-    func seedSampleDataIfEmpty() {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        // Only seed if today has no data
-        let todayKey = dayKey(today)
-        guard defaults.dictionary(forKey: todayKey) == nil else { return }
-
-        let sampleWords = [320, 580, 210, 890, 450, 670, 0]
-        let sampleDictation = [5, 9, 3, 15, 7, 11, 0]
-
-        for i in 0..<7 {
-            let date = calendar.date(byAdding: .day, value: -(6 - i), to: today)!
-            let usage = DailyUsage(
-                date: date,
-                words: sampleWords[i],
-                dictationSessions: sampleDictation[i]
-            )
-            saveDay(usage)
-        }
-    }
 }

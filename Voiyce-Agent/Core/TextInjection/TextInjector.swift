@@ -87,7 +87,7 @@ final class TextInjector {
         }()
 
         if shouldReactivateTarget, let targetApplication {
-            let activated = targetApplication.activate(options: [.activateIgnoringOtherApps])
+            let activated = targetApplication.activate(options: [])
             print("[TextInjector] Restored focus to \(destinationAppName): \(activated)")
         }
 

@@ -11,11 +11,15 @@ export const insforgeBaseUrl =
 export const insforgeAnonKey =
   process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY ?? DEFAULT_INSFORGE_ANON_KEY;
 
+const configuredDownloadUrl = process.env.NEXT_PUBLIC_DOWNLOAD_URL?.trim();
+
 export const downloadUrl =
-  process.env.NEXT_PUBLIC_DOWNLOAD_URL ?? DEFAULT_DOWNLOAD_URL;
+  configuredDownloadUrl || DEFAULT_DOWNLOAD_URL;
 
 export const trialLengthDays = 7;
 export const trialWordLimit = 2500;
+export const supportEmail = "aki.b@pentridgemedia.com";
+export const supportMailto = `mailto:${supportEmail}`;
 
 export function normalizeIntent(value: string | null | undefined): FlowIntent {
   if (value === "monthly" || value === "yearly") {

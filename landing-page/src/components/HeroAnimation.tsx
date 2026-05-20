@@ -106,8 +106,8 @@ function VoiceWaveform() {
 
 // ---- Typing text reveal ----
 
-const RAW_TEXT = `um hey so I was thinking about the new landing page and we should probably make the hero section way bigger and um maybe add like a dark mode glow effect behind the dashboard image because right now it looks kinda flat and yeah let me know what you think about that`;
-const CLEAN_TEXT = `Hey team, I was reviewing the new landing page. We should make the hero section significantly larger and add a dark mode glow effect behind the dashboard image to prevent it from looking flat. Let me know your thoughts.`;
+const RAW_TEXT = `Current session: webhook fails after auth callback. Claude Code found the handler, Cursor traced the failing request, and Codex needs the Vercel deploy error.`;
+const CLEAN_TEXT = `Reusable context: auth callback, webhook failure, Vercel deploy error, handler found by Claude Code, request traced in Cursor. Next agent should continue from here.`;
 
 function TypingText({ text, className, speed = 30 }: { text: string; className?: string; speed?: number }) {
   const [displayed, setDisplayed] = useState("");
@@ -211,16 +211,13 @@ export default function HeroAnimation() {
         </svg>
       </div>
 
-      {/* Main content cards */}
       <div className="relative z-10 grid md:grid-cols-2 gap-6 p-4 sm:p-6">
-        {/* Left: Voice Input */}
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="bg-[#0A0A0A]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 relative overflow-hidden"
+          className="bg-[#0A0A0A]/82 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          {/* Subtle top accent */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
 
           <div className="flex items-center gap-3 mb-6">
@@ -250,7 +247,7 @@ export default function HeroAnimation() {
               </AnimatePresence>
             </div>
             <div>
-              <span className="text-white/90 font-medium text-sm">Voice Input</span>
+              <span className="text-white/90 font-medium text-sm">Working Session</span>
               <div className="flex items-center gap-2 mt-0.5">
                 <AnimatePresence mode="wait">
                   {phase === "speaking" ? (
@@ -261,7 +258,7 @@ export default function HeroAnimation() {
                       exit={{ opacity: 0 }}
                       className="text-red-400 text-xs font-medium"
                     >
-                      Recording...
+                      Capture on
                     </motion.span>
                   ) : (
                     <motion.span
@@ -269,9 +266,9 @@ export default function HeroAnimation() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="text-[#666] text-xs"
+                      className="text-[#8A8A94] text-xs"
                     >
-                      Captured
+                      Session captured
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -279,7 +276,6 @@ export default function HeroAnimation() {
             </div>
           </div>
 
-          {/* Waveform */}
           <div className="mb-6">
             {phase === "speaking" ? (
               <VoiceWaveform />
@@ -298,26 +294,23 @@ export default function HeroAnimation() {
             )}
           </div>
 
-          {/* Raw transcript */}
           <div className="bg-black/40 rounded-xl p-4 border border-white/5 min-h-[140px]">
-            <p className="text-[#666] text-sm leading-relaxed font-light italic">
+            <p className="text-[#8A8A94] text-sm leading-relaxed font-light italic">
               {phase === "speaking" ? (
-                <TypingText text={RAW_TEXT} className="text-[#666]" speed={25} />
+                <TypingText text={RAW_TEXT} className="text-[#8A8A94]" speed={25} />
               ) : (
-                <span className="text-[#555]">{RAW_TEXT}</span>
+                <span className="text-[#8A8A94]">{RAW_TEXT}</span>
               )}
             </p>
           </div>
         </motion.div>
 
-        {/* Right: Polished Output */}
         <motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="bg-gradient-to-b from-[#111]/80 to-[#0A0A0A]/80 backdrop-blur-xl border border-purple-500/20 rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-[0_0_60px_-20px_rgba(168,85,247,0.15)]"
+          className="bg-gradient-to-b from-[#111]/82 to-[#0A0A0A]/82 backdrop-blur-xl border border-purple-500/20 rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-[0_0_60px_-20px_rgba(168,85,247,0.18)]"
         >
-          {/* Accent line */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
 
           <div className="flex items-center gap-3 mb-6">
@@ -331,7 +324,7 @@ export default function HeroAnimation() {
               </svg>
             </div>
             <div>
-              <span className="text-white/90 font-medium text-sm">Voiyce Output</span>
+              <span className="text-white/90 font-medium text-sm">Agent Brief</span>
               <div className="flex items-center gap-2 mt-0.5">
                 <AnimatePresence mode="wait">
                   {phase === "complete" ? (
@@ -344,7 +337,7 @@ export default function HeroAnimation() {
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-400">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      Polished
+                      Ready to send
                     </motion.span>
                   ) : phase === "transforming" ? (
                     <motion.span
@@ -354,7 +347,7 @@ export default function HeroAnimation() {
                       exit={{ opacity: 0 }}
                       className="text-purple-400 text-xs font-medium"
                     >
-                      Processing...
+                      Building brief...
                     </motion.span>
                   ) : (
                     <motion.span
@@ -362,9 +355,9 @@ export default function HeroAnimation() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="text-[#666] text-xs"
+                      className="text-[#8A8A94] text-xs"
                     >
-                      Waiting for input...
+                      Waiting for session...
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -372,7 +365,6 @@ export default function HeroAnimation() {
             </div>
           </div>
 
-          {/* Improvements badges */}
           <AnimatePresence>
             {(phase === "transforming" || phase === "complete") && (
               <motion.div
@@ -381,7 +373,7 @@ export default function HeroAnimation() {
                 transition={{ delay: 0.2 }}
                 className="flex flex-wrap gap-2 mb-6"
               >
-                {["Filler words removed", "Grammar corrected", "Punctuation added"].map((label, i) => (
+                {["Screen state", "Agent learnings", "Next step"].map((label, i) => (
                   <motion.span
                     key={label}
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -396,7 +388,6 @@ export default function HeroAnimation() {
             )}
           </AnimatePresence>
 
-          {/* Clean output text */}
           <div className="bg-black/30 rounded-xl p-4 border border-purple-500/10 min-h-[140px] flex items-start">
             <AnimatePresence mode="wait">
               {phase === "speaking" && (
@@ -405,13 +396,13 @@ export default function HeroAnimation() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.3 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-2 text-[#555] text-sm"
+                  className="flex items-center gap-2 text-[#8A8A94] text-sm"
                 >
                   <motion.span
                     animate={{ opacity: [0.3, 0.6, 0.3] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    Listening to your voice...
+                    Reading session signals...
                   </motion.span>
                 </motion.div>
               )}
@@ -428,21 +419,20 @@ export default function HeroAnimation() {
             </AnimatePresence>
           </div>
 
-          {/* Bottom stats */}
           <AnimatePresence>
             {phase === "complete" && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8 }}
-                className="mt-4 flex items-center gap-4 text-xs text-[#666]"
+                className="mt-4 flex items-center gap-4 text-xs text-[#8A8A94]"
               >
                 <span className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  3.2s processing
+                  Saved memory
                 </span>
-                <span>27 words</span>
-                <span className="text-purple-400">4 improvements</span>
+                <span>4 source signals</span>
+                <span className="text-purple-400">Ready for Codex</span>
               </motion.div>
             )}
           </AnimatePresence>

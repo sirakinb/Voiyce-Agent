@@ -2,6 +2,96 @@ import AppKit
 import InsForgeAuth
 import SwiftUI
 
+enum OnboardingPermissionCopy {
+    static let headline = "Let Voiyce listen, type, and understand your screen."
+    static let body = "Turn on the access below. When you come back from System Settings, Voiyce checks again automatically."
+
+    static let microphoneTitle = "Microphone"
+    static let microphoneDescription = "Lets Voiyce hear your voice while you dictate or talk to it."
+
+    static let speechRecognitionTitle = "Speech Recognition"
+    static let speechRecognitionDescription = "Lets your Mac allow Voiyce to turn speech into text."
+    static let speechRecognitionMissingDetail = "Voiyce still needs Speech Recognition access to finish setup cleanly on macOS."
+
+    static let accessibilityTitle = "Accessibility"
+    static let accessibilityGrantedDescription = "Lets Voiyce place finished text in the app you're using and run approved Act steps."
+    static let accessibilityMissingDescription = "Turn on the exact Voiyce entry so approved typing and clicks can work."
+
+    static let screenRecordingTitle = "Screen Recording"
+    static let screenRecordingGrantedDescription = "Lets Context, Talk, and Act understand what is on your screen when you ask."
+    static let screenRecordingMissingDescription = "Needed for Context, Talk, and Act to understand the current screen. Dictation can continue without it."
+
+    static let requiredAccessTitle = "Required access is still off"
+    static let requiredAccessMessage = "Voiyce needs Microphone, Speech Recognition, and Accessibility to finish setup."
+    static let requiredAccessNextStep = "Turn on the missing items above. Continue unlocks as soon as they are ready."
+
+    static let agentScreenAccessTitle = "Screen access is still off"
+    static let agentScreenAccessMessage = "Dictation can continue, but Context, Talk, and Act need Screen Recording before Voiyce can understand the current screen."
+    static let agentScreenAccessNextStep = "Click Grant Access for Screen Recording, enable Voiyce in System Settings, then quit and reopen Voiyce if your Mac keeps showing the old state."
+
+    static var allPlainLanguageStrings: [String] {
+        [
+            headline,
+            body,
+            microphoneTitle,
+            microphoneDescription,
+            speechRecognitionTitle,
+            speechRecognitionDescription,
+            speechRecognitionMissingDetail,
+            accessibilityTitle,
+            accessibilityGrantedDescription,
+            accessibilityMissingDescription,
+            screenRecordingTitle,
+            screenRecordingGrantedDescription,
+            screenRecordingMissingDescription,
+            requiredAccessTitle,
+            requiredAccessMessage,
+            requiredAccessNextStep,
+            agentScreenAccessTitle,
+            agentScreenAccessMessage,
+            agentScreenAccessNextStep
+        ]
+    }
+}
+
+enum OnboardingLaunchCopy {
+    static let overviewHeadline = "Give your work a reusable memory layer."
+    static let overviewBody = "Dictate when it helps, then let Context, Talk, and Act carry what you said, saw, and decided into the next agent handoff."
+    static let captureTitle = "Capture the work"
+    static let captureDetail = "Voice, screen context, and approved actions become structured memory you can reuse."
+    static let handoffTitle = "Move between agents"
+    static let handoffDetail = "Brief Codex, Claude Code, Cursor, Hermes, and other tools without rebuilding the backstory."
+    static let controlTitle = "Stay in control"
+    static let controlDetail = "Private Mode, exclusions, permissions, and Agent Log keep the context trail visible."
+    static let previewHeadline = "Run one short voice check."
+    static let previewBody = "This checks the same recording path used by Dictation and Talk, but keeps the text inside Voiyce so you can confirm setup before using it across apps."
+    static let learnHeadlineWithoutPreview = "Your first context handoff is ready."
+    static let learnHeadlineWithPreview = "Nice job. Voiyce can now carry the details."
+    static let learnBodyWithoutPreview = "Even without a recorded sample, the important setup is in place: Voiyce can listen, read approved screen context, and prepare reusable memory for your agent workflow."
+    static let learnBodyWithPreview = "That short test proves Voiyce can capture your words. From here, Context, Talk, and Act can use the same setup to reduce repeated explanations."
+    static let learnNoticeTitle = "Why this matters"
+
+    static var visibleStrings: [String] {
+        [
+            overviewHeadline,
+            overviewBody,
+            captureTitle,
+            captureDetail,
+            handoffTitle,
+            handoffDetail,
+            controlTitle,
+            controlDetail,
+            previewHeadline,
+            previewBody,
+            learnHeadlineWithoutPreview,
+            learnHeadlineWithPreview,
+            learnBodyWithoutPreview,
+            learnBodyWithPreview,
+            learnNoticeTitle
+        ]
+    }
+}
+
 enum SetupStage: String, CaseIterable, Identifiable {
     case signUp = "CONTEXT"
     case permissions = "ACCESS"
@@ -216,7 +306,7 @@ struct OnboardingView: View {
                     id: "onboarding-speech-recognition",
                     icon: "waveform",
                     title: "Speech Recognition Access Is Off",
-                    detail: "Voiyce still needs speech recognition authorization to finish setup cleanly on macOS.",
+                    detail: OnboardingPermissionCopy.speechRecognitionMissingDetail,
                     nextStep: "Click Open Settings, turn on Speech Recognition for Voiyce in Privacy & Security, then come back here.",
                     tone: .warning,
                     actionTitle: "Open Settings",
@@ -348,13 +438,24 @@ struct OnboardingView: View {
                 actionTitle: nil,
                 action: nil
             )
-        case .transcriptionFailed(let message):
+        case .serviceQuotaExceeded:
+            return SystemStatusMessage(
+                id: "onboarding-service-limit-reached",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.serviceLimitDetail,
+                nextStep: DictationRecoveryCopy.serviceLimitNextStep,
+                tone: .error,
+                actionTitle: nil,
+                action: nil
+            )
+        case .transcriptionFailed:
             return SystemStatusMessage(
                 id: "onboarding-transcription-failed",
                 icon: error.icon,
                 title: error.title,
-                detail: "The preview transcription request failed: \(message)",
-                nextStep: "Make sure your Mac is online, then try the preview again. If it still fails, verify the server transcription function is deployed and its OpenAI secret is configured.",
+                detail: DictationRecoveryCopy.transcriptionFailedDetail,
+                nextStep: DictationRecoveryCopy.previewTranscriptionFailedNextStep,
                 tone: .error,
                 actionTitle: nil,
                 action: nil
@@ -483,11 +584,11 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             StepEyebrow(stage: currentStage, step: "How It Works")
 
-            Text("Voiyce turns speech into text anywhere on your Mac.")
+            Text(OnboardingLaunchCopy.overviewHeadline)
                 .font(.system(size: 36, weight: .bold))
                 .foregroundStyle(AppTheme.textPrimary)
 
-            Text("Hold the Control key, speak naturally, then release. Voiyce records your voice, transcribes the audio, and inserts the finished text into the app you were already using.")
+            Text(OnboardingLaunchCopy.overviewBody)
                 .font(.system(size: 16))
                 .foregroundStyle(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -495,18 +596,18 @@ struct OnboardingView: View {
             VStack(spacing: 14) {
                 FeatureCalloutCard(
                     icon: "waveform.badge.mic",
-                    title: "Hold to record",
-                    detail: "You do not have to click into a separate compose box before speaking."
+                    title: OnboardingLaunchCopy.captureTitle,
+                    detail: OnboardingLaunchCopy.captureDetail
                 )
                 FeatureCalloutCard(
                     icon: "text.bubble.fill",
-                    title: "Clean transcript",
-                    detail: "Voiyce turns audio into readable text you can actually send."
+                    title: OnboardingLaunchCopy.handoffTitle,
+                    detail: OnboardingLaunchCopy.handoffDetail
                 )
                 FeatureCalloutCard(
                     icon: "rectangle.and.pencil.and.ellipsis",
-                    title: "Insert in place",
-                    detail: "When you release the key, the result goes back into the app you were working in."
+                    title: OnboardingLaunchCopy.controlTitle,
+                    detail: OnboardingLaunchCopy.controlDetail
                 )
             }
         }
@@ -554,19 +655,23 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 20) {
             StepEyebrow(stage: currentStage, step: "System Access")
 
-            Text("Give Voiyce the permissions it needs to work everywhere.")
+            Text(OnboardingPermissionCopy.headline)
                 .font(.system(size: 34, weight: .bold))
                 .foregroundStyle(AppTheme.textPrimary)
 
-            Text("Grant each permission below. When you return from System Settings, this screen refreshes automatically.")
+            Text(OnboardingPermissionCopy.body)
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textSecondary)
 
             VStack(spacing: 14) {
                 PermissionStatusCard(
                     icon: "mic.fill",
-                    title: "Microphone",
-                    description: "Lets Voiyce capture your voice while you dictate.",
+                    title: OnboardingPermissionCopy.microphoneTitle,
+                    description: SystemPermissionStatusCopy.description(
+                        for: .microphone,
+                        isGranted: permissions.microphoneGranted,
+                        surface: .onboarding
+                    ),
                     isGranted: permissions.microphoneGranted,
                     primaryTitle: "Grant Access",
                     primaryAction: { permissions.requestMicrophonePermission() },
@@ -576,8 +681,12 @@ struct OnboardingView: View {
 
                 PermissionStatusCard(
                     icon: "waveform",
-                    title: "Speech Recognition",
-                    description: "Needed so macOS fully authorizes the dictation flow.",
+                    title: OnboardingPermissionCopy.speechRecognitionTitle,
+                    description: SystemPermissionStatusCopy.description(
+                        for: .speechRecognition,
+                        isGranted: permissions.speechRecognitionGranted,
+                        surface: .onboarding
+                    ),
                     isGranted: permissions.speechRecognitionGranted,
                     primaryTitle: "Grant Access",
                     primaryAction: { permissions.requestSpeechRecognitionPermission() },
@@ -587,25 +696,55 @@ struct OnboardingView: View {
 
                 PermissionStatusCard(
                     icon: "accessibility",
-                    title: "Accessibility",
-                    description: permissions.accessibilityGranted
-                        ? "Allows Voiyce to type the finished transcript back into your active app."
-                        : "If enabled in System Settings, restart Voiyce or toggle it off and on.",
+                    title: OnboardingPermissionCopy.accessibilityTitle,
+                    description: SystemPermissionStatusCopy.description(
+                        for: .accessibility,
+                        isGranted: permissions.accessibilityGranted,
+                        surface: .onboarding
+                    ),
                     isGranted: permissions.accessibilityGranted,
                     primaryTitle: "Grant Access",
                     primaryAction: { permissions.requestAccessibilityPermission() },
                     secondaryTitle: "Open Settings",
                     secondaryAction: { permissions.openAccessibilitySettings() }
                 )
+
+                #if VOIYCE_PRO
+                PermissionStatusCard(
+                    icon: "rectangle.on.rectangle",
+                    title: OnboardingPermissionCopy.screenRecordingTitle,
+                    description: SystemPermissionStatusCopy.description(
+                        for: .screenRecording,
+                        isGranted: permissions.screenRecordingGranted,
+                        screenRecordingStatusMessage: permissions.screenRecordingStatusMessage,
+                        surface: .onboarding
+                    ),
+                    isGranted: permissions.screenRecordingGranted,
+                    primaryTitle: "Grant Access",
+                    primaryAction: { permissions.requestScreenRecordingPermission() },
+                    secondaryTitle: "Open Settings",
+                    secondaryAction: { permissions.openScreenRecordingSettings() }
+                )
+                #endif
             }
 
             if !permissions.allPermissionsGranted {
                 NoticeCard(
-                    title: "Setup is blocked by missing permissions",
-                    message: "Voiyce cannot finish onboarding because at least one required macOS permission is still off.",
-                    nextStep: "Grant Microphone, Speech Recognition, and Accessibility above. Continue unlocks as soon as all three are enabled."
+                    title: OnboardingPermissionCopy.requiredAccessTitle,
+                    message: OnboardingPermissionCopy.requiredAccessMessage,
+                    nextStep: OnboardingPermissionCopy.requiredAccessNextStep
                 )
             }
+
+            #if VOIYCE_PRO
+            if permissions.allPermissionsGranted && !permissions.screenRecordingGranted {
+                NoticeCard(
+                    title: OnboardingPermissionCopy.agentScreenAccessTitle,
+                    message: OnboardingPermissionCopy.agentScreenAccessMessage,
+                    nextStep: OnboardingPermissionCopy.agentScreenAccessNextStep
+                )
+            }
+            #endif
         }
     }
 
@@ -613,11 +752,11 @@ struct OnboardingView: View {
         return VStack(alignment: .leading, spacing: 20) {
             StepEyebrow(stage: currentStage, step: "Preview")
 
-            Text("Run one short dictation test.")
+            Text(OnboardingLaunchCopy.previewHeadline)
                 .font(.system(size: 34, weight: .bold))
                 .foregroundStyle(AppTheme.textPrimary)
 
-            Text("This uses the same recording and transcription pipeline as the live app, but it keeps the text inside Voiyce so you can confirm everything works before the shortcut goes global.")
+            Text(OnboardingLaunchCopy.previewBody)
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textSecondary)
 
@@ -701,14 +840,14 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             StepEyebrow(stage: currentStage, step: "Why It Helps")
 
-            Text(previewTranscript.isEmpty ? "Speaking is still faster than typing." : "Nice job. Your voice is faster than your keyboard.")
+            Text(previewTranscript.isEmpty ? OnboardingLaunchCopy.learnHeadlineWithoutPreview : OnboardingLaunchCopy.learnHeadlineWithPreview)
                 .font(.system(size: 34, weight: .bold))
                 .foregroundStyle(AppTheme.textPrimary)
 
             Text(
                 previewTranscript.isEmpty
-                ? "Even without a recorded sample, normal speech usually outpaces typing. Once you start dictating in real apps, the shortcut takes over the mechanical part."
-                : "That short test already shows the difference between speaking one clean sentence and typing the same thought manually."
+                ? OnboardingLaunchCopy.learnBodyWithoutPreview
+                : OnboardingLaunchCopy.learnBodyWithPreview
             )
             .font(.system(size: 15))
             .foregroundStyle(AppTheme.textSecondary)
@@ -729,7 +868,7 @@ struct OnboardingView: View {
             }
 
             NoticeCard(
-                title: "Why this matters",
+                title: OnboardingLaunchCopy.learnNoticeTitle,
                 message: String(format: "At this pace, dictation is about %.1fx faster than typing.", speedMultiplier),
                 nextStep: String(
                     format: "If you dictate around 12,000 words in a week, that pace saves roughly %.1f hours versus typing them manually.",

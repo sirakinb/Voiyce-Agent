@@ -39,6 +39,12 @@ struct SidebarView: View {
 
             Spacer()
 
+            #if VOIYCE_PRO
+            if let activity = appState.agentActivityStatus {
+                agentActivitySection(activity)
+            }
+            #endif
+
             accountSection
 
             // Dark grey ridges
@@ -59,6 +65,58 @@ struct SidebarView: View {
         .frame(width: AppTheme.sidebarWidth)
         .background(GroovedBackground(base: AppTheme.backgroundSecondary))
     }
+
+    #if VOIYCE_PRO
+    private func agentActivitySection(_ activity: AgentActivityStatus) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            AppTheme.ridge.frame(height: 1)
+
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(appState.agentMode.accent.opacity(0.16))
+                        .frame(width: 34, height: 34)
+
+                    Image(systemName: activity.symbol)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(appState.agentMode.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Agent status")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .textCase(.uppercase)
+
+                    Text(activity.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .lineLimit(1)
+
+                    Text(activity.detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .background(AppTheme.backgroundPrimary.opacity(0.72))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(appState.agentMode.accent.opacity(0.28), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(activity.title)
+            .accessibilityValue(activity.detail)
+            .accessibilityIdentifier("sidebar-agent-activity")
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 12)
+    }
+    #endif
 
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -147,5 +205,6 @@ private struct SidebarItem: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("sidebar-\(tab.rawValue)")
     }
 }

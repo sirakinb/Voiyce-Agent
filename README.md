@@ -78,6 +78,79 @@ npm install
 npm run dev
 ```
 
+### Agent Backend Functions
+
+Realtime voice and Act mode use InsForge edge functions so OpenAI keys stay server-side. From the repo root:
+
+```bash
+npx @insforge/cli current
+npx @insforge/cli functions deploy realtime-session -y
+npx @insforge/cli functions deploy computer-use-step -y
+```
+
+Required backend secrets:
+
+- `OPENAI_API_KEY` for Realtime, screen context, transcription, and Computer Use.
+- `OPENAI_REALTIME_MODEL` optional, defaults to `gpt-realtime-2`.
+- `OPENAI_COMPUTER_USE_MODEL` optional, defaults to `gpt-5.5`.
+
+To test Act mode locally, run the macOS app, open Agent, select `Act`, and use the `Act command` field with a small visible-screen task like `click the Settings tab`. The action is logged in Agent Log.
+
+For the current behavior split between `Off`, `Context`, `Talk`, and `Act`, see [`docs/agent-modes-current-build.md`](docs/agent-modes-current-build.md).
+
+### Verification
+
+Before release, run:
+
+```bash
+scripts/verify-release.sh --package
+```
+
+This runs the macOS product-flow test suite, backend Computer Use payload tests, a Release build, and a signed local DMG package. The local DMG command skips notarization; pass a notary profile to `scripts/release-macos-dmg.sh` for a distributable build.
+
+To verify Xcode archive creation without creating a DMG or touching existing release artifacts:
+
+```bash
+scripts/verify-release-archive.sh
+```
+
+To verify server-side Default/Pro/Power usage caps and backend reservation/finalization coverage:
+
+```bash
+scripts/verify-agent-usage-caps.sh
+```
+
+To verify the release source tree is clean, versioned, and tagged before building a public artifact:
+
+```bash
+scripts/verify-release-source-state.sh --expected-version 1.0 --expected-build 16 --expected-tag 'v1.0+16'
+```
+
+The broader release gate can include the same archive check with:
+
+```bash
+scripts/verify-release.sh --archive-check
+```
+
+To verify the currently public DMG without installing or changing release artifacts:
+
+```bash
+scripts/verify-public-dmg.sh
+```
+
+The broader release gate can include that public DMG mount/signature check with:
+
+```bash
+scripts/verify-release.sh --public-dmg-check
+```
+
+For a public release, notarize with Apple first, then publish the stapled DMG to Cloudflare R2 with Wrangler:
+
+```bash
+scripts/release-macos-dmg.sh --clean --notary-profile "voiyce-notary"
+UPLOAD_CLIENT=wrangler CF_R2_BUCKET="voiyce-downloads" scripts/publish-dmg-to-r2.sh
+```
+
 ## Project Structure
 
 ```
@@ -116,6 +189,6 @@ MIT — use it, learn from it, build on it.
 
 ## About
 
-Voiyce is built by [Pentridge Media](https://pentridgemedia.com). We make tools that help people work faster with AI.
+Voiyce is an independent macOS voice platform for dictation, realtime voice assistance, and local agent workflows.
 
 Questions? Ideas? [Open an issue](https://github.com/sirakinb/Voiyce-Agent/issues) or reach out at aki.b@pentridgemedia.com.

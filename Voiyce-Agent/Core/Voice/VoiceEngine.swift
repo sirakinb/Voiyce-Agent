@@ -58,7 +58,7 @@ final class VoiceEngine {
             do {
                 try audioFile.write(from: buffer)
             } catch {
-                print("[VoiceEngine] Write error: \(error)")
+                print("[VoiceEngine] Audio write failed.")
             }
         }
 
@@ -67,7 +67,7 @@ final class VoiceEngine {
 
         self.audioEngine = audioEngine
         self.isRecording = true
-        print("[VoiceEngine] Recording started to: \(fileURL.lastPathComponent)")
+        print("[VoiceEngine] Recording started.")
     }
 
     /// Stop recording and return the audio file URL

@@ -21,3 +21,39 @@ body {
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.skip-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 9999;
+  transform: translateY(-160%);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #050505;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid #a855f7;
+  outline-offset: 4px;
+  box-shadow:
+    0 0 0 4px rgba(168, 85, 247, 0.24),
+    0 18px 50px rgba(0, 0, 0, 0.4);
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}

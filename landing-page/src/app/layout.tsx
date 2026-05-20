@@ -13,25 +13,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://voiyce-mac-app.vercel.app"),
+  metadataBase: new URL("https://voiyce.us"),
   title: {
-    default: "Write at the speed of thought.",
+    default: "Stop re-explaining your work to AI.",
     template: "%s — Voiyce",
   },
   description:
-    "Download Voiyce for macOS and turn natural speech into polished text in any app.",
+    "Voiyce is the agent context layer for Claude Code, Codex, Hermes Agent, OpenClaw, Cursor, and your workspace.",
   openGraph: {
-    title: "Write at the speed of thought.",
+    title: "Stop re-explaining your work to AI.",
     description:
-      "Download Voiyce for macOS and turn natural speech into polished text in any app.",
-    url: "https://voiyce-mac-app.vercel.app",
+      "Voiyce captures what you are doing and turns it into reusable agent context for the tools you work with.",
+    url: "https://voiyce.us",
     siteName: "Voiyce",
     images: [
       {
         url: "/og-header.png",
         width: 1200,
         height: 630,
-        alt: "Voiyce - Write at the speed of thought. Download for macOS.",
+        alt: "Voiyce - Stop re-explaining your work to AI.",
       },
     ],
     locale: "en_US",
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Write at the speed of thought.",
+    title: "Stop re-explaining your work to AI.",
     description:
-      "Download Voiyce for macOS and turn natural speech into polished text in any app.",
+      "The agent context layer for Claude Code, Codex, Hermes Agent, OpenClaw, Cursor, and your workspace.",
     images: ["/og-header.png"],
   },
 };
@@ -56,7 +56,14 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
+        <main id="main-content" className="min-h-full flex-1">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }

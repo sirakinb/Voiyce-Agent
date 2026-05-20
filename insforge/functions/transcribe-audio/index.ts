@@ -1,10 +1,18 @@
+import {
+  accountUsageLimitMessage,
+  AI_SERVICE_UNAVAILABLE_ERROR,
+  GENERIC_CLIENT_ERROR,
+  isAccountUsageLimitMessage,
+  redactForLog,
+} from '../_shared/safe-errors.ts'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 }
 
-const MAX_AUDIO_BYTES = 10 * 1024 * 1024
+const DEFAULT_MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
 class HTTPStatusError extends Error {
   readonly status: number
@@ -39,6 +47,9 @@ type OpenAITranscriptionResponse = {
   text?: string
 }
 
+type UsageReservation = Array<{ usage_id?: string }> | { usage_id?: string } | null
+type UsageUnits = Record<string, number | string | boolean>
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -52,6 +63,23 @@ function requireEnv(name: string): string {
     throw new Error(`Missing required environment variable: ${name}`)
   }
   return value
+}
+
+function envFlag(name: string): boolean {
+  return ['1', 'true', 'yes', 'on'].includes((Deno.env.get(name) ?? '').trim().toLowerCase())
+}
+
+function envNumber(name: string, fallback: number): number {
+  const parsed = Number(Deno.env.get(name))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function disabledResponse(capability: string): Response {
+  return json({
+    error: `${capability} is temporarily unavailable.`,
+    displayMessage: `${capability} is temporarily paused. Please try again later.`,
+    code: 'capability_disabled'
+  }, 503)
 }
 
 async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
@@ -136,6 +164,48 @@ async function callDatabaseRPC(
   )
 }
 
+async function reserveAgentUsageCost(
+  baseUrl: string,
+  bearerToken: string,
+  userId: string,
+  capability: string,
+  estimatedCostUSD: number,
+  usageUnits: UsageUnits
+): Promise<string | null> {
+  const reservation = await callDatabaseRPC(baseUrl, bearerToken, 'reserve_agent_usage_cost', {
+    p_user_id: userId,
+    p_capability: capability,
+    p_estimated_cost_usd: estimatedCostUSD,
+    p_usage_units: usageUnits
+  }) as UsageReservation
+
+  return Array.isArray(reservation)
+    ? reservation[0]?.usage_id ?? null
+    : reservation?.usage_id ?? null
+}
+
+async function finalizeAgentUsageCost(
+  baseUrl: string,
+  bearerToken: string,
+  usageId: string | null,
+  succeeded: boolean,
+  usageUnits?: UsageUnits
+): Promise<void> {
+  if (!usageId) {
+    return
+  }
+
+  const body: Record<string, unknown> = {
+    p_usage_id: usageId,
+    p_succeeded: succeeded
+  }
+  if (usageUnits) {
+    body.p_usage_units = usageUnits
+  }
+
+  await callDatabaseRPC(baseUrl, bearerToken, 'finalize_agent_usage_cost', body)
+}
+
 function isSubscriptionActive(status: string | null | undefined): boolean {
   return ['active', 'trialing', 'past_due'].includes(status ?? '')
 }
@@ -163,16 +233,24 @@ function decodeBase64ToBytes(input: string): Uint8Array {
   return bytes
 }
 
-function extractOpenAIErrorMessage(payload: unknown, fallbackStatus: number): string {
-  if (typeof (payload as { error?: { message?: string } } | null)?.error?.message === 'string') {
-    return (payload as { error: { message: string } }).error.message
+function statusForOpenAIError(upstreamStatus: number): number {
+  if (upstreamStatus === 401 || upstreamStatus === 403 || upstreamStatus === 429) {
+    return upstreamStatus
   }
 
-  if (typeof (payload as { message?: string } | null)?.message === 'string') {
-    return (payload as { message: string }).message
-  }
+  return 502
+}
 
-  return `OpenAI transcription request failed with status ${fallbackStatus}`
+function isAccountLimitError(error: unknown): boolean {
+  return error instanceof HTTPStatusError
+    && (error.status === 402 || isAccountUsageLimitMessage(error.message))
+}
+
+export function selectTranscriptionModel(requestedModel: string | undefined): string {
+  const trimmed = requestedModel?.trim()
+  return envFlag('VOIYCE_ALLOW_CLIENT_TRANSCRIPTION_MODEL') && trimmed
+    ? trimmed
+    : Deno.env.get('OPENAI_TRANSCRIPTION_MODEL') || 'whisper-1'
 }
 
 export default async function(req: Request): Promise<Response> {
@@ -185,10 +263,15 @@ export default async function(req: Request): Promise<Response> {
   }
 
   let betaUsageID: string | null = null
+  let agentUsageID: string | null = null
   let finalizeBaseUrl: string | null = null
   let finalizeUserToken: string | null = null
 
   try {
+    if (envFlag('VOIYCE_DISABLE_ALL_AI') || envFlag('VOIYCE_DISABLE_TRANSCRIPTION')) {
+      return disabledResponse('Transcription')
+    }
+
     const baseUrl = requireEnv('INSFORGE_BASE_URL')
     const apiKey = requireEnv('API_KEY')
     const openAIKey = requireEnv('OPENAI_API_KEY')
@@ -215,15 +298,20 @@ export default async function(req: Request): Promise<Response> {
       return json({ error: 'Audio payload was empty.' }, 400)
     }
 
-    if (audioBytes.byteLength > MAX_AUDIO_BYTES) {
-      return json({ error: `Audio payload exceeds the ${MAX_AUDIO_BYTES / (1024 * 1024)}MB limit.` }, 413)
+    const maxAudioBytes = envNumber('VOIYCE_TRANSCRIPTION_MAX_AUDIO_BYTES', DEFAULT_MAX_AUDIO_BYTES)
+    if (audioBytes.byteLength > maxAudioBytes) {
+      return json({ error: `Audio payload exceeds the ${Math.round(maxAudioBytes / (1024 * 1024))}MB limit.` }, 413)
     }
 
     const fileName = body.fileName?.trim() || 'recording.wav'
     const mimeType = body.mimeType?.trim() || 'audio/wav'
-    const model = body.model?.trim() || Deno.env.get('OPENAI_TRANSCRIPTION_MODEL') || 'whisper-1'
+    const model = selectTranscriptionModel(body.model)
     const language = body.language?.trim() || 'en'
     const profile = await findBillingProfile(baseUrl, apiKey, user.id)
+    const estimatedCostUSD = estimateTranscriptionCostUSD(body.durationSeconds)
+    const estimatedAudioSeconds = Number.isFinite(body.durationSeconds) && body.durationSeconds && body.durationSeconds > 0
+      ? body.durationSeconds
+      : 60
     const shouldReserveBetaSpend = Boolean(profile?.beta_unlocked_at)
       && !isSubscriptionActive(profile?.subscription_status)
 
@@ -231,15 +319,56 @@ export default async function(req: Request): Promise<Response> {
       try {
         const reservation = await callDatabaseRPC(baseUrl, userToken ?? '', 'reserve_beta_transcription_cost', {
           p_user_id: user.id,
-          p_estimated_cost_usd: estimateTranscriptionCostUSD(body.durationSeconds)
+          p_estimated_cost_usd: estimatedCostUSD
         }) as Array<{ usage_id?: string }> | { usage_id?: string } | null
         betaUsageID = Array.isArray(reservation)
           ? reservation[0]?.usage_id ?? null
           : reservation?.usage_id ?? null
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Beta monthly transcription cap reached'
-        console.warn('[transcribe-audio] Beta reservation failed.', { userId: user.id, message })
-        return json({ error: message }, 402)
+        if (!isAccountLimitError(error) && !isAccountUsageLimitMessage(message)) {
+          throw error
+        }
+
+        console.warn('[transcribe-audio] Beta reservation failed.', {
+          userId: user.id,
+          message: redactForLog(message),
+        })
+        return json({
+          error: accountUsageLimitMessage(message),
+          code: 'usage_limit_reached',
+        }, 402)
+      }
+    }
+
+    if (envFlag('VOIYCE_ENFORCE_AGENT_USAGE_CAPS')) {
+      try {
+        agentUsageID = await reserveAgentUsageCost(
+          baseUrl,
+          userToken ?? '',
+          user.id,
+          'transcription',
+          estimatedCostUSD,
+          {
+            request_count: 1,
+            audio_seconds: estimatedAudioSeconds,
+            audio_bytes: audioBytes.byteLength,
+          }
+        )
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Transcription usage cap reached'
+        if (!isAccountLimitError(error) && !isAccountUsageLimitMessage(message)) {
+          throw error
+        }
+
+        console.warn('[transcribe-audio] Agent usage reservation failed.', {
+          userId: user.id,
+          message: redactForLog(message),
+        })
+        return json({
+          error: accountUsageLimitMessage(message),
+          code: 'usage_limit_reached',
+        }, 402)
       }
     }
 
@@ -271,12 +400,22 @@ export default async function(req: Request): Promise<Response> {
           p_succeeded: false
         })
       }
+      if (agentUsageID) {
+        try {
+          await finalizeAgentUsageCost(baseUrl, userToken ?? '', agentUsageID, false)
+        } catch (finalizeError) {
+          console.warn('[transcribe-audio] Failed to finalize failed usage reservation.', finalizeError)
+        }
+      }
 
       console.error('[transcribe-audio] OpenAI transcription failed.', {
         status: response.status,
-        payload
+        payload: redactForLog(payload)
       })
-      return json({ error: extractOpenAIErrorMessage(payload, response.status) }, 502)
+      return json({
+        error: AI_SERVICE_UNAVAILABLE_ERROR,
+        upstreamStatus: response.status
+      }, statusForOpenAIError(response.status))
     }
 
     const transcription = payload as OpenAITranscriptionResponse | null
@@ -289,6 +428,13 @@ export default async function(req: Request): Promise<Response> {
           p_succeeded: false
         })
       }
+      if (agentUsageID) {
+        try {
+          await finalizeAgentUsageCost(baseUrl, userToken ?? '', agentUsageID, false)
+        } catch (finalizeError) {
+          console.warn('[transcribe-audio] Failed to finalize empty-result usage reservation.', finalizeError)
+        }
+      }
 
       return json({ error: 'OpenAI returned an empty transcription.' }, 502)
     }
@@ -299,6 +445,13 @@ export default async function(req: Request): Promise<Response> {
         p_succeeded: true
       })
     }
+    if (agentUsageID) {
+      try {
+        await finalizeAgentUsageCost(baseUrl, userToken ?? '', agentUsageID, true)
+      } catch (finalizeError) {
+        console.warn('[transcribe-audio] Failed to finalize successful usage reservation.', finalizeError)
+      }
+    }
 
     return json({ text })
   } catch (error) {
@@ -308,16 +461,23 @@ export default async function(req: Request): Promise<Response> {
         p_succeeded: false
       })
     }
+    if (agentUsageID && finalizeBaseUrl && finalizeUserToken) {
+      try {
+        await finalizeAgentUsageCost(finalizeBaseUrl, finalizeUserToken, agentUsageID, false)
+      } catch (finalizeError) {
+        console.warn('[transcribe-audio] Failed to finalize usage reservation.', finalizeError)
+      }
+    }
 
     if (error instanceof HTTPStatusError && error.status === 401) {
       console.warn('[transcribe-audio] User token rejected.', {
         status: error.status,
-        message: error.message
+        message: redactForLog(error.message)
       })
       return json({ error: 'Unauthorized' }, 401)
     }
 
-    console.error('[transcribe-audio] Unhandled failure.', error)
-    return json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    console.error('[transcribe-audio] Unhandled failure.', redactForLog(error))
+    return json({ error: GENERIC_CLIENT_ERROR }, 500)
   }
 }

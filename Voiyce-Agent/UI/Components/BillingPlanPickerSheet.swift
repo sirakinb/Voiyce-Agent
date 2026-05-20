@@ -37,6 +37,26 @@ struct BillingPlanPickerSheet: View {
                 }
             }
 
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "gauge.with.dots.needle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 18)
+
+                Text(BillingLimitCopy.checkoutSummary)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .background(AppTheme.backgroundSecondary.opacity(0.82))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(AppTheme.ridge, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .accessibilityIdentifier("billing-plan-limit-summary")
+
             VStack(spacing: 12) {
                 ForEach(BillingPlan.allCases) { plan in
                     Button {
