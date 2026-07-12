@@ -323,6 +323,55 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Dictation + Owl */}
+      <section className="py-20 px-6 relative z-20 bg-black">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 32 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-[0.9fr_1.1fr] gap-10 md:gap-14 items-center rounded-[2rem] border border-white/10 bg-[#0A0A0A] p-8 md:p-12 overflow-hidden relative"
+          >
+            <div className="absolute top-0 left-0 w-80 h-80 bg-purple-500/10 blur-3xl rounded-full"></div>
+            <div className="relative z-10 aspect-square max-w-sm mx-auto md:mx-0 rounded-[1.5rem] overflow-hidden border border-white/10 bg-black shadow-2xl">
+              <video
+                src="/owl.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[#B8B8B8] text-xs font-medium mb-6">
+                <Icon icon="mdi:microphone" className="h-4 w-4 text-purple-200" />
+                Dictation is the core workflow
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">
+                Voiyce is built for people who would rather speak than type.
+              </h2>
+              <p className="text-xl text-[#888888] font-light leading-relaxed max-w-2xl mb-8">
+                Use the owl as your always-ready Mac dictation layer: hold a hotkey, talk naturally, and drop polished text into the app you are already using. Context and Talk modes stay available when you want the assistant to understand more of your workspace.
+              </p>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {[
+                  ["Dictate", "Your everyday Wispr Flow-style workflow"],
+                  ["Context", "Extra screen awareness when it helps"],
+                  ["Talk", "A conversational layer for agent work"]
+                ].map(([label, text]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="text-white text-sm font-semibold">{label}</div>
+                    <div className="text-[#777777] text-sm mt-2 leading-relaxed">{text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Product */}
       <section id="how-it-works" className="scroll-mt-36 py-36 px-6 relative z-20 bg-black">
         <div className="max-w-5xl mx-auto">
