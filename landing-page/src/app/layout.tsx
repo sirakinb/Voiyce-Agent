@@ -15,15 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://voiyce.us"),
   title: {
-    default: "Stop re-explaining your work to AI.",
+    default: "Write at the speed of thought.",
     template: "%s — Voiyce",
   },
   description:
-    "Voiyce is the agent context layer for Claude Code, Codex, Hermes Agent, OpenClaw, Cursor, and your workspace.",
+    "Download Voiyce for macOS and turn natural speech into polished text in any app.",
   openGraph: {
-    title: "Stop re-explaining your work to AI.",
+    title: "Write at the speed of thought.",
     description:
-      "Voiyce captures what you are doing and turns it into reusable agent context for the tools you work with.",
+      "Download Voiyce for macOS and turn natural speech into polished text in any app.",
     url: "https://voiyce.us",
     siteName: "Voiyce",
     images: [
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
         url: "/og-header.png",
         width: 1200,
         height: 630,
-        alt: "Voiyce - Stop re-explaining your work to AI.",
+        alt: "Voiyce - Write at the speed of thought. Download for macOS.",
       },
     ],
     locale: "en_US",
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stop re-explaining your work to AI.",
+    title: "Write at the speed of thought.",
     description:
-      "The agent context layer for Claude Code, Codex, Hermes Agent, OpenClaw, Cursor, and your workspace.",
+      "Download Voiyce for macOS and turn natural speech into polished text in any app.",
     images: ["/og-header.png"],
   },
 };
