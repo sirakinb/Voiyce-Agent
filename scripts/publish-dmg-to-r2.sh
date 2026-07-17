@@ -20,6 +20,7 @@ VERSIONED_SHA_KEY=""
 LATEST_DMG_KEY="$DMG_NAME"
 LATEST_SHA_KEY="$DMG_NAME.sha256"
 UPLOAD_CLIENT="${UPLOAD_CLIENT:-}"
+WRANGLER_BIN="${WRANGLER_BIN:-}"
 
 usage() {
   cat <<'EOF'
@@ -71,8 +72,27 @@ select_upload_client() {
     return
   fi
 
-  if command -v npx >/dev/null 2>&1; then
+  if command -v npx >/dev/null 2>&1 || command -v wrangler >/dev/null 2>&1 || [[ -n "$WRANGLER_BIN" && -x "$WRANGLER_BIN" ]]; then
     printf 'wrangler\n'
+    return
+  fi
+
+  fail "Missing upload client. Install aws CLI or make npx/wrangler available."
+}
+
+wrangler_command() {
+  if [[ -n "$WRANGLER_BIN" && -x "$WRANGLER_BIN" ]]; then
+    printf '%s\n' "$WRANGLER_BIN"
+    return
+  fi
+
+  if command -v wrangler >/dev/null 2>&1; then
+    command -v wrangler
+    return
+  fi
+
+  if command -v npx >/dev/null 2>&1; then
+    printf 'npx wrangler\n'
     return
   fi
 
@@ -101,7 +121,8 @@ put_object() {
   fi
 
   if [[ "$UPLOAD_CLIENT" == "wrangler" ]]; then
-    npx wrangler r2 object put "$BUCKET/$object_key" \
+    read -r -a wrangler_args <<< "$(wrangler_command)"
+    "${wrangler_args[@]}" r2 object put "$BUCKET/$object_key" \
       --remote \
       --file "$source_path" \
       --content-type "$content_type" \
