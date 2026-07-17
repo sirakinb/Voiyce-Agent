@@ -70,6 +70,9 @@ struct BillingStatusSnapshot: Decodable, Sendable {
     let pentridgeSubscriptionActive: Bool
     let pentridgeTier: String?
     let pentridgeWordLimit: Int
+    let pentridgeWordsUsed: Int
+    let pentridgeWordsRemaining: Int
+    let pentridgeCapReached: Bool
 
     enum CodingKeys: String, CodingKey {
         case freeWordsLimit = "free_words_limit"
@@ -92,6 +95,9 @@ struct BillingStatusSnapshot: Decodable, Sendable {
         case pentridgeSubscriptionActive = "pentridge_subscription_active"
         case pentridgeTier = "pentridge_tier"
         case pentridgeWordLimit = "pentridge_word_limit"
+        case pentridgeWordsUsed = "pentridge_words_used"
+        case pentridgeWordsRemaining = "pentridge_words_remaining"
+        case pentridgeCapReached = "pentridge_cap_reached"
     }
 
     init(from decoder: Decoder) throws {
@@ -116,6 +122,9 @@ struct BillingStatusSnapshot: Decodable, Sendable {
         pentridgeSubscriptionActive = try container.decodeIfPresent(Bool.self, forKey: .pentridgeSubscriptionActive) ?? false
         pentridgeTier = try container.decodeIfPresent(String.self, forKey: .pentridgeTier)
         pentridgeWordLimit = try container.decodeIfPresent(Int.self, forKey: .pentridgeWordLimit) ?? 0
+        pentridgeWordsUsed = try container.decodeIfPresent(Int.self, forKey: .pentridgeWordsUsed) ?? 0
+        pentridgeWordsRemaining = try container.decodeIfPresent(Int.self, forKey: .pentridgeWordsRemaining) ?? 0
+        pentridgeCapReached = try container.decodeIfPresent(Bool.self, forKey: .pentridgeCapReached) ?? false
     }
 }
 
@@ -174,6 +183,10 @@ final class BillingManager {
         status?.pentridgeSubscriptionActive ?? false
     }
 
+    var pentridgeCapReached: Bool {
+        status?.pentridgeCapReached ?? false
+    }
+
     var pentridgeTier: String? {
         status?.pentridgeTier
     }
@@ -227,19 +240,25 @@ final class BillingManager {
     }
 
     var requiresSubscription: Bool {
-        if hasPentridgeSubscription {
-            return false
-        }
-
-        if status?.needsSubscription == true {
+        // No snapshot yet (e.g. network failure at launch): fail closed so a
+        // brand-new unlock is never granted without a billing check.
+        guard let status else {
             return true
         }
 
-        if hasBetaAccess && !betaMonthlyCapReached {
+        if status.pentridgeSubscriptionActive && !status.pentridgeCapReached {
             return false
         }
 
-        guard !hasActiveSubscription, let trialEndsAt = status?.trialEndsAt else {
+        if status.needsSubscription {
+            return true
+        }
+
+        if status.hasBetaAccess && !status.betaMonthlyCapReached {
+            return false
+        }
+
+        guard !status.hasActiveSubscription, let trialEndsAt = status.trialEndsAt else {
             return false
         }
 
@@ -276,6 +295,14 @@ final class BillingManager {
 
     var planSubtitle: String {
         if hasPentridgeSubscription {
+            if pentridgeCapReached {
+                return "Voiyce is included in your Pentridge Labs subscription, but you've used your 10,000 monthly words. Dictation resumes next month."
+            }
+
+            if pentridgeTier == "standard", let status {
+                return "Voiyce is included in your Pentridge Labs subscription. \(status.pentridgeWordsRemaining) of 10,000 words left this month."
+            }
+
             return "Voiyce is included in your Pentridge Labs subscription. \(pentridgeWordLimitDisplay) dictation."
         }
 

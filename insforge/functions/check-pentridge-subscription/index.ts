@@ -4,10 +4,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 }
 
-const PENTRIDGE_LABS_URL = 'https://3nm75tby.us-east.insforge.app/functions/check-subscription'
+const PENTRIDGE_LABS_URL = 'https://3nm75tby.us-east.insforge.app/functions/check-subscription-public'
+
+const INTERNAL_EMAIL_ALLOWLIST = new Set([
+  'aki.b@pentridgemedia.com',
+  'sirakinb@gmail.com',
+  'dropcardai@gmail.com',
+  'bajulaiye@protonmail.com',
+  'raichellaram@gmail.com',
+  '08lin.kevin121@gmail.com',
+  'tyronepeace.qa@gmail.com',
+  'jyho0243@gmail.com',
+  'astrid.nigrovic@gmail.com'
+])
 
 type AuthUser = {
   id: string
+  email?: string | null
 }
 
 type PentridgeResponse = {
@@ -53,22 +66,66 @@ async function getCurrentUser(baseUrl: string, userToken: string | null): Promis
   return data.user ?? null
 }
 
-async function checkPentridgeSubscription(userToken: string): Promise<PentridgeResponse> {
-  const response = await fetch(PENTRIDGE_LABS_URL, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${userToken}`
-    }
-  })
+// Returns null when the hub is unreachable, so callers can distinguish
+// "hub said no" (revoke) from "hub down" (keep cached entitlement).
+async function checkPentridgeSubscription(email: string): Promise<PentridgeResponse | null> {
+  const normalizedEmail = email.trim().toLowerCase()
 
-  if (!response.ok) {
-    return { has_subscription: false, tier: null }
+  if (INTERNAL_EMAIL_ALLOWLIST.has(normalizedEmail)) {
+    return { has_subscription: true, tier: 'pro' }
   }
 
-  const data = await response.json() as PentridgeResponse
-  return {
-    has_subscription: Boolean(data.has_subscription),
-    tier: data.has_subscription ? (data.tier ?? null) : null
+  try {
+    const response = await fetch(PENTRIDGE_LABS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: normalizedEmail })
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json() as PentridgeResponse
+    return {
+      has_subscription: Boolean(data.has_subscription),
+      tier: data.has_subscription ? (data.tier ?? null) : null
+    }
+  } catch {
+    return null
+  }
+}
+
+async function getCachedPentridgeStatus(baseUrl: string, apiKey: string, userId: string): Promise<PentridgeResponse> {
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    select: 'pentridge_subscription_active,pentridge_tier'
+  })
+
+  try {
+    const response = await fetch(
+      `${baseUrl.replace(/\/$/, '')}/api/database/records/billing_profiles?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${apiKey}` }
+      }
+    )
+
+    if (!response.ok) {
+      return { has_subscription: false, tier: null }
+    }
+
+    const rows = await response.json() as Array<{ pentridge_subscription_active?: boolean; pentridge_tier?: 'standard' | 'pro' | null }>
+    const row = rows[0]
+    if (!row) {
+      return { has_subscription: false, tier: null }
+    }
+
+    return {
+      has_subscription: Boolean(row.pentridge_subscription_active),
+      tier: row.pentridge_subscription_active ? (row.pentridge_tier ?? null) : null
+    }
+  } catch {
+    return { has_subscription: false, tier: null }
   }
 }
 
@@ -104,7 +161,21 @@ export default async function(req: Request): Promise<Response> {
       return json({ error: 'Unauthorized' }, 401)
     }
 
-    const result = await checkPentridgeSubscription(userToken!)
+    const hubResult = user.email
+      ? await checkPentridgeSubscription(user.email)
+      : { has_subscription: false, tier: null }
+
+    if (hubResult === null) {
+      // Hub unreachable: keep the cached entitlement so an already-entitled
+      // session keeps working, without granting a brand-new unlock.
+      const cached = await getCachedPentridgeStatus(baseUrl, apiKey, user.id)
+      return json({
+        has_subscription: cached.has_subscription,
+        tier: cached.tier ?? null
+      })
+    }
+
+    const result = hubResult
 
     // Cache the result in the billing profile
     await updateBillingProfile(baseUrl, apiKey, user.id, {
