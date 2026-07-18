@@ -27,6 +27,14 @@ function requireEnv(name: string): string {
   return value
 }
 
+function requireStripeSecretKey(): string {
+  const key = requireEnv('STRIPE_SECRET_KEY').trim()
+  if (key.startsWith('sk_live_') && Deno.env.get('STRIPE_ALLOW_LIVE_MODE') !== 'true') {
+    throw new Error('Stripe live mode is disabled. Set STRIPE_ALLOW_LIVE_MODE=true only after live billing review.')
+  }
+  return key
+}
+
 async function fetchJSON(
   url: string,
   init: RequestInit
@@ -88,7 +96,7 @@ export default async function(req: Request): Promise<Response> {
   try {
     const baseUrl = requireEnv('INSFORGE_BASE_URL')
     const apiKey = requireEnv('API_KEY')
-    const stripeSecretKey = requireEnv('STRIPE_SECRET_KEY')
+    const stripeSecretKey = requireStripeSecretKey()
     const authHeader = req.headers.get('Authorization')
     const userToken = authHeader ? authHeader.replace('Bearer ', '') : null
 

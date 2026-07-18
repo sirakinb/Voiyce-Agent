@@ -6,6 +6,20 @@
 import AVKit
 import SwiftUI
 
+enum DemoVideoLaunchCopy {
+    static let title = "How to Use Voiyce"
+    static let subtitle = "Watch this quick walkthrough before you start using Voiyce."
+    static let loadingFailure = "The walkthrough video could not be loaded. Close this window and try again."
+    static let done = "Done"
+
+    static let visibleStrings = [
+        title,
+        subtitle,
+        loadingFailure,
+        done
+    ]
+}
+
 struct DemoVideoSheet: View {
     let onClose: () -> Void
 
@@ -15,11 +29,11 @@ struct DemoVideoSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("How to Use Voiyce")
+                    Text(DemoVideoLaunchCopy.title)
                         .font(AppTheme.titleFont)
                         .foregroundStyle(AppTheme.textPrimary)
 
-                    Text("Watch this quick walkthrough before you start dictating.")
+                    Text(DemoVideoLaunchCopy.subtitle)
                         .font(AppTheme.bodyFont)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -51,7 +65,7 @@ struct DemoVideoSheet: View {
                             .font(.system(size: 34))
                             .foregroundStyle(AppTheme.warning)
 
-                        Text("The demo video could not be loaded.")
+                        Text(DemoVideoLaunchCopy.loadingFailure)
                             .font(AppTheme.bodyFont)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -65,7 +79,7 @@ struct DemoVideoSheet: View {
             HStack {
                 Spacer()
 
-                Button("Done") {
+                Button(DemoVideoLaunchCopy.done) {
                     onClose()
                 }
                 .font(AppTheme.bodyFont)

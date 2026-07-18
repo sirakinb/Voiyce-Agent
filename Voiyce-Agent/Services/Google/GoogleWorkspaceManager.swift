@@ -40,7 +40,7 @@ final class GoogleWorkspaceManager {
 
     func connect() async {
         guard isConfigured else {
-            errorMessage = "Google OAuth is not configured for this build yet."
+            errorMessage = GoogleWorkspaceRecoveryCopy.notConfigured
             return
         }
 
@@ -123,7 +123,7 @@ final class GoogleWorkspaceManager {
                 : messages.map { "\($0.from) | \($0.subject) | \($0.snippet)" }.joined(separator: "\n")
             return AgentToolResult(ok: true, message: summary, data: ["count": String(messages.count)])
         } catch {
-            return AgentToolResult(ok: false, message: friendlyMessage(for: error), data: ["requires": "google_oauth"])
+            return googleOAuthRequiredResult(error)
         }
     }
 
@@ -145,7 +145,7 @@ final class GoogleWorkspaceManager {
                 data: ["draft_id": draft.id, "recipient": recipient, "sent": "false"]
             )
         } catch {
-            return AgentToolResult(ok: false, message: friendlyMessage(for: error), data: ["requires": "google_oauth"])
+            return googleOAuthRequiredResult(error)
         }
     }
 
@@ -166,7 +166,7 @@ final class GoogleWorkspaceManager {
                 data: ["message_id": response.id, "recipient": recipient, "sent": "true"]
             )
         } catch {
-            return AgentToolResult(ok: false, message: friendlyMessage(for: error), data: ["requires": "google_oauth"])
+            return googleOAuthRequiredResult(error)
         }
     }
 
@@ -196,7 +196,7 @@ final class GoogleWorkspaceManager {
                 data: ["available": String(busy.isEmpty), "conflict_count": String(busy.count)]
             )
         } catch {
-            return AgentToolResult(ok: false, message: friendlyMessage(for: error), data: ["requires": "google_oauth"])
+            return googleOAuthRequiredResult(error)
         }
     }
 
@@ -227,8 +227,19 @@ final class GoogleWorkspaceManager {
                 data: ["event_count": String(events.count)]
             )
         } catch {
-            return AgentToolResult(ok: false, message: friendlyMessage(for: error), data: ["requires": "google_oauth"])
+            return googleOAuthRequiredResult(error)
         }
+    }
+
+    private func googleOAuthRequiredResult(_ error: Error) -> AgentToolResult {
+        AgentToolResult(
+            ok: false,
+            message: friendlyMessage(for: error),
+            data: [
+                "requires": "google_oauth",
+                "next_step": AgentToolRecoveryCopy.googleOAuthNextStep
+            ]
+        )
     }
 
     private var storedToken: GoogleOAuthToken? {
@@ -349,10 +360,7 @@ final class GoogleWorkspaceManager {
     }
 
     private func friendlyMessage(for error: Error) -> String {
-        if let error = error as? GoogleWorkspaceError {
-            return error.localizedDescription
-        }
-        return error.localizedDescription
+        GoogleWorkspaceRecoveryCopy.message(for: error)
     }
 
     private static func emailMessage(recipient: String, subject: String, body: String) -> String {
@@ -517,16 +525,16 @@ private final class OAuthLoopbackReceiver {
 
         let body: String
         if let error {
-            body = "Google connection failed: \(error)"
+            body = GoogleWorkspaceRecoveryCopy.callbackFailurePage
             finish(.failure(GoogleWorkspaceError.apiError(400, error)))
         } else if state != expectedState {
-            body = "Google connection failed: invalid state."
+            body = GoogleWorkspaceRecoveryCopy.callbackFailurePage
             finish(.failure(GoogleWorkspaceError.invalidOAuthState))
         } else if let code {
-            body = "Google is connected. You can return to Voiyce."
+            body = GoogleWorkspaceRecoveryCopy.callbackSuccessPage
             finish(.success(code))
         } else {
-            body = "Google connection failed: missing code."
+            body = GoogleWorkspaceRecoveryCopy.callbackFailurePage
             finish(.failure(GoogleWorkspaceError.missingOAuthCode))
         }
 
@@ -567,23 +575,47 @@ enum GoogleWorkspaceError: LocalizedError {
     case apiError(Int, String)
 
     var errorDescription: String? {
-        switch self {
-        case .invalidOAuthURL:
-            "Could not create the Google OAuth URL."
-        case .oauthCallbackUnavailable:
-            "Could not start the local Google OAuth callback server."
-        case .invalidOAuthState:
-            "Google OAuth returned an invalid state."
-        case .missingOAuthCode:
-            "Google OAuth did not return an authorization code."
+        GoogleWorkspaceRecoveryCopy.message(for: self)
+    }
+}
+
+enum GoogleWorkspaceRecoveryCopy {
+    static let notConfigured = "Google connection is not configured for this build yet. Contact support if this should be available."
+    static let callbackSuccessPage = "Google is connected. You can return to Voiyce."
+    static let callbackFailurePage = "Google could not finish connecting. Return to Voiyce and try again from Settings."
+    static let notConnected = "Google is not connected. Open Settings and connect Google first."
+    static let savedConnectionUnreadable = "The saved Google connection could not be read. Disconnect Google, then connect it again."
+    static let unexpectedResponse = "Google returned an unexpected response. Try again, then reconnect Google if it keeps happening."
+    static let connectionFailed = "Google could not finish connecting. Try again from Settings."
+    static let requestFailed = "Google could not complete that request. Try again, then reconnect Google if it keeps happening."
+
+    static func message(for error: Error) -> String {
+        if let workspaceError = error as? GoogleWorkspaceError {
+            return message(for: workspaceError)
+        }
+
+        if let urlError = error as? URLError,
+           urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+            return "Google could not connect. Check your internet connection, then try again."
+        }
+
+        return requestFailed
+    }
+
+    static func message(for error: GoogleWorkspaceError) -> String {
+        switch error {
+        case .invalidOAuthURL, .oauthCallbackUnavailable:
+            return "Google connection could not start. Try again from Settings, then contact support if it keeps happening."
+        case .invalidOAuthState, .missingOAuthCode:
+            return connectionFailed
         case .notConnected:
-            "Google is not connected. Open Settings and connect Google first."
+            return notConnected
         case .invalidToken:
-            "The stored Google token could not be read."
+            return savedConnectionUnreadable
         case .invalidResponse:
-            "Google returned an invalid response."
-        case .apiError(let status, let payload):
-            "Google API \(status): \(payload)"
+            return unexpectedResponse
+        case .apiError:
+            return requestFailed
         }
     }
 }

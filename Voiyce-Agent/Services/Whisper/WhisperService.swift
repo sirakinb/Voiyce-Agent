@@ -28,16 +28,33 @@ final class WhisperService {
         do {
             result = try await client.functions.invoke("transcribe-audio", body: request)
         } catch let error as InsForgeError {
-            switch error {
+            throw Self.mappedError(for: error, logServiceFailure: logTranscriptionServiceFailure)
+        } catch let error as URLError {
+            throw Self.mappedError(for: error, logServiceFailure: logTranscriptionServiceFailure)
+        } catch {
+            throw Self.mappedError(for: error, logServiceFailure: logTranscriptionServiceFailure)
+        }
+
+        let transcriptionWordCount = DictationDebugLogCopy.wordCount(in: result.text)
+        print(DictationDebugLogCopy.transcriptionCompleted(wordCount: transcriptionWordCount))
+        return result.text
+    }
+
+    static func mappedError(
+        for error: Error,
+        logServiceFailure: (Int?, String, String?) -> Void = { _, _, _ in }
+    ) -> WhisperError {
+        if let insForgeError = error as? InsForgeError {
+            switch insForgeError {
             case .authenticationRequired, .unauthorized:
-                throw WhisperError.authenticationRequired
+                return .authenticationRequired
             case .networkError(let underlyingError as URLError):
-                if underlyingError.code == .notConnectedToInternet || underlyingError.code == .networkConnectionLost {
-                    throw WhisperError.noInternet
+                if let mappedError = mappedNetworkError(underlyingError, logServiceFailure: logServiceFailure) {
+                    return mappedError
                 }
-                throw WhisperError.requestFailed(underlyingError.localizedDescription)
-            case .networkError(let underlyingError):
-                throw WhisperError.requestFailed(underlyingError.localizedDescription)
+                return .requestFailed(DictationRecoveryCopy.transcriptionFailedDetail)
+            case .networkError:
+                return .requestFailed(DictationRecoveryCopy.transcriptionFailedDetail)
             case .httpError(let statusCode, let message, let errorMessage, let nextActions):
                 let fullMessage = [
                     errorMessage,
@@ -49,30 +66,69 @@ final class WhisperService {
                     .joined(separator: " ")
 
                 if statusCode == 401 || statusCode == 403 {
-                    throw WhisperError.authenticationRequired
+                    return .authenticationRequired
+                }
+
+                if BackendUsageLimitCopy.isUsageLimit(statusCode: statusCode, message: fullMessage) {
+                    logServiceFailure(
+                        statusCode,
+                        DictationRecoveryCopy.accountUsageLimitDetail,
+                        BackendUsageLimitCopy.nextStep
+                    )
+                    return .serviceQuotaExceeded(DictationRecoveryCopy.accountUsageLimitDetail)
                 }
 
                 if fullMessage.localizedCaseInsensitiveContains("OPENAI_API_KEY") {
-                    throw WhisperError.transcriptionServiceUnavailable(
-                        "The server transcription service is not configured yet."
+                    logServiceFailure(
+                        statusCode,
+                        DictationRecoveryCopy.serviceUnavailableDetail,
+                        DictationRecoveryCopy.serviceUnavailableNextStep
                     )
+                    return .transcriptionServiceUnavailable(DictationRecoveryCopy.serviceUnavailableDetail)
                 }
 
-                throw WhisperError.apiError(statusCode, fullMessage.isEmpty ? message : fullMessage)
+                if statusCode == 429 || fullMessage.localizedCaseInsensitiveContains("exceeded your current quota") {
+                    logServiceFailure(
+                        statusCode,
+                        DictationRecoveryCopy.serviceLimitDetail,
+                        DictationRecoveryCopy.serviceLimitNextStep
+                    )
+                    return .serviceQuotaExceeded(DictationRecoveryCopy.serviceLimitDetail)
+                }
+
+                logServiceFailure(
+                    statusCode,
+                    DictationRecoveryCopy.transcriptionFailedDetail,
+                    DictationRecoveryCopy.serviceFailureNextStep
+                )
+                return .apiError(statusCode, DictationRecoveryCopy.transcriptionFailedDetail)
             default:
-                throw WhisperError.requestFailed(error.localizedDescription)
+                return .requestFailed(DictationRecoveryCopy.transcriptionFailedDetail)
             }
-        } catch let error as URLError {
-            if error.code == .notConnectedToInternet || error.code == .networkConnectionLost {
-                throw WhisperError.noInternet
-            }
-            throw WhisperError.requestFailed(error.localizedDescription)
-        } catch {
-            throw WhisperError.requestFailed(error.localizedDescription)
         }
 
-        print("[WhisperService] Transcription: \(result.text)")
-        return result.text
+        if let urlError = error as? URLError,
+           let mappedError = mappedNetworkError(urlError, logServiceFailure: logServiceFailure) {
+            return mappedError
+        }
+
+        return .requestFailed(DictationRecoveryCopy.transcriptionFailedDetail)
+    }
+
+    private static func mappedNetworkError(
+        _ error: URLError,
+        logServiceFailure: (Int?, String, String?) -> Void
+    ) -> WhisperError? {
+        guard error.code == .notConnectedToInternet || error.code == .networkConnectionLost else {
+            return nil
+        }
+
+        logServiceFailure(
+            nil,
+            DictationRecoveryCopy.networkUnavailableDetail,
+            DictationRecoveryCopy.networkUnavailableNextStep
+        )
+        return .noInternet
     }
 
     private static func compressedAudioURL(for sourceURL: URL) async throws -> URL {
@@ -92,23 +148,10 @@ final class WhisperService {
             return sourceURL
         }
 
-        exportSession.outputURL = destinationURL
-        exportSession.outputFileType = .m4a
         exportSession.shouldOptimizeForNetworkUse = true
 
-        return try await withCheckedThrowingContinuation { continuation in
-            exportSession.exportAsynchronously {
-                switch exportSession.status {
-                case .completed:
-                    continuation.resume(returning: destinationURL)
-                case .failed, .cancelled:
-                    let error = exportSession.error ?? WhisperError.requestFailed("Audio compression failed.")
-                    continuation.resume(throwing: error)
-                default:
-                    continuation.resume(throwing: WhisperError.requestFailed("Audio compression did not finish."))
-                }
-            }
-        }
+        try await exportSession.export(to: destinationURL, as: .m4a)
+        return destinationURL
     }
 
     private static func mimeType(for url: URL) -> String {
@@ -122,6 +165,40 @@ final class WhisperService {
         default:
             return "application/octet-stream"
         }
+    }
+
+    private func logTranscriptionServiceFailure(statusCode: Int?, message: String, nextStep: String? = nil) {
+        #if VOIYCE_PRO
+        Task { @MainActor in
+            AgentEventStore.shared.appendServiceFailure(
+                feature: "Dictation",
+                service: DictationRecoveryCopy.transcriptionServiceName,
+                statusCode: statusCode,
+                message: message,
+                nextStep: nextStep
+            )
+        }
+        #endif
+    }
+}
+
+enum DictationDebugLogCopy {
+    static func transcriptionCompleted(wordCount: Int) -> String {
+        "[Dictation] Transcription completed (\(wordCount) words)."
+    }
+
+    static func transcriptReadyForInsertion(wordCount: Int) -> String {
+        "[Dictation] Transcript ready for insertion (\(wordCount) words)."
+    }
+
+    static func operationFailed(_ operation: String) -> String {
+        "[Dictation] \(operation) failed."
+    }
+
+    static func wordCount(in text: String) -> Int {
+        text
+            .split { $0.isWhitespace || $0.isNewline }
+            .count
     }
 }
 
@@ -143,14 +220,16 @@ enum WhisperError: LocalizedError {
     case requestFailed(String)
     case apiError(Int, String)
     case transcriptionServiceUnavailable(String)
+    case serviceQuotaExceeded(String)
 
     nonisolated var errorDescription: String? {
         switch self {
         case .authenticationRequired: return "Your Voiyce session expired. Sign in again and retry."
         case .noInternet: return "No internet connection. Reconnect and try again."
-        case .requestFailed(let message): return "Transcription request failed: \(message)"
-        case .apiError(let code, let msg): return "Transcription service error \(code): \(msg)"
+        case .requestFailed: return "Voiyce could not complete the transcription request."
+        case .apiError: return "Voiyce could not complete the transcription request."
         case .transcriptionServiceUnavailable(let message): return message
+        case .serviceQuotaExceeded(let message): return message
         }
     }
 }

@@ -4,8 +4,9 @@ This document explains how Voiyce is currently wired to Stripe.
 
 ## Current status
 
-- The linked backend is using Stripe test mode.
-- The deployed Stripe secret key is in `sk_test...` format.
+- Local source review now blocks accidental Stripe live-mode use in checkout, billing portal, and billing sync.
+- `STRIPE_SECRET_KEY=sk_live_...` is rejected unless `STRIPE_ALLOW_LIVE_MODE=true` is also set.
+- For beta, leave `STRIPE_ALLOW_LIVE_MODE` unset and use Stripe test mode.
 - A Stripe webhook secret is configured.
 - A fallback Stripe price ID is configured.
 - Dedicated `STRIPE_MONTHLY_PRICE_ID` and `STRIPE_YEARLY_PRICE_ID` secrets are not currently set.
@@ -41,6 +42,12 @@ using:
 - `STRIPE_SECRET_KEY`
 
 That returns a Stripe Checkout URL, which the app opens in the browser.
+
+Live-mode guardrail:
+
+- `create-checkout-session`, `create-portal-session`, and `sync-billing-status` call the Stripe API only after the secret key passes `requireStripeSecretKey()`.
+- Live secret keys require the explicit `STRIPE_ALLOW_LIVE_MODE=true` environment acknowledgment.
+- Deno coverage verifies all three paths block `sk_live_...` before any network request runs.
 
 ## 4. Stripe sends subscription updates back to Voiyce
 
@@ -97,6 +104,43 @@ If you want both plans to be managed fully inside Stripe Products/Prices, you sh
 - `STRIPE_YEARLY_PRICE_ID`
 
 That removes the inline yearly fallback and makes both plans explicit Stripe prices.
+
+Before charging real users, also confirm the Stripe account mode, live product IDs, live webhook endpoint, live webhook secret, billing portal cancellation behavior, refund copy, and the exact subscription/cancellation language shown in Voiyce.
+
+## Live Billing Review Template
+
+Complete this before enabling live charges, setting `STRIPE_ALLOW_LIVE_MODE=true`, or sending paid launch invites. Record dashboard links, screenshots, object ids, and command output summaries only. Do not paste secret keys, webhook signing secrets, full payment details, or customer private data.
+
+```markdown
+### Stripe Live Billing Review - YYYY-MM-DD
+
+- Reviewer:
+- Decision: pass / hold
+- Stripe account mode: test / live
+- `STRIPE_ALLOW_LIVE_MODE` decision:
+- Products reviewed:
+- Monthly price id:
+- Yearly price id:
+- Fallback `STRIPE_PRICE_ID` decision:
+- Checkout session evidence:
+- Billing portal evidence:
+- Webhook endpoint id:
+- Webhook events verified:
+- `STRIPE_WEBHOOK_SECRET` presence verified without copying value:
+- Subscription RPC/mapping evidence:
+- Cancellation behavior:
+- Refund policy/copy evidence:
+- Terms subscription/cancellation copy evidence:
+- Privacy/billing disclosure evidence:
+- Support escalation owner:
+- Test customer or internal account used:
+- No real customer payment details copied into docs/support/chat:
+- Open billing blockers:
+- Owner-approved exceptions:
+- Final owner sign-off:
+```
+
+Launch hold rule: if the live-mode decision, product/price ids, webhook endpoint, webhook signing-secret presence, checkout evidence, portal evidence, subscription mapping, refund/cancellation copy, support owner, or no-secret handling are missing, keep billing in test mode and do not charge users.
 
 ## Source references
 

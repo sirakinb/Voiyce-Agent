@@ -196,7 +196,7 @@ export default function Home() {
             <div className="flex items-center gap-6 mt-4 md:mt-0">
               <Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link>
               <Link href="#" className="hover:text-foreground transition-colors">Terms & Conditions</Link>
-              <span>Contact us at support@voiyce.com</span>
+              <span>Contact us at aki.b@pentridgemedia.com</span>
             </div>
           </div>
         </div>

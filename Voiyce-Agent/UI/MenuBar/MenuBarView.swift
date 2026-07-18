@@ -5,6 +5,28 @@
 
 import SwiftUI
 
+enum MenuBarLaunchCopy {
+    static let signedOutPrompt = "Open Voiyce to sign in"
+    static let dashboard = "Dashboard"
+    static let signIn = "Sign In"
+    static let settings = "Settings"
+    static let focusTools = "Focus Tools"
+    static let signingOut = "Signing Out..."
+    static let signOut = "Sign Out"
+    static let quit = "Quit Voiyce"
+
+    static let visibleStrings = [
+        signedOutPrompt,
+        dashboard,
+        signIn,
+        settings,
+        focusTools,
+        signingOut,
+        signOut,
+        quit
+    ]
+}
+
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
     @Environment(AuthenticationManager.self) private var authenticationManager
@@ -20,6 +42,14 @@ struct MenuBarView: View {
 
             Divider()
 
+            #if VOIYCE_PRO
+            if let activity = appState.agentActivityStatus {
+                agentActivityItem(activity)
+
+                Divider()
+            }
+            #endif
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(authenticationManager.accountStatusLabel)
                     .font(.system(size: 11, weight: .semibold))
@@ -27,7 +57,7 @@ struct MenuBarView: View {
 
                 Text(authenticationManager.isAuthenticated
                     ? authenticationManager.currentUserDisplayName
-                    : "Open Voiyce to sign in")
+                    : MenuBarLaunchCopy.signedOutPrompt)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textPrimary)
                     .lineLimit(1)
@@ -48,8 +78,12 @@ struct MenuBarView: View {
                 appState.selectedTab = authenticationManager.isAuthenticated ? .dashboard : .settings
                 activateApp()
             } label: {
-                Label(authenticationManager.isAuthenticated ? "Dashboard" : "Sign In", systemImage: authenticationManager.isAuthenticated ? "house" : "person.badge.key")
+                Label(
+                    authenticationManager.isAuthenticated ? MenuBarLaunchCopy.dashboard : MenuBarLaunchCopy.signIn,
+                    systemImage: authenticationManager.isAuthenticated ? "house" : "person.badge.key"
+                )
             }
+            .accessibilityIdentifier(authenticationManager.isAuthenticated ? "menubar-dashboard" : "menubar-sign-in")
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
 
@@ -57,10 +91,22 @@ struct MenuBarView: View {
                 appState.selectedTab = .settings
                 activateApp()
             } label: {
-                Label("Settings", systemImage: "gearshape")
+                Label(MenuBarLaunchCopy.settings, systemImage: "gearshape")
             }
+            .accessibilityIdentifier("menubar-settings")
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
+
+            #if VOIYCE_PRO
+            Button {
+                AgentFocusToolPaletteOverlay.shared.toggle()
+            } label: {
+                Label(MenuBarLaunchCopy.focusTools, systemImage: "viewfinder")
+            }
+            .accessibilityIdentifier("menubar-focus-tools")
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            #endif
 
             Divider()
 
@@ -72,8 +118,12 @@ struct MenuBarView: View {
                         activateApp()
                     }
                 } label: {
-                    Label(authenticationManager.isWorking ? "Signing Out..." : "Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    Label(
+                        authenticationManager.isWorking ? MenuBarLaunchCopy.signingOut : MenuBarLaunchCopy.signOut,
+                        systemImage: "rectangle.portrait.and.arrow.right"
+                    )
                 }
+                .accessibilityIdentifier("menubar-sign-out")
                 .foregroundStyle(AppTheme.accent)
                 .disabled(authenticationManager.isWorking)
                 .padding(.horizontal, 12)
@@ -85,13 +135,43 @@ struct MenuBarView: View {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label("Quit Voiyce", systemImage: "xmark.circle")
+                Label(MenuBarLaunchCopy.quit, systemImage: "xmark.circle")
             }
+            .accessibilityIdentifier("menubar-quit")
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
         }
         .padding(.vertical, 4)
     }
+
+    #if VOIYCE_PRO
+    private func agentActivityItem(_ activity: AgentActivityStatus) -> some View {
+        HStack(alignment: .center, spacing: 9) {
+            Image(systemName: activity.symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(appState.agentMode.accent)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(activity.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .lineLimit(1)
+
+                Text(activity.detail)
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(activity.title)
+        .accessibilityValue(activity.detail)
+        .accessibilityIdentifier("menubar-agent-activity")
+    }
+    #endif
 
     private func activateApp() {
         NSApplication.shared.activate(ignoringOtherApps: true)

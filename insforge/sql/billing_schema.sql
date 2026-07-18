@@ -29,6 +29,20 @@ create table if not exists public.beta_transcription_usage (
     updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.agent_usage_events (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    capability text not null,
+    tier text not null,
+    estimated_cost_usd numeric(10, 6) not null check (estimated_cost_usd >= 0),
+    usage_units jsonb not null default '{}'::jsonb check (jsonb_typeof(usage_units) = 'object'),
+    usage_day date not null,
+    usage_month date not null,
+    status text not null default 'reserved' check (status in ('reserved', 'succeeded', 'failed')),
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
 alter table public.billing_profiles
     alter column free_words_limit set default 2500;
 
@@ -42,12 +56,15 @@ alter table public.billing_profiles
     add column if not exists active_plan text;
 
 alter table public.billing_profiles
+    add column if not exists agent_tier text not null default 'default';
+
+alter table public.billing_profiles
     add column if not exists beta_access_code text;
 
 alter table public.billing_profiles
     add column if not exists beta_unlocked_at timestamptz;
 
--- Pentridge Labs subscription columns
+-- Included subscription columns
 alter table public.billing_profiles
     add column if not exists pentridge_subscription_active boolean not null default false;
 
@@ -83,6 +100,23 @@ alter table public.billing_profiles
 alter table public.billing_profiles
     add constraint billing_profiles_active_plan_check
     check (active_plan in ('monthly', 'yearly') or active_plan is null);
+
+alter table public.billing_profiles
+    drop constraint if exists billing_profiles_agent_tier_check;
+
+alter table public.billing_profiles
+    add constraint billing_profiles_agent_tier_check
+    check (agent_tier in ('default', 'pro', 'power'));
+
+alter table public.agent_usage_events
+    add column if not exists usage_units jsonb not null default '{}'::jsonb;
+
+alter table public.agent_usage_events
+    drop constraint if exists agent_usage_events_usage_units_object_check;
+
+alter table public.agent_usage_events
+    add constraint agent_usage_events_usage_units_object_check
+    check (jsonb_typeof(usage_units) = 'object');
 
 alter table public.billing_profiles
     add column if not exists trial_started_at timestamptz;
@@ -148,8 +182,16 @@ before update on public.beta_transcription_usage
 for each row
 execute function public.touch_updated_at();
 
+drop trigger if exists agent_usage_events_touch_updated_at on public.agent_usage_events;
+
+create trigger agent_usage_events_touch_updated_at
+before update on public.agent_usage_events
+for each row
+execute function public.touch_updated_at();
+
 alter table public.billing_profiles enable row level security;
 alter table public.beta_transcription_usage enable row level security;
+alter table public.agent_usage_events enable row level security;
 
 drop policy if exists billing_profiles_select_own on public.billing_profiles;
 drop policy if exists billing_profiles_insert_own on public.billing_profiles;
@@ -182,6 +224,14 @@ for select
 to authenticated
 using (auth.uid() = user_id);
 
+drop policy if exists agent_usage_events_select_own on public.agent_usage_events;
+
+create policy agent_usage_events_select_own
+on public.agent_usage_events
+for select
+to authenticated
+using (auth.uid() = user_id);
+
 create or replace function public.subscription_is_active(p_status text)
 returns boolean
 language sql
@@ -191,6 +241,22 @@ as $$
 $$;
 
 create or replace function public.current_beta_usage_month()
+returns date
+language sql
+stable
+as $$
+    select date_trunc('month', timezone('America/New_York', now()))::date
+$$;
+
+create or replace function public.current_agent_usage_day()
+returns date
+language sql
+stable
+as $$
+    select date_trunc('day', timezone('America/New_York', now()))::date
+$$;
+
+create or replace function public.current_agent_usage_month()
 returns date
 language sql
 stable
@@ -235,6 +301,75 @@ language sql
 stable
 as $$
     select date_trunc('month', timezone('America/New_York', now()))::date
+$$;
+
+create or replace function public.agent_tier_for_profile(
+    p_profile public.billing_profiles
+)
+returns text
+language plpgsql
+stable
+as $$
+begin
+    if p_profile.agent_tier in ('pro', 'power') then
+        return p_profile.agent_tier;
+    end if;
+
+    if public.subscription_is_active(p_profile.subscription_status)
+       or coalesce(p_profile.pentridge_subscription_active, false)
+       or p_profile.beta_unlocked_at is not null then
+        return 'pro';
+    end if;
+
+    return 'default';
+end;
+$$;
+
+create or replace function public.agent_usage_monthly_cap_usd(
+    p_tier text,
+    p_capability text
+)
+returns numeric
+language sql
+immutable
+as $$
+    select case lower(coalesce(p_tier, 'default'))
+        when 'power' then
+            case lower(coalesce(p_capability, ''))
+                when 'computer_use' then 120.00
+                when 'realtime' then 120.00
+                when 'transcription' then 40.00
+                when 'context' then 25.00
+                else 200.00
+            end
+        when 'pro' then
+            case lower(coalesce(p_capability, ''))
+                when 'computer_use' then 35.00
+                when 'realtime' then 45.00
+                when 'transcription' then 18.00
+                when 'context' then 10.00
+                else 75.00
+            end
+        else
+            case lower(coalesce(p_capability, ''))
+                when 'computer_use' then 3.00
+                when 'realtime' then 8.00
+                when 'transcription' then 6.00
+                when 'context' then 2.00
+                else 12.00
+            end
+    end
+$$;
+
+create or replace function public.agent_usage_daily_cap_usd(
+    p_tier text,
+    p_capability text
+)
+returns numeric
+language sql
+immutable
+as $$
+    select public.agent_usage_monthly_cap_usd(p_tier, p_capability) / 5.0
 $$;
 
 drop function if exists public.billing_status_for_profile(public.billing_profiles);
@@ -642,3 +777,158 @@ $$;
 
 revoke all on function public.finalize_beta_transcription_cost(uuid, boolean) from public;
 grant execute on function public.finalize_beta_transcription_cost(uuid, boolean) to authenticated;
+
+drop function if exists public.reserve_agent_usage_cost(uuid, text, numeric);
+drop function if exists public.reserve_agent_usage_cost(uuid, text, numeric, jsonb);
+
+create function public.reserve_agent_usage_cost(
+    p_user_id uuid,
+    p_capability text,
+    p_estimated_cost_usd numeric,
+    p_usage_units jsonb default '{}'::jsonb
+)
+returns table (
+    usage_id uuid,
+    tier text,
+    daily_spend_used_usd numeric,
+    daily_spend_limit_usd numeric,
+    monthly_spend_used_usd numeric,
+    monthly_spend_limit_usd numeric
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+    v_profile public.billing_profiles%rowtype;
+    v_capability text := lower(trim(coalesce(p_capability, 'unknown')));
+    v_cost numeric := greatest(coalesce(p_estimated_cost_usd, 0), 0);
+    v_tier text;
+    v_day date := public.current_agent_usage_day();
+    v_month date := public.current_agent_usage_month();
+    v_usage_units jsonb := coalesce(p_usage_units, '{}'::jsonb);
+    v_daily_limit numeric;
+    v_monthly_limit numeric;
+    v_daily_used numeric;
+    v_monthly_used numeric;
+    v_usage_id uuid;
+begin
+    if p_user_id is null then
+        raise exception 'User is required';
+    end if;
+
+    if auth.uid() is null or auth.uid() <> p_user_id then
+        raise exception 'Authentication required';
+    end if;
+
+    insert into public.billing_profiles (user_id)
+    values (p_user_id)
+    on conflict (user_id) do nothing;
+
+    select *
+    into v_profile
+    from public.billing_profiles
+    where user_id = p_user_id;
+
+    v_tier := public.agent_tier_for_profile(v_profile);
+    v_daily_limit := public.agent_usage_daily_cap_usd(v_tier, v_capability);
+    v_monthly_limit := public.agent_usage_monthly_cap_usd(v_tier, v_capability);
+    if jsonb_typeof(v_usage_units) <> 'object' then
+        v_usage_units := '{}'::jsonb;
+    end if;
+
+    perform pg_advisory_xact_lock(hashtext('voiyce_agent_usage_' || p_user_id::text || '_' || v_capability));
+
+    select coalesce(sum(estimated_cost_usd), 0)::numeric
+    into v_daily_used
+    from public.agent_usage_events
+    where user_id = p_user_id
+      and capability = v_capability
+      and usage_day = v_day
+      and status in ('reserved', 'succeeded');
+
+    select coalesce(sum(estimated_cost_usd), 0)::numeric
+    into v_monthly_used
+    from public.agent_usage_events
+    where user_id = p_user_id
+      and capability = v_capability
+      and usage_month = v_month
+      and status in ('reserved', 'succeeded');
+
+    if v_daily_used + v_cost > v_daily_limit then
+        raise exception 'Daily % usage cap reached for % tier', v_capability, v_tier;
+    end if;
+
+    if v_monthly_used + v_cost > v_monthly_limit then
+        raise exception 'Monthly % usage cap reached for % tier', v_capability, v_tier;
+    end if;
+
+    insert into public.agent_usage_events (
+        user_id,
+        capability,
+        tier,
+        estimated_cost_usd,
+        usage_units,
+        usage_day,
+        usage_month
+    )
+    values (
+        p_user_id,
+        v_capability,
+        v_tier,
+        v_cost,
+        v_usage_units,
+        v_day,
+        v_month
+    )
+    returning id
+    into v_usage_id;
+
+    return query
+    select
+        v_usage_id,
+        v_tier,
+        v_daily_used + v_cost,
+        v_daily_limit,
+        v_monthly_used + v_cost,
+        v_monthly_limit;
+end;
+$$;
+
+revoke all on function public.reserve_agent_usage_cost(uuid, text, numeric, jsonb) from public;
+grant execute on function public.reserve_agent_usage_cost(uuid, text, numeric, jsonb) to authenticated;
+
+drop function if exists public.finalize_agent_usage_cost(uuid, boolean);
+drop function if exists public.finalize_agent_usage_cost(uuid, boolean, jsonb);
+
+create function public.finalize_agent_usage_cost(
+    p_usage_id uuid,
+    p_succeeded boolean,
+    p_usage_units jsonb default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+    v_usage_units jsonb := p_usage_units;
+begin
+    if v_usage_units is not null and jsonb_typeof(v_usage_units) <> 'object' then
+        v_usage_units := null;
+    end if;
+
+    update public.agent_usage_events
+    set status = case when coalesce(p_succeeded, false) then 'succeeded' else 'failed' end,
+        usage_units = case
+            when v_usage_units is null then usage_units
+            else usage_units || v_usage_units
+        end
+    where id = p_usage_id
+      and user_id = auth.uid()
+      and status = 'reserved';
+end;
+$$;
+
+revoke all on function public.finalize_agent_usage_cost(uuid, boolean, jsonb) from public;
+grant execute on function public.finalize_agent_usage_cost(uuid, boolean, jsonb) to authenticated;

@@ -23,6 +23,28 @@ final class DictationCoordinator {
     var isRecording: Bool { voiceEngine.isRecording }
     var isActive: Bool { isStarting || voiceEngine.isRecording || isTranscribing }
 
+    func cancelForAppTermination() {
+        cancelForRuntimeInterruption()
+    }
+
+    func cancelForSystemSleep() {
+        cancelForRuntimeInterruption()
+    }
+
+    func cancelForAccessLoss() {
+        cancelForRuntimeInterruption()
+    }
+
+    private func cancelForRuntimeInterruption() {
+        pendingStopRequest = nil
+        isStarting = false
+        isTranscribing = false
+        _ = voiceEngine.stopRecording()
+        voiceEngine.cleanupRecording()
+        dictationStartTime = nil
+        targetAppBundleIdentifier = nil
+    }
+
     private struct PendingStopRequest {
         let injectText: Bool
         let persistTranscript: Bool
@@ -86,7 +108,7 @@ final class DictationCoordinator {
                 let mappedError = mapError(error)
                 errorState = mappedError
                 lastErrorAt = Date()
-                print("[DictationCoordinator] Failed to start: \(error)")
+                print(DictationDebugLogCopy.operationFailed("start"))
                 completion?(.failure(mappedError))
             }
         }
@@ -156,7 +178,8 @@ final class DictationCoordinator {
                     latestTranscript = transcript
                     errorState = nil
                     lastSuccessfulTranscriptionAt = Date()
-                    print("[DictationCoordinator] Transcribed: \(transcript)")
+                    let transcriptWordCount = DictationDebugLogCopy.wordCount(in: transcript)
+                    print(DictationDebugLogCopy.transcriptReadyForInsertion(wordCount: transcriptWordCount))
                     if injectText {
                         textInjector.injectText(
                             transcript,
@@ -174,7 +197,7 @@ final class DictationCoordinator {
                 await MainActor.run {
                     errorState = mappedError
                     lastErrorAt = Date()
-                    print("[DictationCoordinator] Transcription error: \(error)")
+                    print(DictationDebugLogCopy.operationFailed("transcription"))
                     completion?(.failure(mappedError))
                 }
             }
@@ -191,7 +214,7 @@ final class DictationCoordinator {
         do {
             try modelContext.save()
         } catch {
-            print("[DictationCoordinator] Failed to save: \(error)")
+            print(DictationDebugLogCopy.operationFailed("save"))
         }
     }
 
@@ -206,12 +229,14 @@ final class DictationCoordinator {
                 return .authenticationRequired
             case .noInternet:
                 return .noInternet
+            case .serviceQuotaExceeded(let message):
+                return .serviceQuotaExceeded(message)
             default:
-                return .transcriptionFailed(whisperError.localizedDescription)
+                return .transcriptionFailed(DictationRecoveryCopy.transcriptionFailedDetail)
             }
         }
 
-        return .transcriptionFailed(error.localizedDescription)
+        return .transcriptionFailed(DictationRecoveryCopy.transcriptionFailedDetail)
     }
 }
 
@@ -221,6 +246,7 @@ enum DictationErrorState: LocalizedError {
     case noInternet
     case noAudioCaptured
     case emptyTranscript
+    case serviceQuotaExceeded(String)
     case transcriptionFailed(String)
 
     var title: String {
@@ -235,6 +261,8 @@ enum DictationErrorState: LocalizedError {
             return "Nothing Was Recorded"
         case .emptyTranscript:
             return "No Speech Detected"
+        case .serviceQuotaExceeded:
+            return "Service Limit Reached"
         case .transcriptionFailed:
             return "Transcription Failed"
         }
@@ -252,6 +280,8 @@ enum DictationErrorState: LocalizedError {
             return "record.circle"
         case .emptyTranscript:
             return "waveform.slash"
+        case .serviceQuotaExceeded:
+            return "creditcard.trianglebadge.exclamationmark"
         case .transcriptionFailed:
             return "exclamationmark.bubble.fill"
         }
@@ -269,8 +299,29 @@ enum DictationErrorState: LocalizedError {
             return "No audio was captured. Try recording again."
         case .emptyTranscript:
             return "No speech was detected. Try speaking a little louder."
-        case .transcriptionFailed(let message):
-            return message
+        case .serviceQuotaExceeded:
+            return DictationRecoveryCopy.serviceLimitDetail
+        case .transcriptionFailed:
+            return DictationRecoveryCopy.transcriptionFailedDetail
         }
     }
+}
+
+enum DictationRecoveryCopy {
+    static let supportEmail = AppConstants.supportEmail
+
+    static let transcriptionServiceName = "Transcription service"
+    static let accountUsageLimitDetail = "This account has reached its current transcription limit."
+    static let serviceLimitDetail = "Voiyce transcription is temporarily unavailable because the beta service limit was reached."
+    static let serviceLimitNextStep = "Try again later. If this blocks setup, email \(supportEmail) with the time it happened."
+
+    static let serviceUnavailableDetail = "Voiyce transcription is temporarily unavailable."
+    static let serviceUnavailableNextStep = "Try again later. If this blocks setup, email \(supportEmail) with the time it happened."
+
+    static let transcriptionFailedDetail = "Voiyce could not complete the transcription request."
+    static let networkUnavailableDetail = "Voiyce lost internet access before transcription finished."
+    static let networkUnavailableNextStep = "Reconnect to Wi-Fi or Ethernet, then hold Control again and retry dictation."
+    static let serviceFailureNextStep = "Make sure your Mac is online, then try dictation again. If it still fails, email \(supportEmail) with the time it happened."
+    static let previewTranscriptionFailedNextStep = "Make sure your Mac is online, then try the preview again. If it still fails, email \(supportEmail) with the time it happened."
+    static let dashboardTranscriptionFailedNextStep = "Make sure your Mac is online, then hold Control again. If it still fails, email \(supportEmail) with the time it happened."
 }

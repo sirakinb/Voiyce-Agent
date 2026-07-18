@@ -49,6 +49,11 @@ enum BillingPlan: String, CaseIterable, Identifiable, Decodable, Sendable {
     }
 }
 
+enum BillingLimitCopy {
+    static let settingsSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets while agent tiers are finalized."
+    static let checkoutSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets; Power-level Act limits are not sold in this build."
+}
+
 struct BillingStatusSnapshot: Decodable, Sendable {
     let freeWordsLimit: Int
     let freeWordsUsed: Int
@@ -271,7 +276,7 @@ final class BillingManager {
 
     var planTitle: String {
         if hasPentridgeSubscription {
-            return "Pentridge Labs \(pentridgeTierDisplay)"
+            return "Voiyce Included \(pentridgeTierDisplay)"
         }
 
         if hasActiveSubscription {
@@ -400,6 +405,10 @@ final class BillingManager {
         return "\(base) \(preferredPlanTitle) is saved from the website and will be preselected if you upgrade."
     }
 
+    var usageLimitSummary: String {
+        BillingLimitCopy.settingsSummary
+    }
+
     var canManageSubscription: Bool {
         hasActiveSubscription && !(status?.stripeCustomerID?.isEmpty ?? true)
     }
@@ -446,6 +455,10 @@ final class BillingManager {
     func accessState(isAuthenticated: Bool) -> AccessState {
         guard isAuthenticated else { return .signedOut }
 
+        if AppConstants.isUITesting {
+            return .active
+        }
+
         if requiresSubscription {
             return .paymentRequired
         }
@@ -454,6 +467,7 @@ final class BillingManager {
     }
 
     func refreshStatus() async {
+        guard !AppConstants.isUITesting else { return }
         guard !isRefreshing else { return }
 
         isRefreshing = true
@@ -476,10 +490,12 @@ final class BillingManager {
     }
 
     func checkPentridgeSubscription() async {
+        guard !AppConstants.isUITesting else { return }
+
         do {
             let _: PentridgeSubscriptionResponse = try await client.functions.invoke("check-pentridge-subscription")
         } catch {
-            print("[BillingManager] Pentridge subscription check failed: \(error.localizedDescription)")
+            print("[BillingManager] Pentridge subscription check failed.")
         }
     }
 
@@ -503,7 +519,7 @@ final class BillingManager {
     func redeemBetaAccessCode(_ code: String) async {
         let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedCode.isEmpty else {
-            errorMessage = "Enter a beta code."
+            errorMessage = "Enter a beta code to unlock beta access."
             return
         }
 
@@ -515,7 +531,7 @@ final class BillingManager {
                 .executeSingle()
             infoMessage = "Beta access unlocked."
         } catch {
-            errorMessage = "That beta code is not valid."
+            errorMessage = "That beta code is not valid. Check the code and try again."
         }
     }
 
@@ -528,8 +544,8 @@ final class BillingManager {
                 .executeSingle()
             errorMessage = nil
         } catch {
-            print("[BillingManager] Failed to record word usage: \(error.localizedDescription)")
-            errorMessage = "Couldn't update your free-word count just now."
+            print("[BillingManager] Failed to record word usage.")
+            errorMessage = "Couldn't update your free-word count just now. Try again in a moment."
         }
     }
 
@@ -603,17 +619,62 @@ final class BillingManager {
 
     private func openExternalURL(from rawURL: String) throws {
         guard let url = URL(string: rawURL) else {
-            throw InsForgeError.unknown("Billing URL is invalid.")
+            throw InsForgeError.unknown(BillingRecoveryCopy.checkoutLinkInvalid)
         }
 
         NSWorkspace.shared.open(url)
     }
 
     private func friendlyMessage(for error: Error) -> String {
-        if let insforgeError = error as? InsForgeError {
-            return insforgeError.localizedDescription
+        BillingRecoveryCopy.message(for: error)
+    }
+}
+
+enum BillingRecoveryCopy {
+    static let checkoutLinkInvalid = "Billing could not open the checkout link. Try again, then contact support if it keeps happening."
+    static let generic = "Billing could not update just now. Try again, then contact support if it keeps happening."
+
+    static func message(for error: Error) -> String {
+        guard let error = error as? InsForgeError else {
+            if let urlError = error as? URLError,
+               urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+                return "Billing could not connect. Check your internet connection, then try again."
+            }
+            return generic
         }
 
-        return error.localizedDescription
+        switch error {
+        case .authenticationRequired, .unauthorized:
+            return "Sign in before managing billing."
+        case .networkError:
+            return "Billing could not connect. Check your internet connection, then try again."
+        case .validationError(let message), .conflict(let message):
+            return sanitized(message, fallback: generic)
+        case .httpError(let statusCode, let message, _, let nextActions):
+            if statusCode == 401 || statusCode == 403 {
+                return "Sign in before managing billing."
+            }
+            let combined = [message, nextActions].compactMap { $0 }.joined(separator: " ")
+            return sanitized(combined, fallback: generic)
+        case .missingConfiguration:
+            return "Billing is not configured for this build. Contact support if this should be available."
+        case .invalidURL, .invalidResponse, .decodingError, .encodingError, .notFound, .unknown:
+            return generic
+        }
+    }
+
+    private static func sanitized(_ message: String, fallback: String) -> String {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return fallback }
+
+        let forbiddenTerms = [
+            "HTTP", "backend", "server", "API", "token", "secret", "key",
+            "OPENAI", "INSFORGE", "function", "database", "SQL", "Stripe"
+        ]
+        if forbiddenTerms.contains(where: { trimmed.localizedCaseInsensitiveContains($0) }) {
+            return fallback
+        }
+
+        return trimmed
     }
 }

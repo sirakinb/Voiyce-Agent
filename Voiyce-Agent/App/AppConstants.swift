@@ -6,6 +6,19 @@
 import Foundation
 
 enum AppConstants {
+    static var isUITesting: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-testing")
+            || ProcessInfo.processInfo.environment["VOIYCE_UI_TESTING"] == "1"
+    }
+
+    static var uiTestingForcesSignedOut: Bool {
+        isUITesting && ProcessInfo.processInfo.environment["VOIYCE_UI_TEST_SIGNED_OUT"] == "1"
+    }
+
+    static var uiTestingForcesOffline: Bool {
+        isUITesting && ProcessInfo.processInfo.environment["VOIYCE_UI_TEST_OFFLINE"] == "1"
+    }
+
     static let keychainServiceName = "com.voiyce.agent"
     static let onboardingCompleteKey = "onboarding_complete"
     static let onboardingDiscoverySourceKey = "onboarding_discovery_source"
@@ -42,6 +55,7 @@ enum AppConstants {
     static let proYearlyPriceDisplay = "$120/year"
     static let proYearlyEffectiveMonthlyPriceDisplay = "$10/month"
     static let maxDictationDuration: TimeInterval = 55
+    static let supportEmail = "aki.b@pentridgemedia.com"
 
     #if VOIYCE_PRO
     static var googleOAuthClientID: String {
@@ -96,5 +110,31 @@ enum AppConstants {
 
         let fallbackURL = resourcesDirectory.appendingPathComponent("\(name).\(fileExtension)")
         return FileManager.default.fileExists(atPath: fallbackURL.path) ? fallbackURL : nil
+    }
+}
+
+enum BackendUsageLimitCopy {
+    static let code = "usage_limit_reached"
+    static let supportEmail = AppConstants.supportEmail
+    static let detail = "This account has reached its current Voiyce usage limit."
+    static let nextStep = "Try again later. If this seems wrong, email \(supportEmail) with the time it happened."
+
+    static func isUsageLimit(statusCode: Int?, code responseCode: String? = nil, message: String? = nil) -> Bool {
+        if statusCode == 402 {
+            return true
+        }
+
+        if responseCode?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == code {
+            return true
+        }
+
+        let normalized = (message ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized.contains("usage cap reached")
+            || normalized.contains("monthly cap reached")
+            || normalized.contains("daily cap reached")
+            || normalized.contains("spend cap reached")
+            || normalized.contains("usage limit reached")
+            || normalized.contains("account limit reached")
+            || normalized.contains("current usage limit")
     }
 }

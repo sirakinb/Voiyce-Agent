@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://voiyce-mac-app.vercel.app"),
+  metadataBase: new URL("https://voiyce.us"),
   title: {
     default: "Write at the speed of thought.",
     template: "%s — Voiyce",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: "Write at the speed of thought.",
     description:
       "Download Voiyce for macOS and turn natural speech into polished text in any app.",
-    url: "https://voiyce-mac-app.vercel.app",
+    url: "https://voiyce.us",
     siteName: "Voiyce",
     images: [
       {
@@ -56,7 +56,14 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
+        <main id="main-content" className="min-h-full flex-1">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }

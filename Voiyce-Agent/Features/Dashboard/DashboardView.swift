@@ -6,6 +6,10 @@
 import SwiftUI
 import Charts
 
+enum DashboardRecoveryCopy {
+    static let offlineDetail = "Voiyce can capture audio, but transcription cannot finish while your Mac is offline."
+}
+
 struct DashboardView: View {
     @Environment(AppState.self) private var appState
     @Environment(BillingManager.self) private var billingManager
@@ -100,7 +104,10 @@ struct DashboardView: View {
                     nextStep: "Click Grant Access. If macOS still blocks it, open System Settings > Privacy & Security > Microphone, enable Voiyce, then try dictating again.",
                     tone: .warning,
                     actionTitle: "Grant Access",
-                    action: { permissions.requestMicrophonePermission() }
+                    action: {
+                        rememberPermissionReturn()
+                        permissions.requestMicrophonePermission()
+                    }
                 )
             )
         }
@@ -111,7 +118,7 @@ struct DashboardView: View {
                     id: "offline",
                     icon: "wifi.slash",
                     title: "No Internet Connection",
-                    detail: "Voiyce can capture audio, but server transcription will fail while your Mac is offline.",
+                    detail: DashboardRecoveryCopy.offlineDetail,
                     nextStep: "Reconnect to Wi-Fi or Ethernet, then hold Control again to retry the dictation.",
                     tone: .warning,
                     actionTitle: nil,
@@ -182,7 +189,10 @@ struct DashboardView: View {
                 nextStep: "Click Grant Access. If macOS keeps it blocked, open System Settings > Privacy & Security > Microphone, enable Voiyce, then hold Control again.",
                 tone: .warning,
                 actionTitle: "Grant Access",
-                action: { permissions.requestMicrophonePermission() }
+                action: {
+                    rememberPermissionReturn()
+                    permissions.requestMicrophonePermission()
+                }
             )
         case .authenticationRequired:
             return SystemStatusMessage(
@@ -228,13 +238,24 @@ struct DashboardView: View {
                 actionTitle: nil,
                 action: nil
             )
-        case .transcriptionFailed(let message):
+        case .serviceQuotaExceeded:
+            return SystemStatusMessage(
+                id: "service-limit-reached",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.serviceLimitDetail,
+                nextStep: DictationRecoveryCopy.serviceLimitNextStep,
+                tone: .error,
+                actionTitle: nil,
+                action: nil
+            )
+        case .transcriptionFailed:
             return SystemStatusMessage(
                 id: "transcription-failed",
                 icon: error.icon,
                 title: error.title,
-                detail: "The last transcription request failed: \(message)",
-                nextStep: "Make sure your Mac is online, then hold Control again. If it still fails, verify the server transcription function is deployed and its OpenAI secret is configured.",
+                detail: DictationRecoveryCopy.transcriptionFailedDetail,
+                nextStep: DictationRecoveryCopy.dashboardTranscriptionFailedNextStep,
                 tone: .error,
                 actionTitle: nil,
                 action: nil
@@ -356,7 +377,7 @@ struct DashboardView: View {
             if billingManager.hasPentridgeSubscription {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("Pentridge Labs \(billingManager.pentridgeTierDisplay)")
+                        Text("Included Access \(billingManager.pentridgeTierDisplay)")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(AppTheme.textPrimary)
 
@@ -367,7 +388,7 @@ struct DashboardView: View {
                             .foregroundStyle(AppTheme.textSecondary)
                     }
 
-                    Text("Voiyce is included in your Pentridge Labs subscription. No individual billing required.")
+                    Text("Your account includes Voiyce access. No individual billing required.")
                         .font(AppTheme.captionFont)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -638,7 +659,10 @@ struct DashboardView: View {
                     title: "Microphone Access",
                     description: "Required to capture your voice during dictation.",
                     isGranted: permissions.microphoneGranted,
-                    action: { permissions.requestMicrophonePermission() }
+                    action: {
+                        rememberPermissionReturn()
+                        permissions.requestMicrophonePermission()
+                    }
                 )
 
                 PermissionRow(
@@ -646,18 +670,39 @@ struct DashboardView: View {
                     title: "Speech Recognition",
                     description: "Required for transcribing your voice to text.",
                     isGranted: permissions.speechRecognitionGranted,
-                    action: { permissions.requestSpeechRecognitionPermission() }
+                    action: {
+                        rememberPermissionReturn()
+                        permissions.requestSpeechRecognitionPermission()
+                    }
                 )
 
                 PermissionRow(
                     icon: "accessibility",
                     title: "Accessibility",
                     description: permissions.accessibilityGranted
-                        ? "Required for global hotkeys and inserting dictated text."
-                        : "If enabled in System Settings, restart Voiyce or toggle it off and on.",
+                        ? "On for global hotkeys and inserting dictated text."
+                        : "Off for this Voiyce build. Enable the exact Voiyce entry in Privacy & Security > Accessibility.",
                     isGranted: permissions.accessibilityGranted,
-                    action: { permissions.requestAccessibilityPermission() }
+                    action: {
+                        rememberPermissionReturn()
+                        permissions.requestAccessibilityPermission()
+                    }
                 )
+
+                #if VOIYCE_PRO
+                PermissionRow(
+                    icon: "rectangle.on.rectangle",
+                    title: "Screen Recording",
+                    description: permissions.screenRecordingGranted
+                        ? "On for screen-aware Agent and Act mode."
+                        : permissions.screenRecordingStatusMessage ?? "Required for screen-aware Agent and Act mode.",
+                    isGranted: permissions.screenRecordingGranted,
+                    action: {
+                        rememberPermissionReturn()
+                        permissions.requestScreenRecordingPermission()
+                    }
+                )
+                #endif
             }
         }
         .padding(AppTheme.cardPadding)
@@ -667,6 +712,10 @@ struct DashboardView: View {
 
     private func refreshWeeklyData() {
         weeklyData = usageTracker.weeklyData()
+    }
+
+    private func rememberPermissionReturn() {
+        appState.rememberPermissionReturnTarget(tab: .dashboard)
     }
 
     private func openBillingDestination() {

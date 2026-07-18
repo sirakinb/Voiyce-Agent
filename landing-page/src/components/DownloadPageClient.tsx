@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -12,6 +13,7 @@ import {
   FlowIntent,
   intentBadge,
   normalizeIntent,
+  supportEmail,
   trialLengthDays,
   trialWordLimit,
 } from "@/lib/voiyce-config";
@@ -38,6 +40,8 @@ function planSummary(intent: FlowIntent): string {
   }
 }
 
+type DownloadHealthState = "checking" | "ready" | "degraded";
+
 export default function DownloadPageClient() {
   const client = getInsForgeBrowserClient();
   const router = useRouter();
@@ -49,6 +53,7 @@ export default function DownloadPageClient() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [downloadHealth, setDownloadHealth] = useState<DownloadHealthState>("checking");
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +107,37 @@ export default function DownloadPageClient() {
       return;
     }
 
+    let cancelled = false;
+    setDownloadHealth("checking");
+
+    async function checkDownload() {
+      try {
+        const response = await fetch("/api/download-health", {
+          cache: "no-store",
+        });
+
+        if (!cancelled) {
+          setDownloadHealth(response.ok ? "ready" : "degraded");
+        }
+      } catch {
+        if (!cancelled) {
+          setDownloadHealth("degraded");
+        }
+      }
+    }
+
+    void checkDownload();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCheckingSession]);
+
+  useEffect(() => {
+    if (isCheckingSession || downloadHealth !== "ready") {
+      return;
+    }
+
     const sessionKey = `voiyce-download-started:${intent}`;
     if (window.sessionStorage.getItem(sessionKey)) {
       return;
@@ -122,7 +158,7 @@ export default function DownloadPageClient() {
       window.clearTimeout(cleanup);
       frame.remove();
     };
-  }, [intent, isCheckingSession]);
+  }, [downloadHealth, intent, isCheckingSession]);
 
   async function signOut() {
     setIsSigningOut(true);
@@ -161,9 +197,12 @@ export default function DownloadPageClient() {
           <section className="flex flex-col justify-between rounded-[2rem] border border-white/10 bg-[#09090D]/92 px-6 pb-8 pt-5 md:px-10 md:pb-10 md:pt-6">
             <div>
               <Link href="/" className="inline-flex items-center text-[#C9C9D1] transition-colors hover:text-white">
-                <img
+                <Image
                   src="/voiyce_logo.png"
                   alt="Voiyce"
+                  width={384}
+                  height={192}
+                  priority
                   className="h-32 w-auto max-w-full object-contain object-left md:h-40 lg:h-48"
                 />
               </Link>
@@ -244,15 +283,21 @@ export default function DownloadPageClient() {
           <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#13111A] via-[#101017] to-[#0B0B10] p-8 md:p-10">
             <div className="rounded-[2rem] border border-white/10 bg-black/25 p-6">
               <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#B7B7C0]">
-                {intentBadge(intent)}
+                {downloadHealth === "degraded" ? "Download check failed" : intentBadge(intent)}
               </div>
 
               <h2 className="mt-6 text-3xl font-semibold tracking-tight text-white">
-                Download should start automatically.
+                {downloadHealth === "degraded"
+                  ? "Download service needs attention."
+                  : "Download should start automatically."}
               </h2>
 
               <p className="mt-4 text-sm leading-7 text-[#A5A5AF]">
-                {hasAutoStarted
+                {downloadHealth === "checking"
+                  ? "Checking the installer link before starting the request."
+                  : downloadHealth === "degraded"
+                    ? `The installer link is not responding from the site right now. Try the button once, then email ${supportEmail} if it still fails.`
+                    : hasAutoStarted
                   ? "The installer request has already been sent from this page."
                   : "If the browser blocks the automatic request, use the manual download button below."}
               </p>
@@ -262,7 +307,7 @@ export default function DownloadPageClient() {
                 className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-base font-semibold text-black transition-colors hover:bg-[#E8E8EC]"
               >
                 <Icon icon="mdi:apple" className="h-5 w-5" />
-                Download Voiyce for Mac
+                {downloadHealth === "degraded" ? "Try download anyway" : "Download Voiyce for Mac"}
               </a>
 
               <div className="mt-8 space-y-4 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">

@@ -1,18 +1,38 @@
+import {
+  GENERIC_CLIENT_ERROR,
+  redactForLog,
+  safeClientMessage,
+} from '../_shared/safe-errors.ts'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 }
 
+type ErrorSource = 'internal' | 'videodb'
+
 class HTTPStatusError extends Error {
   readonly status: number
   readonly payload: unknown
+  readonly source: ErrorSource
 
-  constructor(status: number, message: string, payload: unknown = null) {
+  constructor(status: number, message: string, payload: unknown = null, source: ErrorSource = 'internal') {
     super(message)
     this.name = 'HTTPStatusError'
     this.status = status
     this.payload = payload
+    this.source = source
+  }
+}
+
+class ClientRequestError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ClientRequestError'
+    this.status = status
   }
 }
 
@@ -40,11 +60,28 @@ type VideoDBResponse = {
   data?: Record<string, string>
 }
 
+function envFlag(name: string): boolean {
+  return ['1', 'true', 'yes', 'on'].includes((Deno.env.get(name) ?? '').trim().toLowerCase())
+}
+
+function envNumber(name: string, fallback: number): number {
+  const parsed = Number(Deno.env.get(name))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
+}
+
+function disabledResponse(): Response {
+  return json({
+    error: 'Session context is temporarily unavailable.',
+    displayMessage: 'Session context is temporarily paused. Please try again later.',
+    code: 'capability_disabled'
+  }, 503)
 }
 
 function requireEnv(name: string): string {
@@ -63,7 +100,7 @@ function videoDBKey(): string {
   return value
 }
 
-async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
+async function fetchJSON(url: string, init: RequestInit, source: ErrorSource = 'internal'): Promise<unknown> {
   const response = await fetch(url, init)
   const text = await response.text()
   let data: unknown = null
@@ -84,7 +121,7 @@ async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
         : typeof (data as { message?: string } | null)?.message === 'string'
           ? (data as { message: string }).message
           : `Request failed with status ${response.status}`
-    throw new HTTPStatusError(response.status, message, data)
+    throw new HTTPStatusError(response.status, message, data, source)
   }
 
   return data
@@ -132,7 +169,7 @@ async function createSession(user: AuthUser, apiKey: string, baseUrl: string): P
         mode: 'realtime-agent-memory'
       }
     })
-  })
+  }, 'videodb')
 
   const token = await fetchJSON('https://api.videodb.io/capture/session/token', {
     method: 'POST',
@@ -141,14 +178,14 @@ async function createSession(user: AuthUser, apiKey: string, baseUrl: string): P
       user_id: user.id,
       expires_in: 86400
     })
-  })
+  }, 'videodb')
 
   const sessionData = dataObject<{ session_id?: string; id?: string }>(session)
   const tokenData = dataObject<{ token?: string }>(token)
   const sessionID = sessionData.session_id ?? sessionData.id
 
   if (!sessionID || !tokenData.token) {
-    throw new Error('VideoDB did not return a capture session and client token.')
+    throw new Error('Session context service did not return a capture session and client token.')
   }
 
   return {
@@ -168,14 +205,14 @@ async function stopSession(request: VideoDBRequest, apiKey: string): Promise<Vid
     method: 'POST',
     headers: authHeaders(apiKey),
     body: JSON.stringify({ session_id: request.sessionID })
-  })
+  }, 'videodb')
 
   return { ok: true, sessionID: request.sessionID, summary: 'VideoDB capture session stopped.' }
 }
 
 async function startSceneIndex(request: VideoDBRequest, apiKey: string): Promise<VideoDBResponse> {
   if (!request.displayStreamID) {
-    throw new Error('displayStreamID is required.')
+    throw new ClientRequestError(400, 'displayStreamID is required.')
   }
 
   const payload = await fetchJSON(`https://api.videodb.io/rtstream/${request.displayStreamID}/index/scene`, {
@@ -192,7 +229,7 @@ async function startSceneIndex(request: VideoDBRequest, apiKey: string): Promise
       model_config: {},
       name: 'Voiyce Agent Screen Memory'
     })
-  })
+  }, 'videodb')
 
   const data = dataObject<{ rtstream_index_id?: string; scene_index_id?: string; id?: string }>(payload)
   const sceneIndexID = data.rtstream_index_id ?? data.scene_index_id ?? data.id
@@ -207,7 +244,7 @@ async function startSceneIndex(request: VideoDBRequest, apiKey: string): Promise
 
 async function startTranscription(request: VideoDBRequest, apiKey: string): Promise<VideoDBResponse> {
   if (!request.micStreamID) {
-    throw new Error('micStreamID is required.')
+    throw new ClientRequestError(400, 'micStreamID is required.')
   }
 
   await fetchJSON(`https://api.videodb.io/rtstream/${request.micStreamID}/transcription/`, {
@@ -217,7 +254,7 @@ async function startTranscription(request: VideoDBRequest, apiKey: string): Prom
       action: 'start',
       engine: 'default'
     })
-  })
+  }, 'videodb')
 
   return {
     ok: true,
@@ -228,7 +265,12 @@ async function startTranscription(request: VideoDBRequest, apiKey: string): Prom
 
 async function searchMemory(request: VideoDBRequest, apiKey: string): Promise<VideoDBResponse> {
   if (!request.displayStreamID || !request.sceneIndexID || !request.query) {
-    throw new Error('displayStreamID, sceneIndexID, and query are required.')
+    throw new ClientRequestError(400, 'displayStreamID, sceneIndexID, and query are required.')
+  }
+
+  const maxQueryChars = envNumber('VOIYCE_SESSION_CONTEXT_MAX_QUERY_CHARS', 1000)
+  if (request.query.length > maxQueryChars) {
+    throw new ClientRequestError(413, `Session context search query exceeds ${maxQueryChars} characters.`)
   }
 
   const payload = await fetchJSON(`https://api.videodb.io/rtstream/${request.displayStreamID}/search`, {
@@ -242,7 +284,7 @@ async function searchMemory(request: VideoDBRequest, apiKey: string): Promise<Vi
       stitch: true,
       rerank: false
     })
-  })
+  }, 'videodb')
 
   const results = ((payload as { data?: { results?: Array<{ start?: number; end?: number; text?: string; score?: number }> } }).data?.results ?? [])
   const summary = results.length
@@ -269,13 +311,13 @@ async function summarizeMemory(request: VideoDBRequest, apiKey: string): Promise
     ? await fetchJSON(`https://api.videodb.io/rtstream/${request.displayStreamID}/index/scene/${request.sceneIndexID}?page_size=20`, {
       method: 'GET',
       headers: { 'x-access-token': apiKey }
-    }).catch(() => null)
+    }, 'videodb').catch(() => null)
     : null
   const transcript = request.micStreamID
     ? await fetchJSON(`https://api.videodb.io/rtstream/${request.micStreamID}/transcription/?page_size=20`, {
       method: 'GET',
       headers: { 'x-access-token': apiKey }
-    }).catch(() => null)
+    }, 'videodb').catch(() => null)
     : null
 
   const sceneRecords = ((scenes as { data?: { scene_index_records?: Array<{ start?: number; end?: number; description?: string }> } } | null)?.data?.scene_index_records ?? [])
@@ -315,6 +357,10 @@ export default async function(req: Request): Promise<Response> {
     return json({ error: 'Method not allowed' }, 405)
   }
 
+  if (envFlag('VOIYCE_DISABLE_SESSION_CONTEXT')) {
+    return disabledResponse()
+  }
+
   try {
     const baseUrl = requireEnv('INSFORGE_BASE_URL')
     const authHeader = req.headers.get('Authorization')
@@ -346,9 +392,27 @@ export default async function(req: Request): Promise<Response> {
     }
   } catch (error) {
     if (error instanceof HTTPStatusError) {
-      return json({ error: error.message, upstreamStatus: error.status }, error.status === 401 ? 502 : 500)
+      if (error.source === 'internal' && error.status === 401) {
+        console.warn('[videodb-session] User token rejected.', {
+          status: error.status,
+          message: redactForLog(error.message)
+        })
+        return json({ error: 'Unauthorized' }, 401)
+      }
+
+      console.error('[videodb-session] Upstream request failed.', {
+        status: error.status,
+        source: error.source,
+        message: redactForLog(error.message)
+      })
+      return json({ error: GENERIC_CLIENT_ERROR, upstreamStatus: error.status }, error.source === 'videodb' ? 502 : 500)
     }
 
-    return json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    if (error instanceof ClientRequestError) {
+      return json({ error: safeClientMessage(error.message) }, error.status)
+    }
+
+    console.error('[videodb-session] Unhandled failure.', redactForLog(error))
+    return json({ error: GENERIC_CLIENT_ERROR }, 500)
   }
 }

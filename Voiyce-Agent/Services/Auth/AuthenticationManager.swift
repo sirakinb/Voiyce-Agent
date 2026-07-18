@@ -50,10 +50,19 @@ final class AuthenticationManager {
     func restoreSessionIfNeeded() async {
         guard !hasAttemptedRestore else { return }
         hasAttemptedRestore = true
+        if AppConstants.isUITesting {
+            restoreUITestingSession()
+            return
+        }
         await restoreSession()
     }
 
     func restoreSession() async {
+        if AppConstants.isUITesting {
+            restoreUITestingSession()
+            return
+        }
+
         isRestoringSession = true
         defer { isRestoringSession = false }
 
@@ -217,6 +226,11 @@ final class AuthenticationManager {
     }
 
     func signOut() async {
+        if AppConstants.isUITesting {
+            currentUser = nil
+            return
+        }
+
         clearFeedback()
         isWorking = true
         defer { isWorking = false }
@@ -235,6 +249,27 @@ final class AuthenticationManager {
         currentUser = nil
         errorMessage = nil
         infoMessage = message
+    }
+
+    private func restoreUITestingSession() {
+        isRestoringSession = false
+        if AppConstants.uiTestingForcesSignedOut {
+            currentUser = nil
+            pendingVerificationEmail = nil
+            errorMessage = nil
+            infoMessage = nil
+            return
+        }
+
+        currentUser = User(
+            id: "ui-test-user",
+            email: "ui-test@voiyce.local",
+            emailVerified: true,
+            profile: UserProfile(name: "Voiyce Test User")
+        )
+        pendingVerificationEmail = nil
+        errorMessage = nil
+        infoMessage = nil
     }
 
     private func clearFeedback() {
@@ -286,26 +321,63 @@ final class AuthenticationManager {
     }
 
     private func friendlyMessage(for error: Error) -> String {
+        AuthenticationRecoveryCopy.message(for: error)
+    }
+}
+
+enum AuthenticationRecoveryCopy {
+    static let generic = "Voiyce could not complete sign-in. Check your connection and try again."
+    static let configurationMissing = "Sign-in is not configured for this build. Contact support if this should be available."
+    static let invalidCredentials = "Invalid email or password."
+    static let signInRequired = "Sign in to continue."
+
+    static func message(for error: Error) -> String {
         guard let error = error as? InsForgeError else {
-            return error.localizedDescription
+            if let urlError = error as? URLError,
+               urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+                return "Voiyce could not reach sign-in. Check your internet connection, then try again."
+            }
+            return generic
         }
 
         switch error {
         case .unauthorized:
-            return "Invalid email or password."
+            return invalidCredentials
         case .authenticationRequired:
-            return "Sign in to continue."
+            return signInRequired
         case .validationError(let message):
-            return message
-        case .networkError(let networkError):
-            return networkError.localizedDescription
-        case .httpError(_, let message, _, let nextActions):
-            if let nextActions, !nextActions.isEmpty {
-                return "\(message) \(nextActions)"
+            return sanitized(message, fallback: "Check your email and password, then try again.")
+        case .networkError:
+            return "Voiyce could not reach sign-in. Check your internet connection, then try again."
+        case .httpError(let statusCode, let message, _, let nextActions):
+            if statusCode == 401 || statusCode == 403 {
+                return invalidCredentials
             }
-            return message
-        default:
-            return error.localizedDescription
+            let combined = [message, nextActions].compactMap { $0 }.joined(separator: " ")
+            return sanitized(combined, fallback: generic)
+        case .missingConfiguration:
+            return configurationMissing
+        case .invalidURL, .invalidResponse, .decodingError, .encodingError, .unknown:
+            return generic
+        case .notFound:
+            return "That sign-in route is unavailable. Try again, then contact support if it keeps happening."
+        case .conflict(let message):
+            return sanitized(message, fallback: "That account state could not be updated. Try again, then contact support if it keeps happening.")
         }
+    }
+
+    private static func sanitized(_ message: String, fallback: String) -> String {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return fallback }
+
+        let forbiddenTerms = [
+            "HTTP", "backend", "server", "API", "token", "secret", "key",
+            "OPENAI", "INSFORGE", "function", "database", "SQL"
+        ]
+        if forbiddenTerms.contains(where: { trimmed.localizedCaseInsensitiveContains($0) }) {
+            return fallback
+        }
+
+        return trimmed
     }
 }

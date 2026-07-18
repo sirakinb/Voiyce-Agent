@@ -298,6 +298,61 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Additive Modes */}
+      <section className="py-24 px-6 relative z-10 bg-black">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-10 max-w-3xl"
+          >
+            <div className="text-sm uppercase tracking-[0.3em] text-purple-300/70 mb-4">Beyond dictation</div>
+            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-5">
+              Dictate first. Add context when the work needs it.
+            </h2>
+            <p className="text-xl text-[#888888] font-light leading-relaxed">
+              Voiyce stays fastest as your Mac dictation layer. Context and Talk modes are there when you want the owl to understand more of your workspace or help you reason through an agent task.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-5">
+            {[
+              {
+                icon: "mdi:microphone",
+                title: "Dictation",
+                description: "Your everyday Wispr Flow-style workflow: hold a hotkey, speak naturally, and place polished text anywhere."
+              },
+              {
+                icon: "mdi:monitor-eye",
+                title: "Context",
+                description: "Let Voiyce use the current screen, app, or task state when plain dictation is not enough."
+              },
+              {
+                icon: "mdi:message-processing-outline",
+                title: "Talk",
+                description: "Talk through agent work, decisions, and handoffs without turning the main experience into another chat window."
+              }
+            ].map((mode, index) => (
+              <motion.div
+                key={mode.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.06 }}
+                className="rounded-[1.5rem] border border-white/10 bg-[#0A0A0A] p-6"
+              >
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Icon icon={mode.icon} className="h-6 w-6 text-purple-100" />
+                </div>
+                <h3 className="text-2xl font-bold text-white tracking-tight mb-3">{mode.title}</h3>
+                <p className="text-[#888888] leading-relaxed font-light">{mode.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Social Proof */}
       <section className="py-32 px-6 relative z-10 bg-black">
         <div className="max-w-4xl mx-auto text-center">
