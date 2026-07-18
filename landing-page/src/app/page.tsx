@@ -23,40 +23,7 @@ const staggerContainer = {
   }
 };
 
-const pricingPlans = [
-  {
-    name: "Pro Monthly",
-    price: "$12",
-    cadence: "/ month",
-    badge: "Flexible",
-    description: "Full Pro access with a simple monthly subscription.",
-    highlight: false,
-    valueLine: "Cancel anytime",
-    features: [
-      "Unlimited dictation after trial",
-      "Prioritized support",
-      "Early access to new features",
-      "Native macOS voice workflow"
-    ]
-  },
-  {
-    name: "Pro Yearly",
-    price: "$120",
-    cadence: "/ year",
-    badge: "Best Value",
-    description: "Two months free compared with paying monthly all year.",
-    highlight: true,
-    valueLine: "Works out to $10/month",
-    features: [
-      "Unlimited dictation after trial",
-      "Prioritized support",
-      "Early access to new features",
-      "Best long-term value"
-    ]
-  }
-];
-
-const AUTH_INTENTS = ["download", "monthly", "yearly"] as const;
+const PENTRIDGE_LABS_URL = "https://pentridgemedia.com/labs";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -72,9 +39,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     const run = () => {
-      for (const intent of AUTH_INTENTS) {
-        router.prefetch(`/auth?intent=${intent}`);
-      }
+      router.prefetch("/auth?intent=download");
     };
     if (typeof window.requestIdleCallback === "function") {
       const id = window.requestIdleCallback(run);
@@ -104,19 +69,22 @@ export default function LandingPage() {
         } rounded-full px-6 py-5 flex items-center justify-center`}
       >
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mx-auto w-full max-w-4xl flex-wrap">
-          <img src="/voiyce_logo.png" alt="Voiyce Logo" className="h-[160px] w-auto object-contain -my-[68px]" />
+          <div className="flex flex-col items-center sm:items-start">
+            <img src="/voiyce_logo.png" alt="Voiyce Logo" className="h-[160px] w-auto object-contain -my-[68px]" />
+            <span className="mt-[6px] text-[10px] font-medium tracking-wide text-[#8A8A94] whitespace-nowrap">
+              Part of the Pentridge product suite
+            </span>
+          </div>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[#888888]">
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
-            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           </div>
           <Link
             prefetch
             href={buildAuthHref("download")}
             className="shrink-0 inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)] transition-colors hover:bg-[#EDEDED]"
           >
-            <Icon icon="mdi:apple" className="h-5 w-5" />
-            Download for MacOS
+            Log In
           </Link>
         </div>
       </motion.nav>
@@ -162,7 +130,15 @@ export default function LandingPage() {
               </Link>
             </motion.div>
             <motion.p variants={fadeIn} className="text-sm text-[#666666] mt-6">
-              Try Voiyce for free. No credit card required.
+              Don&apos;t have an account yet?{" "}
+              <a
+                href={PENTRIDGE_LABS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white transition-colors"
+              >
+                Sign up here
+              </a>
             </motion.p>
           </motion.div>
         </div>
@@ -356,106 +332,50 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="scroll-mt-36 py-40 px-6 relative z-10 overflow-hidden bg-black border-t border-white/5">
+      {/* Bottom CTA */}
+      <section className="py-40 px-6 relative z-10 overflow-hidden bg-black border-t border-white/5">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)]"></div>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-6xl mx-auto relative z-10"
+          className="max-w-3xl mx-auto relative z-10 text-center"
         >
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-5xl md:text-7xl font-bold text-white mb-8 tracking-tighter leading-[1.05]">
-              Start free.
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">
-                Upgrade only if it earns it.
-              </span>
-            </h2>
+          <h2 className="text-5xl md:text-7xl font-bold text-white mb-8 tracking-tighter leading-[1.05]">
+            Ready to write at
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40">
+              the speed of thought?
+            </span>
+          </h2>
 
-            <p className="text-xl md:text-2xl text-[#888888] font-light leading-relaxed">
-              Every account starts with a free Voiyce Pro trial. You get up to 2,500 words over 7 days, no credit card required. If it fits your workflow, choose the plan that keeps you flowing.
-            </p>
+          <p className="text-xl md:text-2xl text-[#888888] font-light leading-relaxed mb-12">
+            Install Voiyce on your Mac and start dictating into any app in minutes.
+          </p>
 
+          <div className="flex w-full justify-center">
+            <Link
+              prefetch
+              href={buildAuthHref("download")}
+              className="w-full max-w-md px-8 py-4 bg-white text-black hover:bg-[#EDEDED] rounded-full font-semibold text-lg transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3"
+            >
+              <Icon icon="mdi:apple" className="w-6 h-6" />
+              Download for MacOS
+            </Link>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            {pricingPlans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative rounded-[2rem] border p-8 md:p-10 overflow-hidden ${
-                  plan.highlight
-                    ? "bg-gradient-to-br from-[#141118] via-[#0F0D13] to-[#0A0A0A] border-purple-500/30 shadow-[0_0_80px_-30px_rgba(155,109,255,0.35)]"
-                    : "bg-[#0A0A0A] border-white/10"
-                }`}
-              >
-                <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 blur-3xl rounded-full"></div>
-
-                <div className="relative z-10">
-                  <div className="flex items-start justify-between gap-6 mb-8">
-                    <div>
-                      <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-4 ${
-                        plan.highlight
-                          ? "bg-purple-500/15 text-purple-200 border border-purple-400/20"
-                          : "bg-white/5 text-[#BBBBBB] border border-white/10"
-                      }`}>
-                        {plan.badge}
-                      </div>
-                      <h3 className="text-3xl font-bold text-white tracking-tight">{plan.name}</h3>
-                      <p className="text-[#888888] text-lg font-light mt-3 max-w-md">{plan.description}</p>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-5xl font-bold text-white tracking-tight">{plan.price}</div>
-                      <div className="text-[#888888] mt-2">{plan.cadence}</div>
-                    </div>
-                  </div>
-
-                  <div className={`rounded-2xl border p-5 mb-8 ${
-                    plan.highlight ? "border-purple-500/20 bg-black/30" : "border-white/10 bg-white/[0.02]"
-                  }`}>
-                    <div className="text-sm uppercase tracking-[0.24em] text-[#777777] mb-2">Included</div>
-                    <div className="text-white text-lg font-medium">{plan.valueLine}</div>
-                    <p className="text-[#8A8A94] text-sm mt-2">
-                      Upgrade anytime during trial or when your trial ends.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 mb-10">
-                    {plan.features.map((feature) => (
-                      <div key={feature} className="flex items-center gap-3 text-[#D9D9DD]">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                          plan.highlight ? "bg-purple-500/15" : "bg-white/5"
-                        }`}>
-                          <Icon icon="mdi:check" className={`w-3.5 h-3.5 ${plan.highlight ? "text-purple-200" : "text-white"}`} />
-                        </div>
-                        <span>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Link
-                    prefetch
-                    href={buildAuthHref(plan.name === "Pro Monthly" ? "monthly" : "yearly")}
-                    className={`w-full px-8 py-4 rounded-full font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
-                    plan.highlight
-                      ? "bg-white text-black hover:bg-[#EDEDED]"
-                      : "bg-transparent text-white hover:bg-white/5 border border-white/10"
-                  }`}>
-                    Get Started
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-10 max-w-3xl mx-auto">
-            <p className="text-sm text-[#666666] leading-relaxed">
-              Trial ends when 7 days pass or 2,500 words are used, whichever comes first. After that, choose Monthly or Yearly to keep dictating.
-            </p>
-          </div>
+          <p className="text-sm text-[#666666] mt-6">
+            Don&apos;t have an account yet?{" "}
+            <a
+              href={PENTRIDGE_LABS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white transition-colors"
+            >
+              Sign up here
+            </a>
+          </p>
         </motion.div>
       </section>
 

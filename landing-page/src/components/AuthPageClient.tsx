@@ -12,7 +12,7 @@ import {
   normalizeIntent,
 } from "@/lib/voiyce-config";
 
-type AuthMode = "signIn" | "signUp";
+const PENTRIDGE_LABS_URL = "https://pentridgemedia.com/labs";
 
 function friendlyErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -45,8 +45,7 @@ export default function AuthPageClient() {
   const intent = normalizeIntent(searchParams.get("intent"));
   const client = getInsForgeBrowserClient();
 
-  const [authMode, setAuthMode] = useState<AuthMode>("signUp");
-  const [name, setName] = useState("");
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -109,32 +108,13 @@ export default function AuthPageClient() {
     try {
       const trimmedEmail = email.trim().toLowerCase();
 
-      if (authMode === "signUp") {
-        const result = await client.auth.signUp({
-          email: trimmedEmail,
-          password,
-          name: name.trim() || undefined,
-        });
+      const result = await client.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
 
-        if (result.error) {
-          throw result.error;
-        }
-
-        if ((result.data as { requireEmailVerification?: boolean } | null)?.requireEmailVerification) {
-          setVerificationEmail(trimmedEmail);
-          setInfoMessage(`Enter the 6-digit code we sent to ${trimmedEmail}.`);
-          setVerificationCode("");
-          return;
-        }
-      } else {
-        const result = await client.auth.signInWithPassword({
-          email: trimmedEmail,
-          password,
-        });
-
-        if (result.error) {
-          throw result.error;
-        }
+      if (result.error) {
+        throw result.error;
       }
 
       router.push(redirectHref);
@@ -230,10 +210,10 @@ export default function AuthPageClient() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#73737D]">
-                  Web Signup
+                  Sign In
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">
-                  {showVerificationStep ? "Verify your email" : "Create your account"}
+                  {showVerificationStep ? "Verify your email" : "Welcome back"}
                 </h2>
               </div>
               <Link
@@ -247,7 +227,7 @@ export default function AuthPageClient() {
             <p className="mt-4 text-sm leading-7 text-[#90909A]">
               {showVerificationStep
                 ? `Enter the 6-digit code we emailed to ${verificationEmail}.`
-                : "Start with Google or email. Once you're in, we'll send you straight to the Mac installer page."}
+                : "Sign in to your account. Once you're in, we'll send you straight to the Mac installer page."}
             </p>
 
             {!showVerificationStep ? (
@@ -262,100 +242,76 @@ export default function AuthPageClient() {
                   Continue with Google
                 </button>
 
-                <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-[0.28em] text-[#5F5F68]">
-                  <div className="h-px flex-1 bg-white/10" />
-                  or
-                  <div className="h-px flex-1 bg-white/10" />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(true)}
+                  disabled={isWorking}
+                  className="mt-3 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#7C58EB] px-5 py-4 text-base font-medium text-white transition-colors hover:bg-[#8B6BF2] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white">
+                    <img src="/pentridge-p.png" alt="" className="h-3 w-3 object-contain" />
+                  </span>
+                  Continue with Pentridge
+                </button>
 
-                <div className="inline-flex rounded-full border border-white/10 bg-[#0C0C12] p-1">
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode("signUp")}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      authMode === "signUp"
-                        ? "bg-white text-black"
-                        : "text-[#A2A2AA] hover:text-white"
-                    }`}
-                  >
-                    Create account
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode("signIn")}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      authMode === "signIn"
-                        ? "bg-white text-black"
-                        : "text-[#A2A2AA] hover:text-white"
-                    }`}
-                  >
-                    Sign in
-                  </button>
-                </div>
+                {errorMessage ? (
+                  <p className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                    {errorMessage}
+                  </p>
+                ) : null}
 
-                <form className="mt-6 space-y-4" onSubmit={submitCredentials}>
-                  {authMode === "signUp" ? (
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">
-                        Full name
-                      </span>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        placeholder="Optional"
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
-                      />
-                    </label>
-                  ) : null}
+                {infoMessage ? (
+                  <p className="mt-4 rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
+                    {infoMessage}
+                  </p>
+                ) : null}
 
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Email</span>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="you@company.com"
-                      autoComplete="email"
-                      required
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
-                    />
-                  </label>
+                {showEmailForm ? (
+                  <>
+                    <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-[0.28em] text-[#5F5F68]">
+                      <div className="h-px flex-1 bg-white/10" />
+                      or
+                      <div className="h-px flex-1 bg-white/10" />
+                    </div>
 
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Password</span>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder="Minimum 6 characters"
-                      autoComplete={authMode === "signUp" ? "new-password" : "current-password"}
-                      required
-                      minLength={6}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
-                    />
-                  </label>
+                    <form className="space-y-4" onSubmit={submitCredentials}>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Email</span>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          placeholder="you@company.com"
+                          autoComplete="email"
+                          required
+                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                        />
+                      </label>
 
-                  {errorMessage ? (
-                    <p className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                      {errorMessage}
-                    </p>
-                  ) : null}
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Password</span>
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder="Your password"
+                          autoComplete="current-password"
+                          required
+                          minLength={6}
+                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                        />
+                      </label>
 
-                  {infoMessage ? (
-                    <p className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
-                      {infoMessage}
-                    </p>
-                  ) : null}
-
-                  <button
-                    type="submit"
-                    disabled={isWorking}
-                    className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-base font-semibold text-black transition-colors hover:bg-[#E8E8EC] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isWorking ? "Working..." : authMode === "signUp" ? "Continue to download" : "Sign in and continue"}
-                  </button>
-                </form>
+                      <button
+                        type="submit"
+                        disabled={isWorking}
+                        className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-base font-semibold text-black transition-colors hover:bg-[#E8E8EC] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isWorking ? "Working..." : "Sign in and continue"}
+                      </button>
+                    </form>
+                  </>
+                ) : null}
               </>
             ) : (
               <form className="mt-8 space-y-4" onSubmit={submitVerification}>
@@ -432,6 +388,18 @@ export default function AuthPageClient() {
               .
             </p>
           </div>
+
+          <p className="mt-6 text-center text-sm text-[#8A8A94]">
+            Don&apos;t have an account?{" "}
+            <a
+              href={PENTRIDGE_LABS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white"
+            >
+              Sign up
+            </a>
+          </p>
         </div>
       </div>
     </div>
