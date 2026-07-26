@@ -709,23 +709,6 @@ struct OnboardingView: View {
                     secondaryAction: { permissions.openAccessibilitySettings() }
                 )
 
-                #if VOIYCE_PRO
-                PermissionStatusCard(
-                    icon: "rectangle.on.rectangle",
-                    title: OnboardingPermissionCopy.screenRecordingTitle,
-                    description: SystemPermissionStatusCopy.description(
-                        for: .screenRecording,
-                        isGranted: permissions.screenRecordingGranted,
-                        screenRecordingStatusMessage: permissions.screenRecordingStatusMessage,
-                        surface: .onboarding
-                    ),
-                    isGranted: permissions.screenRecordingGranted,
-                    primaryTitle: "Grant Access",
-                    primaryAction: { permissions.requestScreenRecordingPermission() },
-                    secondaryTitle: "Open Settings",
-                    secondaryAction: { permissions.openScreenRecordingSettings() }
-                )
-                #endif
             }
 
             if !permissions.allPermissionsGranted {
@@ -736,15 +719,6 @@ struct OnboardingView: View {
                 )
             }
 
-            #if VOIYCE_PRO
-            if permissions.allPermissionsGranted && !permissions.screenRecordingGranted {
-                NoticeCard(
-                    title: OnboardingPermissionCopy.agentScreenAccessTitle,
-                    message: OnboardingPermissionCopy.agentScreenAccessMessage,
-                    nextStep: OnboardingPermissionCopy.agentScreenAccessNextStep
-                )
-            }
-            #endif
         }
     }
 

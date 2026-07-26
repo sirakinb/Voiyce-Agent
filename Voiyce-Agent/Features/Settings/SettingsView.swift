@@ -30,11 +30,6 @@ struct SettingsView: View {
     @State private var betaAccessCode = ""
     @State private var isRedeemingBetaCode = false
     @State private var permissionRefreshStatus: String?
-    #if VOIYCE_PRO
-    @State private var googleWorkspace = GoogleWorkspaceManager.shared
-    @State private var agentMemory = AgentLongTermMemoryStore.shared
-    @State private var supportExportStatus: String?
-    #endif
     #if DEBUG
     @State private var onboardingResetStatus: String?
     #endif
@@ -54,35 +49,23 @@ struct SettingsView: View {
             // Tab picker
             Picker("", selection: $appState.selectedSettingsTab) {
                 Text("General").tag(0).accessibilityIdentifier("settings-tab-general")
-                #if VOIYCE_PRO
-                Text("Integrations").tag(1).accessibilityIdentifier("settings-tab-integrations")
-                #endif
-                Text("Hotkeys").tag(2).accessibilityIdentifier("settings-tab-hotkeys")
-                Text("Permissions").tag(3).accessibilityIdentifier("settings-tab-permissions")
-                Text("About").tag(4).accessibilityIdentifier("settings-tab-about")
+                Text("Hotkeys").tag(1).accessibilityIdentifier("settings-tab-hotkeys")
+                Text("Permissions").tag(2).accessibilityIdentifier("settings-tab-permissions")
+                Text("About").tag(3).accessibilityIdentifier("settings-tab-about")
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("settings-tabs")
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
 
-            #if VOIYCE_PRO
-            activeAgentReturnBanner
-                .padding(.horizontal, 24)
-                .padding(.bottom, appState.agentActivityStatus == nil ? 0 : 18)
-            #endif
-
             // Tab content
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.spacing) {
                     switch appState.selectedSettingsTab {
                     case 0: generalTab
-                    #if VOIYCE_PRO
-                    case 1: integrationsTab
-                    #endif
-                    case 2: hotkeysTab
-                    case 3: permissionsTab
-                    case 4: aboutTab
+                    case 1: hotkeysTab
+                    case 2: permissionsTab
+                    case 3: aboutTab
                     default: EmptyView()
                     }
                 }
@@ -96,7 +79,7 @@ struct SettingsView: View {
             permissions.checkAllPermissions()
         }
         .onChange(of: appState.selectedSettingsTab) { _, tab in
-            if tab == 3 {
+            if tab == 2 {
                 permissions.checkAllPermissions()
             }
         }
@@ -107,57 +90,6 @@ struct SettingsView: View {
     }
 
     // MARK: - General Tab
-
-    #if VOIYCE_PRO
-    @ViewBuilder
-    private var activeAgentReturnBanner: some View {
-        if let activity = appState.agentActivityStatus {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(appState.agentMode.accent.opacity(0.16))
-                        .frame(width: 36, height: 36)
-
-                    Image(systemName: activity.symbol)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(appState.agentMode.accent)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(activity.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-
-                    Text("Voiyce keeps running while you change settings.")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-
-                Spacer()
-
-                Button {
-                    appState.selectedTab = .agent
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("Return to Agent")
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(AppTheme.textPrimary)
-            }
-            .padding(14)
-            .background(AppTheme.backgroundSecondary.opacity(0.72))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(appState.agentMode.accent.opacity(0.28), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .accessibilityIdentifier("settings-active-agent-return")
-        }
-    }
-    #endif
 
     private var generalTab: some View {
         VStack(alignment: .leading, spacing: AppTheme.spacing) {
@@ -296,156 +228,6 @@ struct SettingsView: View {
                 }
             }
 
-            #if VOIYCE_PRO
-            settingsSection(title: "Agent Safety") {
-                VStack(spacing: 1) {
-                    ForEach(AgentSafetyMode.allCases) { mode in
-                        safetyModeRow(mode)
-                    }
-                }
-            }
-
-            settingsSection(title: "Agent Memory") {
-                settingsRow(
-                    icon: "brain",
-                    title: "Local Memory",
-                    subtitle: "\(agentMemory.memoryCountText). \(agentMemory.privacySummary)"
-                ) {
-                    HStack(spacing: 8) {
-                        Button(agentMemory.vaultURL == nil ? "Create Vault" : "Open Vault") {
-                            agentMemory.revealVault()
-                        }
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-
-                        Button("Choose Folder") {
-                            chooseAgentMemoryVault()
-                        }
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-
-                        Button("Clear") {
-                            agentMemory.clear()
-                        }
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.destructive)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.destructive.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if let vaultURL = agentMemory.vaultURL {
-                    infoRow(label: "Vault", value: vaultURL.path)
-                }
-            }
-
-            settingsSection(title: "Agent Privacy") {
-                settingsRow(
-                    icon: "hand.raised.fill",
-                    title: "Private Mode",
-                    subtitle: "Pause durable memory and raw screenshot storage."
-                ) {
-                    Toggle("", isOn: Binding(
-                        get: { agentMemory.isPrivateModeEnabled },
-                        set: { agentMemory.isPrivateModeEnabled = $0 }
-                    ))
-                    .toggleStyle(.switch)
-                    .tint(AppTheme.accent)
-                }
-
-                settingsRow(
-                    icon: "clock.arrow.circlepath",
-                    title: "Memory Retention",
-                    subtitle: agentMemory.memoryRetention.subtitle
-                ) {
-                    Picker("", selection: Binding(
-                        get: { agentMemory.memoryRetention },
-                        set: { agentMemory.memoryRetention = $0 }
-                    )) {
-                        ForEach(AgentMemoryRetention.allCases) { retention in
-                            Text(retention.title).tag(retention)
-                        }
-                    }
-                    .frame(width: 150)
-                    .labelsHidden()
-                }
-
-                settingsRow(
-                    icon: "note.text",
-                    title: "Vault Notes",
-                    subtitle: agentMemory.isVaultSyncEnabled
-                        ? "Write durable memories to local Markdown daily notes."
-                        : "Keep durable memories in the local index without Markdown notes."
-                ) {
-                    Toggle("", isOn: Binding(
-                        get: { agentMemory.isVaultSyncEnabled },
-                        set: { agentMemory.isVaultSyncEnabled = $0 }
-                    ))
-                    .toggleStyle(.switch)
-                    .tint(AppTheme.accent)
-                }
-
-                settingsRow(
-                    icon: "photo.on.rectangle",
-                    title: "Raw Screenshots",
-                    subtitle: agentMemory.screenshotRetention.subtitle
-                ) {
-                    Picker("", selection: Binding(
-                        get: { agentMemory.screenshotRetention },
-                        set: { agentMemory.screenshotRetention = $0 }
-                    )) {
-                        ForEach(AgentScreenshotRetention.allCases) { retention in
-                            Text(retention.title).tag(retention)
-                        }
-                    }
-                    .frame(width: 150)
-                    .labelsHidden()
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "eye.slash.fill")
-                            .font(.system(size: 15))
-                            .foregroundStyle(AppTheme.accent)
-                            .frame(width: 24)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("App/Site Exclusions")
-                                .font(AppTheme.bodyFont)
-                                .foregroundStyle(AppTheme.textPrimary)
-
-                            Text("Comma or line separated names Voiyce should not remember.")
-                                .font(AppTheme.captionFont)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-
-                        Spacer()
-                    }
-
-                    TextField("1Password, bank, private client portal", text: Binding(
-                        get: { agentMemory.excludedPatternsText },
-                        set: { agentMemory.excludedPatternsText = $0 }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                    .font(AppTheme.bodyFont)
-                }
-                .padding(AppTheme.cardPadding)
-            }
-            #endif
-
             settingsSection(title: "Help") {
                 settingsRow(
                     icon: "play.rectangle.fill",
@@ -463,90 +245,9 @@ struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .buttonStyle(.plain)
                 }
-
-                #if VOIYCE_PRO
-                settingsRow(
-                    icon: "square.and.arrow.up",
-                    title: "Export Support Log",
-                    subtitle: SettingsLaunchCopy.supportExportSubtitle
-                ) {
-                    Button("Export") {
-                        exportSupportLog()
-                    }
-                    .font(AppTheme.captionFont)
-                    .foregroundStyle(AppTheme.accent)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(AppTheme.accent.opacity(0.14))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .buttonStyle(.plain)
-                }
-
-                if let supportExportStatus {
-                    Text(supportExportStatus)
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, AppTheme.cardPadding)
-                        .padding(.bottom, 10)
-                }
-                #endif
             }
         }
     }
-
-    #if VOIYCE_PRO
-    // MARK: - Integrations Tab
-
-    private var integrationsTab: some View {
-        VStack(alignment: .leading, spacing: AppTheme.spacing) {
-            settingsSection(title: "Google") {
-                googleConnectionCard(
-                    icon: "envelope.fill",
-                    title: "Gmail",
-                    subtitle: "Read Gmail, create drafts, and send confirmed messages."
-                )
-
-                googleConnectionCard(
-                    icon: "calendar",
-                    title: "Google Calendar",
-                    subtitle: "Check availability and read upcoming calendar events."
-                )
-
-                if googleWorkspace.isConnected {
-                    settingsRow(
-                        icon: "g.circle.fill",
-                        title: "Google Account",
-                        subtitle: googleWorkspace.connectedEmail ?? "Connected"
-                    ) {
-                        Button("Disconnect") {
-                            googleWorkspace.disconnect()
-                        }
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.destructive)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.destructive.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            if let infoMessage = googleWorkspace.infoMessage {
-                Text(infoMessage)
-                    .font(AppTheme.captionFont)
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            if let errorMessage = googleWorkspace.errorMessage {
-                Text(errorMessage)
-                    .font(AppTheme.captionFont)
-                    .foregroundStyle(AppTheme.destructive)
-            }
-        }
-    }
-    #endif
 
     // MARK: - Hotkeys Tab
 
@@ -556,20 +257,6 @@ struct SettingsView: View {
                 settingsRow(icon: "mic.fill", title: "Dictation Mode", subtitle: "Hold to activate voice dictation") {
                     hotkeyBadge(appState.dictationHotkey)
                 }
-
-                #if VOIYCE_PRO
-                settingsRow(icon: "circle.hexagongrid.circle", title: "Agent Mode", subtitle: "Tap Option once to start or stop the selected Agent mode") {
-                    hotkeyBadge("⌥")
-                }
-
-                settingsRow(icon: "rectangle.3.group", title: "Focus Tools Bar", subtitle: "Open Focus, Paint, and Underline from any app") {
-                    hotkeyBadge("⌃⌘A")
-                }
-
-                settingsRow(icon: "viewfinder", title: "Focus Highlight", subtitle: "Mark a screen region for Talk or Act") {
-                    hotkeyBadge("⌘⇧F")
-                }
-                #endif
             }
 
             Text("Hotkey customization will be available in a future update.")
@@ -632,24 +319,6 @@ struct SettingsView: View {
                     }
                 )
 
-                #if VOIYCE_PRO
-                permissionRow(
-                    icon: "rectangle.on.rectangle",
-                    title: "Screen Recording",
-                    description: SystemPermissionStatusCopy.description(
-                        for: .screenRecording,
-                        isGranted: permissions.screenRecordingGranted,
-                        screenRecordingStatusMessage: permissions.screenRecordingStatusMessage,
-                        surface: .settings
-                    ),
-                    isGranted: permissions.screenRecordingGranted,
-                    accessibilityIdentifier: "permission-row-screen-recording",
-                    action: {
-                        rememberPermissionReturn()
-                        permissions.requestScreenRecordingPermission()
-                    }
-                )
-                #endif
             }
 
             Button {
@@ -775,23 +444,6 @@ struct SettingsView: View {
     }
     #endif
 
-    #if VOIYCE_PRO
-    private func chooseAgentMemoryVault() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose Voiyce Memory Vault"
-        panel.prompt = "Use Folder"
-        panel.message = "Choose a folder where Voiyce can write local Markdown memory notes."
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-
-        if panel.runModal() == .OK, let url = panel.url {
-            agentMemory.setVault(url: url)
-        }
-    }
-    #endif
-
     private func aboutDetail(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
@@ -867,54 +519,6 @@ struct SettingsView: View {
             isRedeemingBetaCode = false
         }
     }
-
-    #if VOIYCE_PRO
-    private func googleConnectionCard(icon: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15))
-                .foregroundStyle(googleWorkspace.isConnected ? AppTheme.success : AppTheme.accent)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(AppTheme.bodyFont)
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Text(googleWorkspace.isConnected ? googleWorkspace.connectedEmail ?? "Connected" : subtitle)
-                    .font(AppTheme.captionFont)
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            Spacer()
-
-            if googleWorkspace.isConnected {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14))
-                    Text("Connected")
-                        .font(AppTheme.captionFont)
-                }
-                .foregroundStyle(AppTheme.success)
-            } else {
-                Button(googleWorkspace.isConnecting ? "Opening..." : "Connect") {
-                    Task {
-                        await googleWorkspace.connect()
-                    }
-                }
-                .font(AppTheme.captionFont)
-                .foregroundStyle(AppTheme.accent)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(AppTheme.accent.opacity(0.14))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .buttonStyle(.plain)
-                .disabled(googleWorkspace.isConnecting)
-            }
-        }
-        .padding(AppTheme.cardPadding)
-    }
-    #endif
 
     // MARK: - Reusable Components
 
@@ -1025,63 +629,6 @@ struct SettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
-    #if VOIYCE_PRO
-    private func safetyModeRow(_ mode: AgentSafetyMode) -> some View {
-        let isSelected = appState.hasConfirmedAgentSafetyMode && appState.agentSafetyMode == mode
-
-        return Button {
-            appState.confirmAgentSafetyMode(mode)
-            AgentEventStore.shared.append(
-                category: .memory,
-                status: .done,
-                symbol: mode.symbol,
-                title: "Safety mode changed",
-                summary: "Agent safety mode is now \(mode.title).",
-                details: [
-                    AgentLogEventDetail(key: "Mode", value: mode.title),
-                    AgentLogEventDetail(key: "Policy", value: mode.subtitle)
-                ]
-            )
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: mode.symbol)
-                    .font(.system(size: 15))
-                    .foregroundStyle(mode.tint)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(mode.title)
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(AppTheme.textPrimary)
-
-                    Text(mode.subtitle)
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-
-                Spacer()
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 15))
-                    .foregroundStyle(isSelected ? mode.tint : AppTheme.textSecondary.opacity(0.55))
-            }
-            .padding(AppTheme.cardPadding)
-            .background(isSelected ? mode.tint.opacity(0.06) : .clear)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func exportSupportLog() {
-        guard let url = AgentEventStore.shared.exportSupportBundle() else {
-            supportExportStatus = SettingsLaunchCopy.supportExportFailed
-            return
-        }
-
-        supportExportStatus = "\(SettingsLaunchCopy.supportExportedPrefix) \(url.lastPathComponent)."
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-    }
-    #endif
-
     private func infoRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
@@ -1098,7 +645,7 @@ struct SettingsView: View {
     }
 
     private func rememberPermissionReturn() {
-        appState.rememberPermissionReturnTarget(tab: .settings, settingsTab: 3)
+        appState.rememberPermissionReturnTarget(tab: .settings, settingsTab: 2)
     }
 
     private func refreshPermissionStatus() {

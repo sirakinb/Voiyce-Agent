@@ -9,12 +9,12 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalDocShell title="Privacy Policy" lastUpdated="May 18, 2026">
+    <LegalDocShell title="Privacy Policy" lastUpdated="July 26, 2026">
       <p>
         Voiyce (“we,” “us,” or “our”) operates the Voiyce macOS application and
-        related services (collectively, the “Service”). Voiyce helps you capture
-        work context, use voice workflows, and hand reusable memory to the AI
-        tools you work with. This Privacy Policy describes how we collect, use,
+        related services (collectively, the “Service”). Voiyce is a dictation
+        app that helps you speak naturally and insert polished text into the apps
+        you already use. This Privacy Policy describes how we collect, use,
         disclose, and protect information when you use the Service.
       </p>
 
@@ -35,7 +35,8 @@ export default function PrivacyPage() {
 
       <h2>Information we collect</h2>
       <p>
-        We collect basic information needed to run the Service, including:
+        We collect information needed to run dictation, billing, and support,
+        including:
       </p>
       <ul>
         <li>
@@ -45,46 +46,34 @@ export default function PrivacyPage() {
           identifiers associated with your account.
         </li>
         <li>
-          <strong>Voice and dictation.</strong> Audio you provide for dictation
-          or voice-agent sessions may be processed to produce text, respond to
-          your request, or operate the feature you selected. Processing may use
-          OpenAI speech or realtime services, including Whisper or similar
-          technologies, as described in “How we process information.”
+          <strong>Voice and dictation audio.</strong> When you dictate, Voiyce
+          processes audio from your microphone to produce text. Audio may be sent
+          to our backend transcription service, which uses OpenAI speech
+          technologies (such as Whisper or similar models), to return transcribed
+          text. We process audio to provide the dictation you request, enforce
+          usage limits, and operate billing where applicable.
         </li>
         <li>
-          <strong>Transcripts and text.</strong> Text produced by the Service
-          may be stored on our backend (hosted on InsForge) so features like
-          history, sync, or account recovery work as designed.
+          <strong>Local transcript history.</strong> Voiyce stores dictation
+          transcripts on your Mac, including the transcribed text, the app you
+          dictated into, word counts, and session timing. This local history
+          helps you review past dictations in the app. It is stored on your
+          device and is not used for screen-context capture or agent memory.
+          We may also process usage counts and related billing metadata on our
+          backend so subscriptions, trials, and account limits work as
+          designed.
         </li>
         <li>
-          <strong>Screen context and screenshots.</strong> If you grant Screen
-          Recording permission and use screen-aware features, Voiyce may process
-          screenshots, visible text, focused regions, and summaries so the app
-          can answer questions about your current work or help with an action.
+          <strong>Device and app context.</strong> To insert dictated text and
+          operate hotkeys system-wide, Voiyce uses macOS permissions you grant,
+          including Microphone, Speech Recognition, and Accessibility. Voiyce
+          does not require Screen Recording for dictation.
         </li>
         <li>
-          <strong>Local memory.</strong> Voiyce may store searchable local
-          records, summaries, screenshots, and user-readable Markdown notes on
-          your Mac so you can reuse context across sessions and agents.
-        </li>
-        <li>
-          <strong>Agent actions and support exports.</strong> Voiyce may record
-          local Agent Log events such as mode changes, permission blockers,
-          tool results, memory writes, and failures. If you choose to create or
-          send a support export, that export may include redacted diagnostic
-          information needed to troubleshoot the issue.
-        </li>
-        <li>
-          <strong>Connected services.</strong> If you connect services such as
-          Google Gmail or Google Calendar, we process the limited account and
-          content data needed to perform the action you request.
-        </li>
-        <li>
-          <strong>Usage and product analytics.</strong> We use PostHog (or
-          similar tools) to understand how the Service is used, diagnose
-          issues, and improve performance and features. This may include
-          pseudonymous identifiers and event data (for example, feature usage and
-          errors).
+          <strong>Website analytics.</strong> We may use PostHog (or similar
+          tools) on our public website to understand usage, diagnose issues, and
+          improve performance. This may include pseudonymous identifiers and
+          event data (for example, page views and errors).
         </li>
         <li>
           <strong>Billing.</strong> If you purchase a paid plan, payment
@@ -104,10 +93,9 @@ export default function PrivacyPage() {
       <h2>How we use information</h2>
       <p>We use information to:</p>
       <ul>
-        <li>Provide, maintain, and improve the Service;</li>
-        <li>Capture context, create memory, and support agent handoffs;</li>
+        <li>Provide, maintain, and improve dictation and related features;</li>
         <li>Authenticate users and secure accounts;</li>
-        <li>Operate Talk, Context, Act, screen-aware, and dictation features;</li>
+        <li>Transcribe speech, insert text, and enforce usage or plan limits;</li>
         <li>Process subscriptions and payments;</li>
         <li>Send transactional messages and, where permitted, marketing;</li>
         <li>Monitor usage, troubleshoot, and improve reliability; and</li>
@@ -120,10 +108,8 @@ export default function PrivacyPage() {
         including without limitation:{" "}
         <strong>
           Vercel (hosting), InsForge (backend and authentication), OpenAI
-          (speech, realtime, screen, and computer-use model processing), VideoDB
-          (session memory and media indexing where enabled), Google APIs
-          (connected Gmail and Calendar features), Cloudflare R2 (download
-          hosting), Stripe (payments), Resend (email), and PostHog (analytics)
+          (speech transcription), Cloudflare R2 (download hosting), Stripe
+          (payments), Resend (email), and PostHog (analytics)
         </strong>
         , and other vendors we may use to operate the Service. These providers
         process data on our behalf under contractual safeguards appropriate to
@@ -150,25 +136,16 @@ export default function PrivacyPage() {
 
       <h2>Retention</h2>
       <p>
-        We retain information for as long as your account is active or as needed
-        to provide the Service, comply with legal obligations, resolve disputes,
-        and enforce our agreements. Retention periods may vary depending on the
-        type of data and legal requirements.
+        We retain account and billing information for as long as your account
+        is active or as needed to provide the Service, comply with legal
+        obligations, resolve disputes, and enforce our agreements. Retention
+        periods may vary depending on the type of data and legal requirements.
       </p>
       <p>
-        Local memory is stored on your Mac as a structured searchable index and
-        Voiyce-written Markdown notes. Summary retention controls include
-        Session only, 30 days, 90 days, and Forever. Raw screenshots have a
-        separate setting and may be Off, 30 days, 90 days, or Forever. Private
-        Mode pauses durable memory and raw screenshot storage, and app/site
-        exclusions skip matching memory writes. The in-app delete control
-        removes the local memory index, raw screenshots, and Voiyce-written
-        vault notes.
-      </p>
-      <p>
-        Support exports are created only when you choose to generate or share
-        them. Voiyce redacts known sensitive fields, but you should still review
-        any export before sending it to support.
+        Local transcript history stored on your Mac remains on your device until
+        you delete it through the app or remove the app and its local data. We
+        do not use that local history for screen-context capture or agent
+        memory.
       </p>
 
       <h2>Your rights and choices</h2>
@@ -184,11 +161,10 @@ export default function PrivacyPage() {
         following the instructions in those emails, where applicable.
       </p>
       <p>
-        <strong>Permissions and memory.</strong> You can control macOS
-        permissions such as Microphone, Speech Recognition, Accessibility, and
-        Screen Recording in System Settings. You can also pause capture, use
-        Private Mode, exclude apps or sites, and delete Voiyce memory through
-        the controls provided in the app where available.
+        <strong>Permissions.</strong> You can control macOS permissions such as
+        Microphone, Speech Recognition, and Accessibility in System Settings.
+        Dictation requires the permissions you choose to grant for those
+        features.
       </p>
 
       <h2>Children</h2>
@@ -210,8 +186,8 @@ export default function PrivacyPage() {
       <p>
         We may update this Privacy Policy from time to time. We will post the
         updated version and revise the “Last updated” date. Continued use of the
-        Service after changes means you accept the updated policy, to the extent
-        permitted by law.
+        Service after changes means you accept the updated policy, to the
+        extent permitted by law.
       </p>
 
       <p className="border-t border-white/10 pt-8 text-sm text-[#8A8A8A]">

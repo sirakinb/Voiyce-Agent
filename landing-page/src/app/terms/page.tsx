@@ -9,11 +9,11 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalDocShell title="Terms of Service" lastUpdated="May 17, 2026">
+    <LegalDocShell title="Terms of Service" lastUpdated="July 26, 2026">
       <p>
         These Terms of Service (“Terms”) govern your access to and use of
-        Voiyce, a macOS application and related services operated as an
-        independent Voiyce platform (“we,” “us,” or “our”). By downloading,
+        Voiyce, a macOS dictation application and related services operated as
+        an independent Voiyce platform (“we,” “us,” or “our”). By downloading,
         installing, or using Voiyce (“Service”), you agree to these Terms. If
         you do not agree, do not use the Service.
       </p>
@@ -44,12 +44,11 @@ export default function TermsPage() {
 
       <h2>The Service</h2>
       <p>
-        Voiyce provides macOS voice, context capture, local memory, and agent handoff
-        features. Depending on the mode you choose, Voiyce may help with
-        dictation, current-screen context, reusable memory, and bounded app or
-        website actions. Features, limits, and availability may change. We may
-        update the Service with or without notice. We do not guarantee
-        uninterrupted or error-free operation.
+        Voiyce provides macOS voice dictation. You can hold a hotkey, speak
+        naturally, and insert polished text into the apps you are already using.
+        Features, limits, and availability may change. We may update the
+        Service with or without notice. We do not guarantee uninterrupted or
+        error-free operation.
       </p>
 
       <h2>Accounts</h2>
@@ -125,18 +124,15 @@ export default function TermsPage() {
       <p>
         You retain rights in content you create. To operate the Service, you
         grant us a limited license to host, process, transmit, and display your
-        content (including voice input, transcripts, screen context, screenshots
-        you choose to process, memory records, connected-service content, and
-        support exports) solely to provide, secure, troubleshoot, and improve
-        the Service, as described in our Privacy Policy.
+        content (including voice input, transcripts, and usage metadata) solely to provide, secure, troubleshoot,
+        and improve the Service, as described in our Privacy Policy.
       </p>
 
       <h2>Third-party services</h2>
       <p>
         The Service integrates with third-party providers (for example, hosting,
-        authentication, AI model processing, speech recognition, media indexing,
-        connected Gmail and Calendar features, analytics, email, download
-        hosting, and payments). Their use is subject to their terms. We are not
+        authentication, speech transcription, analytics, email, download hosting,
+        and payments). Their use is subject to their terms. We are not
         responsible for third-party services.
       </p>
 
@@ -145,10 +141,9 @@ export default function TermsPage() {
         THE SERVICE IS PROVIDED “AS IS” AND “AS AVAILABLE.” TO THE MAXIMUM
         EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR
         IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-        NON-INFRINGEMENT. DICTATION, SCREEN-CONTEXT, MEMORY, AND AGENT-ASSISTED
-        FEATURES MAY PRODUCE INACCURATE, INCOMPLETE, OR UNEXPECTED OUTPUT; YOU
-        ARE RESPONSIBLE FOR REVIEWING OUTPUT AND ACTIONS BEFORE RELYING ON
-        THEM.
+        NON-INFRINGEMENT. DICTATION AND TRANSCRIPTION MAY PRODUCE INACCURATE,
+        INCOMPLETE, OR UNEXPECTED OUTPUT; YOU ARE RESPONSIBLE FOR REVIEWING
+        OUTPUT BEFORE RELYING ON IT.
       </p>
 
       <h2>Limitation of liability</h2>

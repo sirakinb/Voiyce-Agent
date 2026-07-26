@@ -9,17 +9,11 @@ import SwiftData
 
 enum AppMenuLaunchCopy {
     static let openDashboard = "Open Dashboard"
-    static let openAgent = "Open Agent"
-    static let openAgentLog = "Open Agent Log"
     static let openSettings = "Open Settings"
-    static let focusTools = "Focus Tools"
 
     static let visibleStrings = [
         openDashboard,
-        openAgent,
-        openAgentLog,
-        openSettings,
-        focusTools
+        openSettings
     ]
 }
 
@@ -34,9 +28,6 @@ struct Voiyce_AgentApp: App {
     @State private var networkMonitor = NetworkMonitor()
     @State private var usageTracker = UsageTracker()
     @State private var hotkeysConfigured = false
-    #if VOIYCE_PRO
-    @State private var agentModeStoppedForSystemSleep: AgentMode?
-    #endif
     private let owlOverlay = OwlOverlayPanel()
 
     var body: some Scene {
@@ -68,11 +59,6 @@ struct Voiyce_AgentApp: App {
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
                     handleWakeAfterSystemSleep()
                 }
-                #if VOIYCE_PRO
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
-                    handleDisplayConfigurationChange()
-                }
-                #endif
                 .onChange(of: appState.isOnboardingComplete) { _, isComplete in
                     if isComplete {
                         setupHotkeysIfNeeded()
@@ -98,30 +84,10 @@ struct Voiyce_AgentApp: App {
                 }
                 .keyboardShortcut("1", modifiers: [.command])
 
-                #if VOIYCE_PRO
-                Button(AppMenuLaunchCopy.openAgent) {
-                    navigateTo(.agent)
-                }
-                .keyboardShortcut("2", modifiers: [.command])
-
-                Button(AppMenuLaunchCopy.openAgentLog) {
-                    navigateTo(.agentLog)
-                }
-                .keyboardShortcut("3", modifiers: [.command])
-                #endif
-
                 Button(AppMenuLaunchCopy.openSettings) {
                     navigateTo(.settings)
                 }
                 .keyboardShortcut(",", modifiers: [.command])
-
-                #if VOIYCE_PRO
-                Divider()
-
-                Button(AppMenuLaunchCopy.focusTools) {
-                    AgentFocusToolPaletteOverlay.shared.toggle()
-                }
-                #endif
             }
         }
 
@@ -168,68 +134,19 @@ struct Voiyce_AgentApp: App {
     }
 
     private func cleanupBeforeTermination() {
-        #if VOIYCE_PRO
-        let wasAgentRunning = appState.isAgentRunning
-        let stoppedAgentMode = appState.agentMode
-        #endif
 
         stopLocalRuntimeBeforeInterruption()
         dictationCoordinator.cancelForAppTermination()
         appState.clearTransientRuntimeStateForTermination()
 
-        #if VOIYCE_PRO
-        RealtimeAgentBridge.shared.stop()
-        RealtimeAgentServer.shared.stop()
-        VideoDBAgentMemory.shared.stopLocalCaptureForTermination()
-
-        if wasAgentRunning {
-            AgentEventStore.shared.append(
-                category: agentLogCategory(for: stoppedAgentMode),
-                status: .done,
-                symbol: "power",
-                title: "Session stopped on app quit",
-                summary: "Voiyce stopped \(stoppedAgentMode.title) mode before quitting.",
-                details: [
-                    AgentLogEventDetail(key: "Mode", value: stoppedAgentMode.title),
-                    AgentLogEventDetail(key: "Reason", value: "App quit")
-                ]
-            )
-        }
-        #endif
     }
 
     private func cleanupBeforeSystemSleep() {
-        #if VOIYCE_PRO
-        let wasAgentRunning = appState.isAgentRunning
-        let stoppedAgentMode = appState.agentMode
-        if wasAgentRunning {
-            agentModeStoppedForSystemSleep = stoppedAgentMode
-        }
-        #endif
 
         stopLocalRuntimeBeforeInterruption()
         dictationCoordinator.cancelForSystemSleep()
         appState.clearTransientRuntimeStateForSystemSleep()
 
-        #if VOIYCE_PRO
-        RealtimeAgentBridge.shared.stop()
-        RealtimeAgentServer.shared.stop()
-        VideoDBAgentMemory.shared.stopLocalCaptureForSystemSleep()
-
-        if wasAgentRunning {
-            AgentEventStore.shared.append(
-                category: agentLogCategory(for: stoppedAgentMode),
-                status: .done,
-                symbol: "moon.zzz",
-                title: "Session stopped for sleep",
-                summary: "Voiyce stopped \(stoppedAgentMode.title) mode before the Mac slept.",
-                details: [
-                    AgentLogEventDetail(key: "Mode", value: stoppedAgentMode.title),
-                    AgentLogEventDetail(key: "Reason", value: "System sleep")
-                ]
-            )
-        }
-        #endif
     }
 
     private func handleWakeAfterSystemSleep() {
@@ -237,80 +154,8 @@ struct Voiyce_AgentApp: App {
         appState.restorePermissionReturnTargetIfNeeded()
         setupHotkeysIfNeeded()
 
-        #if VOIYCE_PRO
-        guard let stoppedMode = agentModeStoppedForSystemSleep else { return }
-        agentModeStoppedForSystemSleep = nil
-        AgentEventStore.shared.append(
-            category: agentLogCategory(for: stoppedMode),
-            status: .done,
-            symbol: "sun.max",
-            title: "Ready after wake",
-            summary: "Voiyce is awake. Start \(stoppedMode.title) again when you want it to resume.",
-            details: [
-                AgentLogEventDetail(key: "Mode", value: stoppedMode.title),
-                AgentLogEventDetail(key: "Active state", value: "Off")
-            ]
-        )
-        #endif
     }
 
-    #if VOIYCE_PRO
-    private func handleDisplayConfigurationChange() {
-        AgentFocusToolPaletteOverlay.shared.hide()
-        ActionCursorOverlay.shared.handleDisplayConfigurationChange()
-        AgentVisualGuideOverlay.shared.clear()
-        FocusHighlightOverlay.shared.clearForDisplayConfigurationChange()
-
-        let mode = appState.agentMode
-        let wasRunning = appState.isAgentRunning
-        guard DisplayConfigurationRecovery.shouldStopAgent(mode: mode, isAgentRunning: wasRunning) else {
-            if wasRunning {
-                AgentEventStore.shared.append(
-                    category: agentLogCategory(for: mode),
-                    status: .done,
-                    symbol: "display.2",
-                    title: "Display layout changed",
-                    summary: "Voiyce detected a display change and cleared transient screen overlays.",
-                    details: [
-                        AgentLogEventDetail(key: "Mode", value: mode.title),
-                        AgentLogEventDetail(key: "Action", value: "Continue with fresh screen context")
-                    ]
-                )
-            }
-            return
-        }
-
-        appState.isAgentRunning = false
-        RealtimeAgentBridge.shared.stop()
-        RealtimeAgentServer.shared.stop()
-        Task {
-            await VideoDBAgentMemory.shared.stop()
-        }
-
-        AgentEventStore.shared.append(
-            category: agentLogCategory(for: mode),
-            status: .cancelled,
-            symbol: "display.2",
-            title: "Act stopped after display change",
-            summary: DisplayConfigurationRecovery.actStopSummary,
-            details: [
-                AgentLogEventDetail(key: "Mode", value: mode.title),
-                AgentLogEventDetail(key: "Next step", value: DisplayConfigurationRecovery.actStopNextStep)
-            ]
-        )
-    }
-
-    private func agentLogCategory(for mode: AgentMode) -> AgentLogCategory {
-        switch mode {
-        case .off, .context:
-            return .memory
-        case .talk:
-            return .voice
-        case .act:
-            return .actions
-        }
-    }
-    #endif
 
     private func setupHotkeysIfNeeded() {
         guard !hotkeysConfigured else { return }
@@ -380,61 +225,6 @@ struct Voiyce_AgentApp: App {
             }
         }
 
-        #if VOIYCE_PRO
-        hotkeyManager.onAgentToggle = { [self] in
-            let currentAccessState = billingManager.accessState(
-                isAuthenticated: authenticationManager.isAuthenticated
-            )
-            appState.accessState = currentAccessState
-
-            guard currentAccessState == .active else {
-                appState.selectedTab = .dashboard
-                activateMainWindow()
-                return
-            }
-
-            appState.selectedTab = .agent
-            appState.agentActivationNonce += 1
-            activateMainWindow()
-        }
-
-        hotkeyManager.onFocusHighlight = {
-            FocusHighlightOverlay.shared.beginSelection()
-            AgentEventStore.shared.append(
-                category: .memory,
-                status: .done,
-                symbol: "viewfinder",
-                title: "Focus highlight started",
-                summary: "Drag over the part of the screen Voiyce should use."
-            )
-        }
-
-        hotkeyManager.onFocusPaint = {
-            FocusHighlightOverlay.shared.beginSelection(mode: .paint)
-            AgentEventStore.shared.append(
-                category: .memory,
-                status: .done,
-                symbol: "paintbrush",
-                title: "Focus paint started",
-                summary: "Draw over the part of the screen Voiyce should use."
-            )
-        }
-
-        hotkeyManager.onFocusUnderline = {
-            FocusHighlightOverlay.shared.beginSelection(mode: .underline)
-            AgentEventStore.shared.append(
-                category: .memory,
-                status: .done,
-                symbol: "underline",
-                title: "Focus underline started",
-                summary: "Underline the part of the screen Voiyce should use."
-            )
-        }
-
-        hotkeyManager.onFocusToolPalette = {
-            AgentFocusToolPaletteOverlay.shared.toggle()
-        }
-        #endif
 
         hotkeyManager.setup()
         hotkeysConfigured = true

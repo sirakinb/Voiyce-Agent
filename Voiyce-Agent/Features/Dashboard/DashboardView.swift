@@ -688,21 +688,6 @@ struct DashboardView: View {
                         permissions.requestAccessibilityPermission()
                     }
                 )
-
-                #if VOIYCE_PRO
-                PermissionRow(
-                    icon: "rectangle.on.rectangle",
-                    title: "Screen Recording",
-                    description: permissions.screenRecordingGranted
-                        ? "On for screen-aware Agent and Act mode."
-                        : permissions.screenRecordingStatusMessage ?? "Required for screen-aware Agent and Act mode.",
-                    isGranted: permissions.screenRecordingGranted,
-                    action: {
-                        rememberPermissionReturn()
-                        permissions.requestScreenRecordingPermission()
-                    }
-                )
-                #endif
             }
         }
         .padding(AppTheme.cardPadding)
