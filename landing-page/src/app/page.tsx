@@ -174,13 +174,13 @@ export default function LandingPage() {
                 Voiyce is built for people who would rather speak than type.
               </h2>
               <p className="text-xl text-[#888888] font-light leading-relaxed max-w-2xl mb-8">
-                Use the owl as your always-ready Mac dictation layer: hold a hotkey, talk naturally, and drop polished text into the app you are already using. Context and Talk modes stay available when you want the assistant to understand more of your workspace.
+                Use the owl as your always-ready Mac dictation layer: hold a hotkey, talk naturally, and drop polished text into the app you are already using.
               </p>
               <div className="grid sm:grid-cols-3 gap-3">
                 {[
                   ["Dictate", "Your everyday Wispr Flow-style workflow"],
-                  ["Context", "Extra screen awareness when it helps"],
-                  ["Talk", "A conversational layer for agent work"]
+                  ["Polish", "Filler words removed and punctuation added instantly"],
+                  ["Inject", "Text lands in Slack, Notion, Chrome, or any field"]
                 ].map(([label, text]) => (
                   <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="text-white text-sm font-semibold">{label}</div>
@@ -264,7 +264,7 @@ export default function LandingPage() {
               </div>
             </motion.div>
             
-            {/* Feature 3: Personal AI (Owl) */}
+            {/* Feature 3: Personal vocabulary (Owl) */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -273,7 +273,7 @@ export default function LandingPage() {
               className="md:col-span-3 bg-gradient-to-br from-[#111111] to-[#0A0A0A] p-10 md:p-12 rounded-[2rem] border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center gap-12"
             >
               <div className="relative z-10 flex-1">
-                <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">Your personal AI agent.</h3>
+                <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">Learns how you speak.</h3>
                 <p className="text-[#888888] text-xl leading-relaxed max-w-2xl font-light mb-8">
                   Voiyce learns your specific vocabulary, acronyms, and teammates&apos; names. It adapts to your style over time, so you never have to correct the same mistake twice.
                 </p>
@@ -298,7 +298,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Additive Modes */}
+      {/* Dictation workflow */}
       <section className="py-24 px-6 relative z-10 bg-black">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -307,12 +307,12 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="mb-10 max-w-3xl"
           >
-            <div className="text-sm uppercase tracking-[0.3em] text-purple-300/70 mb-4">Beyond dictation</div>
+            <div className="text-sm uppercase tracking-[0.3em] text-purple-300/70 mb-4">Built for speed</div>
             <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-5">
-              Dictate first. Add context when the work needs it.
+              One hotkey. Polished text anywhere.
             </h2>
             <p className="text-xl text-[#888888] font-light leading-relaxed">
-              Voiyce stays fastest as your Mac dictation layer. Context and Talk modes are there when you want the owl to understand more of your workspace or help you reason through an agent task.
+              Voiyce is a Mac dictation layer built for speed: speak naturally, get clean text, and keep moving in the app you already have open.
             </p>
           </motion.div>
 
@@ -324,14 +324,14 @@ export default function LandingPage() {
                 description: "Your everyday Wispr Flow-style workflow: hold a hotkey, speak naturally, and place polished text anywhere."
               },
               {
-                icon: "mdi:monitor-eye",
-                title: "Context",
-                description: "Let Voiyce use the current screen, app, or task state when plain dictation is not enough."
+                icon: "mdi:text-box-check-outline",
+                title: "Polish",
+                description: "Voiyce cleans up filler words, fixes punctuation, and formats your words so they read like you typed them."
               },
               {
-                icon: "mdi:message-processing-outline",
-                title: "Talk",
-                description: "Talk through agent work, decisions, and handoffs without turning the main experience into another chat window."
+                icon: "mdi:application-outline",
+                title: "Everywhere",
+                description: "Dictate into Slack, Notion, email, or any text field on your Mac—no copy-pasting required."
               }
             ].map((mode, index) => (
               <motion.div
