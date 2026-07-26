@@ -54,9 +54,11 @@ export default function PrivacyPage() {
           usage limits, and operate billing where applicable.
         </li>
         <li>
-          <strong>Transcripts and dictation history.</strong> Text produced by
-          dictation may be stored locally on your Mac (for example, transcript
-          history, word counts, the app you dictated into, and session timing).
+          <strong>Local transcript history.</strong> Voiyce stores dictation
+          transcripts on your Mac, including the transcribed text, the app you
+          dictated into, word counts, and session timing. This local history
+          helps you review past dictations in the app. It is stored on your
+          device and is not used for screen-context capture or agent memory.
           We may also process usage counts and related billing metadata on our
           backend so subscriptions, trials, and account limits work as
           designed.
@@ -140,8 +142,10 @@ export default function PrivacyPage() {
         periods may vary depending on the type of data and legal requirements.
       </p>
       <p>
-        Dictation history stored on your Mac remains on your device until you
-        delete it through the app or remove the app and its local data.
+        Local transcript history stored on your Mac remains on your device until
+        you delete it through the app or remove the app and its local data. We
+        do not use that local history for screen-context capture or agent
+        memory.
       </p>
 
       <h2>Your rights and choices</h2>
