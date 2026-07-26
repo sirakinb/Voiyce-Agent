@@ -9,17 +9,11 @@ import SwiftData
 
 enum AppMenuLaunchCopy {
     static let openDashboard = "Open Dashboard"
-    static let openAgent = "Open Agent"
-    static let openAgentLog = "Open Agent Log"
     static let openSettings = "Open Settings"
-    static let focusTools = "Focus Tools"
 
     static let visibleStrings = [
         openDashboard,
-        openAgent,
-        openAgentLog,
-        openSettings,
-        focusTools
+        openSettings
     ]
 }
 
@@ -34,9 +28,6 @@ struct Voiyce_AgentApp: App {
     @State private var networkMonitor = NetworkMonitor()
     @State private var usageTracker = UsageTracker()
     @State private var hotkeysConfigured = false
-    #if VOIYCE_PRO
-    @State private var agentModeStoppedForSystemSleep: AgentMode?
-    #endif
     private let owlOverlay = OwlOverlayPanel()
 
     var body: some Scene {
@@ -68,11 +59,6 @@ struct Voiyce_AgentApp: App {
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
                     handleWakeAfterSystemSleep()
                 }
-                #if VOIYCE_PRO
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
-                    handleDisplayConfigurationChange()
-                }
-                #endif
                 .onChange(of: appState.isOnboardingComplete) { _, isComplete in
                     if isComplete {
                         setupHotkeysIfNeeded()
@@ -98,30 +84,10 @@ struct Voiyce_AgentApp: App {
                 }
                 .keyboardShortcut("1", modifiers: [.command])
 
-                #if VOIYCE_PRO
-                Button(AppMenuLaunchCopy.openAgent) {
-                    navigateTo(.agent)
-                }
-                .keyboardShortcut("2", modifiers: [.command])
-
-                Button(AppMenuLaunchCopy.openAgentLog) {
-                    navigateTo(.agentLog)
-                }
-                .keyboardShortcut("3", modifiers: [.command])
-                #endif
-
                 Button(AppMenuLaunchCopy.openSettings) {
                     navigateTo(.settings)
                 }
                 .keyboardShortcut(",", modifiers: [.command])
-
-                #if VOIYCE_PRO
-                Divider()
-
-                Button(AppMenuLaunchCopy.focusTools) {
-                    AgentFocusToolPaletteOverlay.shared.toggle()
-                }
-                #endif
             }
         }
 
