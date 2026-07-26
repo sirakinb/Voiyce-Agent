@@ -34,6 +34,10 @@ type BillingProfile = {
   beta_unlocked_at?: string | null
 }
 
+type BillingStatus = {
+  needs_subscription?: boolean
+}
+
 type TranscriptionRequest = {
   audioBase64?: string
   fileName?: string
@@ -143,6 +147,20 @@ async function findBillingProfile(baseUrl: string, apiKey: string, userId: strin
   ) as BillingProfile[]
 
   return data[0] ?? null
+}
+
+async function billingRequiresSubscription(
+  baseUrl: string,
+  bearerToken: string
+): Promise<boolean> {
+  const result = await callDatabaseRPC(baseUrl, bearerToken, 'get_billing_status', {})
+  const status = (Array.isArray(result) ? result[0] : result) as BillingStatus | null
+
+  if (!status || typeof status.needs_subscription !== 'boolean') {
+    throw new Error('Billing status is unavailable.')
+  }
+
+  return status.needs_subscription
 }
 
 async function callDatabaseRPC(
@@ -307,6 +325,14 @@ export default async function(req: Request): Promise<Response> {
     const mimeType = body.mimeType?.trim() || 'audio/wav'
     const model = selectTranscriptionModel(body.model)
     const language = body.language?.trim() || 'en'
+
+    if (await billingRequiresSubscription(baseUrl, userToken ?? '')) {
+      return json({
+        error: 'Your trial has ended. Choose a plan to continue dictating.',
+        code: 'subscription_required',
+      }, 402)
+    }
+
     const profile = await findBillingProfile(baseUrl, apiKey, user.id)
     const estimatedCostUSD = estimateTranscriptionCostUSD(body.durationSeconds)
     const estimatedAudioSeconds = Number.isFinite(body.durationSeconds) && body.durationSeconds && body.durationSeconds > 0
