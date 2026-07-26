@@ -33,7 +33,7 @@ Deno.test("entitled first-login user gets a billing profile before Pentridge ent
       }
       if (init?.method === "PATCH") {
         calls.push({ kind: "profile-cache", body })
-        return new Response("[]", { status: 204 })
+        return new Response(null, { status: 204 })
       }
       if (init?.method === "GET") {
         calls.push({ kind: "profile-read" })
