@@ -145,6 +145,27 @@ async function updateBillingProfile(baseUrl: string, apiKey: string, userId: str
   )
 }
 
+async function ensureBillingProfile(baseUrl: string, apiKey: string, userId: string) {
+  const response = await fetch(
+    `${baseUrl.replace(/\/$/, '')}/api/database/records/billing_profiles?select=user_id`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        // The user_id unique constraint makes this safe if get_billing_status
+        // creates the profile concurrently with this entitlement check.
+        Prefer: 'resolution=ignore-duplicates'
+      },
+      body: JSON.stringify([{ user_id: userId }])
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Unable to initialize billing profile')
+  }
+}
+
 export default async function(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders })
@@ -177,7 +198,12 @@ export default async function(req: Request): Promise<Response> {
 
     const result = hubResult
 
-    // Cache the result in the billing profile
+    // Initialize before caching. A PATCH against a missing profile is a no-op,
+    // which would otherwise make a first-login Pentridge user look unentitled
+    // to the server-side transcription gate.
+    await ensureBillingProfile(baseUrl, apiKey, user.id)
+
+    // Cache the result in the billing profile.
     await updateBillingProfile(baseUrl, apiKey, user.id, {
       pentridge_subscription_active: result.has_subscription,
       pentridge_tier: result.tier ?? null,
