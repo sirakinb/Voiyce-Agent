@@ -42,13 +42,6 @@ struct MenuBarView: View {
 
             Divider()
 
-            #if VOIYCE_PRO
-            if let activity = appState.agentActivityStatus {
-                agentActivityItem(activity)
-
-                Divider()
-            }
-            #endif
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(authenticationManager.accountStatusLabel)
@@ -97,16 +90,6 @@ struct MenuBarView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
 
-            #if VOIYCE_PRO
-            Button {
-                AgentFocusToolPaletteOverlay.shared.toggle()
-            } label: {
-                Label(MenuBarLaunchCopy.focusTools, systemImage: "viewfinder")
-            }
-            .accessibilityIdentifier("menubar-focus-tools")
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            #endif
 
             Divider()
 
@@ -144,34 +127,6 @@ struct MenuBarView: View {
         .padding(.vertical, 4)
     }
 
-    #if VOIYCE_PRO
-    private func agentActivityItem(_ activity: AgentActivityStatus) -> some View {
-        HStack(alignment: .center, spacing: 9) {
-            Image(systemName: activity.symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(appState.agentMode.accent)
-                .frame(width: 18)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(activity.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .lineLimit(1)
-
-                Text(activity.detail)
-                    .font(.system(size: 11))
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(activity.title)
-        .accessibilityValue(activity.detail)
-        .accessibilityIdentifier("menubar-agent-activity")
-    }
-    #endif
 
     private func activateApp() {
         NSApplication.shared.activate(ignoringOtherApps: true)

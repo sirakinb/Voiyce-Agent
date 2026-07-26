@@ -168,17 +168,6 @@ final class WhisperService {
     }
 
     private func logTranscriptionServiceFailure(statusCode: Int?, message: String, nextStep: String? = nil) {
-        #if VOIYCE_PRO
-        Task { @MainActor in
-            AgentEventStore.shared.appendServiceFailure(
-                feature: "Dictation",
-                service: DictationRecoveryCopy.transcriptionServiceName,
-                statusCode: statusCode,
-                message: message,
-                nextStep: nextStep
-            )
-        }
-        #endif
     }
 }
 

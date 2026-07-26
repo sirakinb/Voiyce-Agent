@@ -268,11 +268,7 @@ final class PermissionsManager {
     }
 
     private var shouldIncludeScreenRecordingInRefreshCompletion: Bool {
-        #if VOIYCE_PRO
-        true
-        #else
         false
-        #endif
     }
 
     private func currentAccessibilityTrustState() -> Bool {
