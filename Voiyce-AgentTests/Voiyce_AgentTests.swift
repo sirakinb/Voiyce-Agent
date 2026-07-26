@@ -35,26 +35,12 @@ struct Voiyce_AgentTests {
         #expect(appState.selectedSettingsTab == 0)
     }
 
-    @Test func permissionRefreshPollingIncludesScreenRecordingWhenRequired() throws {
+    @Test func permissionRefreshPollingStopsOnceDictationGranted() throws {
         #expect(!PermissionRefreshPolicy.shouldStopPolling(
-            dictationPermissionsGranted: false,
-            screenRecordingGranted: true,
-            includeScreenRecording: true
-        ))
-        #expect(!PermissionRefreshPolicy.shouldStopPolling(
-            dictationPermissionsGranted: true,
-            screenRecordingGranted: false,
-            includeScreenRecording: true
+            dictationPermissionsGranted: false
         ))
         #expect(PermissionRefreshPolicy.shouldStopPolling(
-            dictationPermissionsGranted: true,
-            screenRecordingGranted: true,
-            includeScreenRecording: true
-        ))
-        #expect(PermissionRefreshPolicy.shouldStopPolling(
-            dictationPermissionsGranted: true,
-            screenRecordingGranted: false,
-            includeScreenRecording: false
+            dictationPermissionsGranted: true
         ))
     }
 
@@ -94,9 +80,7 @@ struct Voiyce_AgentTests {
         #expect(OnboardingPermissionCopy.speechRecognitionDescription.localizedCaseInsensitiveContains("turn speech into text"))
         #expect(OnboardingPermissionCopy.speechRecognitionMissingDetail.localizedCaseInsensitiveContains("Speech Recognition access"))
         #expect(OnboardingPermissionCopy.accessibilityGrantedDescription.localizedCaseInsensitiveContains("place finished text"))
-        #expect(OnboardingPermissionCopy.screenRecordingGrantedDescription.localizedCaseInsensitiveContains("understand what is on your screen"))
         #expect(OnboardingPermissionCopy.requiredAccessNextStep.localizedCaseInsensitiveContains("Continue unlocks"))
-        #expect(OnboardingPermissionCopy.agentScreenAccessMessage.localizedCaseInsensitiveContains("Dictation can continue"))
     }
 
     @Test func onboardingLaunchCopyStaysAgentContextPositioned() throws {
@@ -221,8 +205,6 @@ struct Voiyce_AgentTests {
     }
 
     @Test func permissionStatusCopyReflectsGrantedAndDeniedStates() throws {
-        let blockedScreenMessage = "Screen Recording is blocked for this exact Voiyce build."
-
         #expect(SystemPermissionStatusCopy.description(
             for: .microphone,
             isGranted: false,
@@ -249,23 +231,6 @@ struct Voiyce_AgentTests {
             isGranted: false,
             surface: .onboarding
         ) == OnboardingPermissionCopy.accessibilityMissingDescription)
-
-        #expect(SystemPermissionStatusCopy.description(
-            for: .screenRecording,
-            isGranted: true,
-            surface: .settings
-        ).localizedCaseInsensitiveContains("On"))
-        #expect(SystemPermissionStatusCopy.description(
-            for: .screenRecording,
-            isGranted: false,
-            screenRecordingStatusMessage: blockedScreenMessage,
-            surface: .settings
-        ) == blockedScreenMessage)
-        #expect(SystemPermissionStatusCopy.description(
-            for: .screenRecording,
-            isGranted: false,
-            surface: .onboarding
-        ) == OnboardingPermissionCopy.screenRecordingMissingDescription)
     }
 
     @Test func backendUsageLimitDetectionIsNarrowAndUserFacing() throws {

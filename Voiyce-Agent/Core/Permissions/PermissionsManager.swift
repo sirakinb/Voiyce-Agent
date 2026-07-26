@@ -1,14 +1,11 @@
 import Speech
 import AVFoundation
 import Cocoa
-import CoreGraphics
-import ScreenCaptureKit
 
 enum SystemPermissionKind: CaseIterable {
     case microphone
     case speechRecognition
     case accessibility
-    case screenRecording
 }
 
 enum SystemPermissionSurface {
@@ -20,7 +17,6 @@ struct SystemPermissionStatusCopy {
     static func description(
         for permission: SystemPermissionKind,
         isGranted: Bool,
-        screenRecordingStatusMessage: String? = nil,
         surface: SystemPermissionSurface
     ) -> String {
         switch (permission, surface) {
@@ -40,14 +36,6 @@ struct SystemPermissionStatusCopy {
             return isGranted
                 ? OnboardingPermissionCopy.accessibilityGrantedDescription
                 : OnboardingPermissionCopy.accessibilityMissingDescription
-        case (.screenRecording, .settings):
-            return isGranted
-                ? "On for screen-aware Agent and Act mode."
-                : screenRecordingStatusMessage ?? "Off for screen-aware Agent and Act mode."
-        case (.screenRecording, .onboarding):
-            return isGranted
-                ? OnboardingPermissionCopy.screenRecordingGrantedDescription
-                : screenRecordingStatusMessage ?? OnboardingPermissionCopy.screenRecordingMissingDescription
         }
     }
 }
@@ -57,8 +45,6 @@ final class PermissionsManager {
     var microphoneGranted = false
     var speechRecognitionGranted = false
     var accessibilityGranted = false
-    var screenRecordingGranted = false
-    var screenRecordingStatusMessage: String?
     private var permissionRefreshTimer: Timer?
     private var permissionRefreshTicks = 0
     private var notificationObservers: [NSObjectProtocol] = []
@@ -97,7 +83,6 @@ final class PermissionsManager {
 
         refreshPermissions()
         Task {
-            await checkScreenRecordingPermission()
             await writeDiagnostics(reason: "checkAllPermissions")
         }
     }
@@ -202,73 +187,12 @@ final class PermissionsManager {
         startPermissionRefreshTimer()
     }
 
-    // MARK: - Screen Recording
-
-    func checkScreenRecordingPermission() async {
-        guard !AppConstants.isUITesting else {
-            screenRecordingGranted = true
-            screenRecordingStatusMessage = nil
-            return
-        }
-
-        guard CGPreflightScreenCaptureAccess() else {
-            screenRecordingGranted = false
-            screenRecordingStatusMessage = "Screen Recording is off for this exact Voiyce build. Click Grant Access, enable Voiyce in Privacy & Security, then quit and reopen Voiyce if macOS keeps showing the old state."
-            updatePermissionRefreshState()
-            return
-        }
-
-        if await canCaptureScreenFrame() {
-            screenRecordingGranted = true
-            screenRecordingStatusMessage = nil
-        } else {
-            screenRecordingGranted = false
-            screenRecordingStatusMessage = "Screen Recording appears enabled, but macOS still blocked screen capture. Quit and reopen Voiyce; if it persists, toggle Voiyce off and on in Privacy & Security > Screen Recording."
-        }
-
-        updatePermissionRefreshState()
-    }
-
-    func requestScreenRecordingPermission() {
-        screenRecordingGranted = CGRequestScreenCaptureAccess()
-        if screenRecordingGranted {
-            screenRecordingStatusMessage = nil
-        } else {
-            screenRecordingStatusMessage = "macOS did not grant Screen Recording yet. Enable Voiyce in Privacy & Security > Screen Recording."
-            openScreenRecordingSettings()
-        }
-
-        startPermissionRefreshTimer()
-        Task {
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            await checkScreenRecordingPermission()
-        }
-    }
-
-    func openScreenRecordingSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
-        } else {
-            openPrivacySettings()
-        }
-
-        startPermissionRefreshTimer()
-    }
-
     var dictationPermissionsGranted: Bool {
         microphoneGranted && speechRecognitionGranted && accessibilityGranted
     }
 
-    var agentPermissionsGranted: Bool {
-        dictationPermissionsGranted && screenRecordingGranted
-    }
-
     var allPermissionsGranted: Bool {
         dictationPermissionsGranted
-    }
-
-    private var shouldIncludeScreenRecordingInRefreshCompletion: Bool {
-        false
     }
 
     private func currentAccessibilityTrustState() -> Bool {
@@ -281,37 +205,12 @@ final class PermissionsManager {
         microphoneGranted = true
         speechRecognitionGranted = true
         accessibilityGranted = true
-        screenRecordingGranted = true
-        screenRecordingStatusMessage = nil
         updatePermissionRefreshState()
-    }
-
-    private func canCaptureScreenFrame() async -> Bool {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            let mainDisplayID = CGMainDisplayID()
-            guard let display = content.displays.first(where: { $0.displayID == mainDisplayID }) ?? content.displays.first else {
-                return false
-            }
-
-            let filter = SCContentFilter(display: display, excludingWindows: [])
-            let configuration = SCStreamConfiguration()
-            configuration.width = min(display.width, 640)
-            configuration.height = min(display.height, 360)
-            configuration.showsCursor = false
-            configuration.capturesAudio = false
-            _ = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
-            return true
-        } catch {
-            return false
-        }
     }
 
     func writeDiagnostics(reason: String) async {
         let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
         let accessibilityPromptOptions = [promptKey: false] as CFDictionary
-        let screenPreflight = CGPreflightScreenCaptureAccess()
-        let screenCaptureWorks = screenPreflight ? await canCaptureScreenFrame() : false
         let bundleURL = Bundle.main.bundleURL.standardizedFileURL
         let runningInstances = NSRunningApplication
             .runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
@@ -335,13 +234,9 @@ final class PermissionsManager {
             "speechRecognitionGranted": SFSpeechRecognizer.authorizationStatus() == .authorized,
             "accessibilityTrusted": AXIsProcessTrusted(),
             "accessibilityTrustedNoPrompt": AXIsProcessTrustedWithOptions(accessibilityPromptOptions),
-            "screenRecordingPreflight": screenPreflight,
-            "screenCaptureWorks": screenCaptureWorks,
             "managerMicrophoneGranted": microphoneGranted,
             "managerSpeechRecognitionGranted": speechRecognitionGranted,
             "managerAccessibilityGranted": accessibilityGranted,
-            "managerScreenRecordingGranted": screenRecordingGranted,
-            "managerScreenRecordingStatusMessage": screenRecordingStatusMessage ?? "",
             "runningVoiyceInstances": runningInstances
         ]
 
@@ -383,9 +278,7 @@ final class PermissionsManager {
 
     private func updatePermissionRefreshState() {
         if PermissionRefreshPolicy.shouldStopPolling(
-            dictationPermissionsGranted: dictationPermissionsGranted,
-            screenRecordingGranted: screenRecordingGranted,
-            includeScreenRecording: shouldIncludeScreenRecordingInRefreshCompletion
+            dictationPermissionsGranted: dictationPermissionsGranted
         ) {
             stopPermissionRefreshTimer()
         }
@@ -411,7 +304,6 @@ final class PermissionsManager {
                 await MainActor.run {
                     self.refreshPermissions()
                 }
-                await self.checkScreenRecordingPermission()
             }
         }
 
@@ -428,18 +320,8 @@ final class PermissionsManager {
 
 struct PermissionRefreshPolicy {
     static func shouldStopPolling(
-        dictationPermissionsGranted: Bool,
-        screenRecordingGranted: Bool,
-        includeScreenRecording: Bool
+        dictationPermissionsGranted: Bool
     ) -> Bool {
-        guard dictationPermissionsGranted else {
-            return false
-        }
-
-        guard includeScreenRecording else {
-            return true
-        }
-
-        return screenRecordingGranted
+        dictationPermissionsGranted
     }
 }

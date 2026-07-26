@@ -17,17 +17,9 @@ enum OnboardingPermissionCopy {
     static let accessibilityGrantedDescription = "Lets Voiyce place finished text in the app you're using and run approved Act steps."
     static let accessibilityMissingDescription = "Turn on the exact Voiyce entry so approved typing and clicks can work."
 
-    static let screenRecordingTitle = "Screen Recording"
-    static let screenRecordingGrantedDescription = "Lets Context, Talk, and Act understand what is on your screen when you ask."
-    static let screenRecordingMissingDescription = "Needed for Context, Talk, and Act to understand the current screen. Dictation can continue without it."
-
     static let requiredAccessTitle = "Required access is still off"
     static let requiredAccessMessage = "Voiyce needs Microphone, Speech Recognition, and Accessibility to finish setup."
     static let requiredAccessNextStep = "Turn on the missing items above. Continue unlocks as soon as they are ready."
-
-    static let agentScreenAccessTitle = "Screen access is still off"
-    static let agentScreenAccessMessage = "Dictation can continue, but Context, Talk, and Act need Screen Recording before Voiyce can understand the current screen."
-    static let agentScreenAccessNextStep = "Click Grant Access for Screen Recording, enable Voiyce in System Settings, then quit and reopen Voiyce if your Mac keeps showing the old state."
 
     static var allPlainLanguageStrings: [String] {
         [
@@ -41,15 +33,9 @@ enum OnboardingPermissionCopy {
             accessibilityTitle,
             accessibilityGrantedDescription,
             accessibilityMissingDescription,
-            screenRecordingTitle,
-            screenRecordingGrantedDescription,
-            screenRecordingMissingDescription,
             requiredAccessTitle,
             requiredAccessMessage,
-            requiredAccessNextStep,
-            agentScreenAccessTitle,
-            agentScreenAccessMessage,
-            agentScreenAccessNextStep
+            requiredAccessNextStep
         ]
     }
 }
