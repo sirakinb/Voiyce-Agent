@@ -124,8 +124,7 @@ export default function TermsPage() {
       <p>
         You retain rights in content you create. To operate the Service, you
         grant us a limited license to host, process, transmit, and display your
-        content (including voice input, transcripts, usage metadata, and support
-        exports you choose to share) solely to provide, secure, troubleshoot,
+        content (including voice input, transcripts, and usage metadata) solely to provide, secure, troubleshoot,
         and improve the Service, as described in our Privacy Policy.
       </p>
 

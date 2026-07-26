@@ -68,18 +68,10 @@ export default function PrivacyPage() {
           does not require Screen Recording for dictation.
         </li>
         <li>
-          <strong>Support diagnostics.</strong> If you choose to create or send
-          a support export, that export may include redacted diagnostic
-          information (such as permission status, app version, and error
-          details) needed to troubleshoot the issue. Review any export before
-          sending it to us.
-        </li>
-        <li>
-          <strong>Website and product analytics.</strong> We may use PostHog (or
-          similar tools) on our website and in the Service to understand usage,
-          diagnose issues, and improve performance. This may include
-          pseudonymous identifiers and event data (for example, feature usage
-          and errors).
+          <strong>Website analytics.</strong> We may use PostHog (or similar
+          tools) on our public website to understand usage, diagnose issues, and
+          improve performance. This may include pseudonymous identifiers and
+          event data (for example, page views and errors).
         </li>
         <li>
           <strong>Billing.</strong> If you purchase a paid plan, payment
@@ -149,8 +141,7 @@ export default function PrivacyPage() {
       </p>
       <p>
         Dictation history stored on your Mac remains on your device until you
-        delete it through the app or remove the app and its local data. Support
-        exports are created only when you choose to generate or share them.
+        delete it through the app or remove the app and its local data.
       </p>
 
       <h2>Your rights and choices</h2>
