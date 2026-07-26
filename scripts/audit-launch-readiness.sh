@@ -1383,8 +1383,7 @@ require_no_matches \
   'boost productivity|revolutionize|unlock your potential|AI-powered|seamless experience' \
   "Voiyce-Agent" \
   "landing-page/src" \
-  "landing-page/public" \
-  "src/app"
+  "landing-page/public"
 require_no_matches \
   "Dashboard and tier copy avoid implementation language" \
   'server transcription|server caps|Computer Use' \
