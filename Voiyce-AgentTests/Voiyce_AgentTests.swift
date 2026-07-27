@@ -44,6 +44,56 @@ struct Voiyce_AgentTests {
         ))
     }
 
+    @Test func dictationDoesNotReportSuccessWhenInsertionBlocked() throws {
+        // Injection requested but blocked by Accessibility trust → recovery state,
+        // never a silent success.
+        #expect(DictationCoordinator.postTranscriptionState(
+            injectText: true,
+            injectionOutcome: .accessibilityDenied
+        ) == .accessibilityInsertionBlocked)
+        // Injection requested and performed → success (no error).
+        #expect(DictationCoordinator.postTranscriptionState(
+            injectText: true,
+            injectionOutcome: .injected
+        ) == nil)
+        // Preview path keeps text inside Voiyce (inject disabled) → legitimate
+        // success with no insertion attempt.
+        #expect(DictationCoordinator.postTranscriptionState(
+            injectText: false,
+            injectionOutcome: nil
+        ) == nil)
+    }
+
+    @MainActor
+    @Test func textInjectorReportsAccessibilityDeniedAndKeepsWordsOnClipboard() throws {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("prior-clipboard", forType: .string)
+
+        let injector = TextInjector(isAccessibilityTrusted: { false })
+        let outcome = injector.injectText("keep these dictated words")
+
+        #expect(outcome == .accessibilityDenied)
+        // The transcript stays on the clipboard so the user can paste it manually.
+        #expect(pasteboard.string(forType: .string) == "keep these dictated words")
+    }
+
+    @MainActor
+    @Test func textInjectorReportsInjectedWhenAccessibilityTrusted() throws {
+        let injector = TextInjector(isAccessibilityTrusted: { true })
+        #expect(injector.injectText("trusted insertion path") == .injected)
+    }
+
+    @Test func accessibilityInsertionBlockedCopyPreservesWordsAndRoutesToSettings() throws {
+        let detail = DictationErrorState.accessibilityInsertionBlocked.errorDescription ?? ""
+        #expect(detail.localizedCaseInsensitiveContains("clipboard"))
+        #expect(detail.localizedCaseInsensitiveContains("Command-V"))
+        #expect(DictationRecoveryCopy.accessibilityInsertionBlockedNextStep
+            .localizedCaseInsensitiveContains("Accessibility"))
+        #expect(DictationErrorState.accessibilityInsertionBlocked.title
+            .localizedCaseInsensitiveContains("Accessibility"))
+    }
+
     @Test func accessStateRecoveryCopyTellsUsersWhatToDoNext() throws {
         #expect(AccessState.signedOut.recoveryStep.contains("Sign in again"))
         #expect(AccessState.paymentRequired.recoveryStep.contains("Choose a plan"))

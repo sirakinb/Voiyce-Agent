@@ -98,6 +98,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             appState.restorePermissionReturnTargetIfNeeded()
+            dictationCoordinator.refreshAccessibilityRecovery()
         }
         .sheet(isPresented: $appState.isDemoVideoPresented, onDismiss: markDemoVideoSeenForCurrentAccount) {
             DemoVideoSheet {

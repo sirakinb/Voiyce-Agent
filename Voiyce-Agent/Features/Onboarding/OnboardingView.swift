@@ -380,6 +380,17 @@ struct OnboardingView: View {
                 actionTitle: "Grant Access",
                 action: { permissions.requestMicrophonePermission() }
             )
+        case .accessibilityInsertionBlocked:
+            return SystemStatusMessage(
+                id: "onboarding-dictation-accessibility",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.accessibilityInsertionBlockedDetail,
+                nextStep: DictationRecoveryCopy.accessibilityInsertionBlockedNextStep,
+                tone: .warning,
+                actionTitle: "Open Accessibility Settings",
+                action: { permissions.openAccessibilitySettings() }
+            )
         case .authenticationRequired:
             return SystemStatusMessage(
                 id: "onboarding-dictation-auth",
