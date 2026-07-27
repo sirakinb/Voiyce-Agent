@@ -3,19 +3,19 @@ import InsForgeAuth
 import SwiftUI
 
 enum OnboardingPermissionCopy {
-    static let headline = "Let Voiyce listen, type, and understand your screen."
+    static let headline = "Let Voiyce listen and type for you."
     static let body = "Turn on the access below. When you come back from System Settings, Voiyce checks again automatically."
 
     static let microphoneTitle = "Microphone"
-    static let microphoneDescription = "Lets Voiyce hear your voice while you dictate or talk to it."
+    static let microphoneDescription = "Lets Voiyce hear your voice while you dictate."
 
     static let speechRecognitionTitle = "Speech Recognition"
     static let speechRecognitionDescription = "Lets your Mac allow Voiyce to turn speech into text."
     static let speechRecognitionMissingDetail = "Voiyce still needs Speech Recognition access to finish setup cleanly on macOS."
 
     static let accessibilityTitle = "Accessibility"
-    static let accessibilityGrantedDescription = "Lets Voiyce place finished text in the app you're using and run approved Act steps."
-    static let accessibilityMissingDescription = "Turn on the exact Voiyce entry so approved typing and clicks can work."
+    static let accessibilityGrantedDescription = "Lets Voiyce place finished text in the app you're using."
+    static let accessibilityMissingDescription = "Turn on the exact Voiyce entry so approved typing can work."
 
     static let requiredAccessTitle = "Required access is still off"
     static let requiredAccessMessage = "Voiyce needs Microphone, Speech Recognition, and Accessibility to finish setup."
@@ -41,20 +41,20 @@ enum OnboardingPermissionCopy {
 }
 
 enum OnboardingLaunchCopy {
-    static let overviewHeadline = "Give your work a reusable memory layer."
-    static let overviewBody = "Dictate when it helps, then let Context, Talk, and Act carry what you said, saw, and decided into the next agent handoff."
-    static let captureTitle = "Capture the work"
-    static let captureDetail = "Voice, screen context, and approved actions become structured memory you can reuse."
-    static let handoffTitle = "Move between agents"
-    static let handoffDetail = "Brief Codex, Claude Code, Cursor, Hermes, and other tools without rebuilding the backstory."
+    static let overviewHeadline = "Type at the speed of speech."
+    static let overviewBody = "Hold your hotkey, speak, and Voiyce drops clean text into whatever app you're using."
+    static let captureTitle = "Dictate anywhere"
+    static let captureDetail = "Your voice becomes text in any text field — notes, chat, email, or code."
+    static let handoffTitle = "Works across your apps"
+    static let handoffDetail = "Dictate into any Mac app without switching windows or copying text around."
     static let controlTitle = "Stay in control"
-    static let controlDetail = "Private Mode, exclusions, permissions, and Agent Log keep the context trail visible."
+    static let controlDetail = "Private Mode, exclusions, and permissions keep you in charge of what Voiyce hears."
     static let previewHeadline = "Run one short voice check."
-    static let previewBody = "This checks the same recording path used by Dictation and Talk, but keeps the text inside Voiyce so you can confirm setup before using it across apps."
-    static let learnHeadlineWithoutPreview = "Your first context handoff is ready."
-    static let learnHeadlineWithPreview = "Nice job. Voiyce can now carry the details."
-    static let learnBodyWithoutPreview = "Even without a recorded sample, the important setup is in place: Voiyce can listen, read approved screen context, and prepare reusable memory for your agent workflow."
-    static let learnBodyWithPreview = "That short test proves Voiyce can capture your words. From here, Context, Talk, and Act can use the same setup to reduce repeated explanations."
+    static let previewBody = "This checks the same recording path Dictation uses, but keeps the text inside Voiyce so you can confirm setup first."
+    static let learnHeadlineWithoutPreview = "You're ready to dictate."
+    static let learnHeadlineWithPreview = "Nice job. Voiyce can now turn your voice into text."
+    static let learnBodyWithoutPreview = "Even without a recorded sample, the important setup is in place: Voiyce can listen and place text where you're working."
+    static let learnBodyWithPreview = "That short test proves Voiyce can capture your words and drop them straight into your app."
     static let learnNoticeTitle = "Why this matters"
 
     static var visibleStrings: [String] {
@@ -79,7 +79,7 @@ enum OnboardingLaunchCopy {
 }
 
 enum SetupStage: String, CaseIterable, Identifiable {
-    case signUp = "CONTEXT"
+    case signUp = "ACCOUNT"
     case permissions = "ACCESS"
     case setup = "TRY IT"
     case learn = "PACE"

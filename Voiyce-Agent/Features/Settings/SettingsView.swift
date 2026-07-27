@@ -8,7 +8,7 @@ import InsForgeAuth
 import SwiftUI
 
 enum SettingsLaunchCopy {
-    static let supportExportSubtitle = "Creates a local redacted Agent Log bundle for support."
+    static let supportExportSubtitle = "Creates a local redacted diagnostics bundle for support."
     static let supportExportFailed = "Could not export the redacted support log."
     static let supportExportedPrefix = "Redacted support log exported:"
 
