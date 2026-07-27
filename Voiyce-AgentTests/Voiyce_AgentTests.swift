@@ -122,6 +122,19 @@ struct Voiyce_AgentTests {
         #expect(OnboardingLaunchCopy.learnBodyWithPreview.localizedCaseInsensitiveContains("words"))
     }
 
+    @MainActor
+    @Test func pentridgeSuiteCopyIsAccurate() throws {
+        // Voiyce ships as part of the Pentridge product suite — not an independent platform.
+        #expect(SettingsLaunchCopy.productSuiteAttribution.localizedCaseInsensitiveContains("Pentridge"))
+        #expect(!SettingsLaunchCopy.productSuiteAttribution.localizedCaseInsensitiveContains("Independent"))
+
+        // The purchase prompt must route to Pentridge Labs without promising "unlimited"
+        // usage — the Pentridge Standard tier is capped at 10,000 words/month.
+        let paymentDetail = BillingManager().paymentRequiredDetail
+        #expect(paymentDetail.localizedCaseInsensitiveContains("Pentridge"))
+        #expect(!paymentDetail.localizedCaseInsensitiveContains("unlimited"))
+    }
+
     @Test func menuBarLaunchCopyStaysUserFacing() throws {
         let forbiddenTerms = [
             "Open" + "AI",

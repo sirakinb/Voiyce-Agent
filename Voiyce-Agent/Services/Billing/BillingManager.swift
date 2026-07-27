@@ -256,7 +256,7 @@ final class BillingManager {
     }
 
     var paymentRequiredDetail: String {
-        "Voiyce is now part of the Pentridge suite. Get it at pentridgemedia.com/labs to keep dictating with unlimited words."
+        "Voiyce is now part of the Pentridge suite. Get it at pentridgemedia.com/labs to keep dictating."
     }
 
     var inactiveTrialFooter: String {

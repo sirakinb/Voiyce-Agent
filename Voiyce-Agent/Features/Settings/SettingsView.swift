@@ -11,12 +11,14 @@ enum SettingsLaunchCopy {
     static let supportExportSubtitle = "Creates a local redacted diagnostics bundle for support."
     static let supportExportFailed = "Could not export the redacted support log."
     static let supportExportedPrefix = "Redacted support log exported:"
+    static let productSuiteAttribution = "Part of the Pentridge product suite"
 
     static var visibleStrings: [String] {
         [
             supportExportSubtitle,
             supportExportFailed,
-            supportExportedPrefix
+            supportExportedPrefix,
+            productSuiteAttribution
         ]
     }
 }
@@ -339,7 +341,7 @@ struct SettingsView: View {
             AppTheme.ridge.frame(height: 1)
 
             // Credits
-            Text("Independent Voiyce platform")
+            Text(SettingsLaunchCopy.productSuiteAttribution)
                 .font(AppTheme.captionFont)
                 .foregroundStyle(AppTheme.textSecondary)
 
