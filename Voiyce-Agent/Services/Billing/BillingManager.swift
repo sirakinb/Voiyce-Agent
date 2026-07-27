@@ -133,10 +133,6 @@ struct BillingStatusSnapshot: Decodable, Sendable {
     }
 }
 
-private struct BillingURLResponse: Decodable {
-    let url: String
-}
-
 private struct SyncBillingResponse: Decodable {
     let synced: Bool
     let hasSubscription: Bool
@@ -159,8 +155,6 @@ final class BillingManager {
 
     var status: BillingStatusSnapshot?
     var isRefreshing = false
-    var isOpeningCheckout = false
-    var isOpeningPortal = false
     var errorMessage: String?
     var infoMessage: String?
 
@@ -355,24 +349,7 @@ final class BillingManager {
     }
 
     var primaryActionTitle: String {
-        if hasActiveSubscription {
-            return "Manage Subscription"
-        }
-
-        if let preferredPlan {
-            switch preferredPlan {
-            case .monthly:
-                return requiresSubscription ? "Choose Monthly Plan" : "View Monthly Plan"
-            case .yearly:
-                return requiresSubscription ? "Choose Yearly Plan" : "View Yearly Plan"
-            }
-        }
-
-        if requiresSubscription {
-            return "Choose Plan"
-        }
-
-        return "View Plans"
+        hasActiveSubscription ? "Manage on Pentridge Labs" : "Get Voiyce"
     }
 
     var paymentRequiredTitle: String {
@@ -516,25 +493,6 @@ final class BillingManager {
         await refreshStatus()
     }
 
-    func redeemBetaAccessCode(_ code: String) async {
-        let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedCode.isEmpty else {
-            errorMessage = "Enter a beta code to unlock beta access."
-            return
-        }
-
-        clearMessages()
-
-        do {
-            status = try await client.database
-                .rpc("redeem_beta_access_code", args: ["p_code": normalizedCode])
-                .executeSingle()
-            infoMessage = "Beta access unlocked."
-        } catch {
-            errorMessage = "That beta code is not valid. Check the code and try again."
-        }
-    }
-
     func recordWordUsage(_ wordCount: Int) async {
         guard wordCount > 0 else { return }
 
@@ -549,36 +507,15 @@ final class BillingManager {
         }
     }
 
-    func beginCheckout(plan: BillingPlan = .monthly) async {
-        guard !isOpeningCheckout else { return }
-
+    /// Voiyce is sold only through Pentridge Labs, so every purchase/upgrade/
+    /// manage action opens that page in the browser instead of an in-app
+    /// Stripe checkout or billing portal.
+    func openPurchasePage() {
         clearMessages()
-        isOpeningCheckout = true
-        defer { isOpeningCheckout = false }
 
         do {
-            let response: BillingURLResponse = try await client.functions.invoke(
-                "create-checkout-session",
-                body: ["plan": plan.rawValue]
-            )
-            try openExternalURL(from: response.url)
-            infoMessage = "Stripe Checkout opened in your browser."
-        } catch {
-            errorMessage = friendlyMessage(for: error)
-        }
-    }
-
-    func openBillingPortal() async {
-        guard !isOpeningPortal else { return }
-
-        clearMessages()
-        isOpeningPortal = true
-        defer { isOpeningPortal = false }
-
-        do {
-            let response: BillingURLResponse = try await client.functions.invoke("create-portal-session")
-            try openExternalURL(from: response.url)
-            infoMessage = "Stripe billing portal opened in your browser."
+            try openExternalURL(from: AppConstants.pentridgeLabsPurchaseURL)
+            infoMessage = "Opening Pentridge Labs in your browser."
         } catch {
             errorMessage = friendlyMessage(for: error)
         }

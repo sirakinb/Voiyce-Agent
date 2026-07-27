@@ -100,7 +100,6 @@ struct OnboardingView: View {
     @State private var previewTranscript = ""
     @State private var previewDuration: TimeInterval = 0
     @State private var previewStartedAt: Date?
-    @State private var isBillingPlanPickerPresented = false
 
     private let steps = OnboardingStep.allCases
     private let discoverySources = [
@@ -339,10 +338,10 @@ struct OnboardingView: View {
                     icon: "creditcard.trianglebadge.exclamationmark",
                     title: billingManager.paymentRequiredTitle,
                     detail: billingManager.paymentRequiredDetail,
-                    nextStep: "Click \(billingManager.primaryActionTitle), finish checkout in Stripe, then return here and refresh billing access.",
+                    nextStep: "Click \(billingManager.primaryActionTitle) to finish at pentridgemedia.com/labs, then return here and refresh billing access.",
                     tone: .info,
                     actionTitle: billingManager.primaryActionTitle,
-                    action: { isBillingPlanPickerPresented = true }
+                    action: { billingManager.openPurchasePage() }
                 )
             )
         }
@@ -499,7 +498,6 @@ struct OnboardingView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             permissions.checkAllPermissions()
         }
-        .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
     @ViewBuilder
@@ -997,14 +995,7 @@ struct OnboardingView: View {
     }
 
     private func handleBillingAction() {
-        if billingManager.canManageSubscription {
-            Task {
-                await billingManager.openBillingPortal()
-            }
-            return
-        }
-
-        isBillingPlanPickerPresented = true
+        billingManager.openPurchasePage()
     }
 
     private func finishOnboarding() {

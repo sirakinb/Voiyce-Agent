@@ -26,9 +26,6 @@ struct SettingsView: View {
     @Environment(AuthenticationManager.self) private var authenticationManager
     @Environment(BillingManager.self) private var billingManager
     @Environment(PermissionsManager.self) private var permissions
-    @State private var isBillingPlanPickerPresented = false
-    @State private var betaAccessCode = ""
-    @State private var isRedeemingBetaCode = false
     @State private var permissionRefreshStatus: String?
     #if DEBUG
     @State private var onboardingResetStatus: String?
@@ -86,7 +83,6 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             permissions.checkAllPermissions()
         }
-        .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
     // MARK: - General Tab
@@ -150,40 +146,6 @@ struct SettingsView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Usage Limits. \(billingManager.usageLimitSummary)")
                 .accessibilityIdentifier("settings-billing-limits")
-            }
-
-            settingsSection(title: "PROMO CODE") {
-                settingsRow(
-                    icon: "sparkles",
-                    title: betaAccessTitle,
-                    subtitle: betaAccessSubtitle
-                ) {
-                    HStack(spacing: 8) {
-                        TextField("Code", text: $betaAccessCode)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                            .disabled(billingManager.hasBetaAccess || isRedeemingBetaCode)
-                            .onSubmit {
-                                redeemBetaAccessCode()
-                            }
-
-                        Button(betaAccessButtonTitle) {
-                            redeemBetaAccessCode()
-                        }
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                        .disabled(
-                            billingManager.hasBetaAccess
-                            || isRedeemingBetaCode
-                            || betaAccessCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        )
-                    }
-                }
             }
 
             if let infoMessage = authenticationManager.infoMessage {
@@ -456,68 +418,15 @@ struct SettingsView: View {
     }
 
     private var isBillingBusy: Bool {
-        billingManager.isRefreshing || billingManager.isOpeningCheckout || billingManager.isOpeningPortal
+        billingManager.isRefreshing
     }
 
     private var billingActionTitle: String {
-        if billingManager.isOpeningCheckout {
-            return "Opening Checkout..."
-        }
-
-        if billingManager.isOpeningPortal {
-            return "Opening Portal..."
-        }
-
-        return billingManager.primaryActionTitle
-    }
-
-    private var betaAccessTitle: String {
-        if billingManager.hasBetaAccess {
-            return billingManager.betaMonthlyCapReached ? "Monthly Budget Used" : "Unlocked"
-        }
-
-        return "Redeem Code"
-    }
-
-    private var betaAccessSubtitle: String {
-        if billingManager.hasBetaAccess {
-            return "Rate limits may apply."
-        }
-
-        return ""
-    }
-
-    private var betaAccessButtonTitle: String {
-        isRedeemingBetaCode ? "Unlocking..." : "Unlock"
+        billingManager.primaryActionTitle
     }
 
     private func openBillingDestination() {
-        if billingManager.canManageSubscription {
-            Task {
-                await billingManager.openBillingPortal()
-            }
-            return
-        }
-
-        isBillingPlanPickerPresented = true
-    }
-
-    private func redeemBetaAccessCode() {
-        guard !isRedeemingBetaCode else { return }
-
-        isRedeemingBetaCode = true
-        Task {
-            await billingManager.redeemBetaAccessCode(betaAccessCode)
-            appState.accessState = billingManager.accessState(
-                isAuthenticated: authenticationManager.isAuthenticated
-            )
-
-            if billingManager.hasBetaAccess {
-                betaAccessCode = ""
-            }
-
-            isRedeemingBetaCode = false
-        }
+        billingManager.openPurchasePage()
     }
 
     // MARK: - Reusable Components

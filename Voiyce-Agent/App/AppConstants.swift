@@ -40,6 +40,11 @@ enum AppConstants {
     static let maxDictationDuration: TimeInterval = 55
     static let supportEmail = "aki.b@pentridgemedia.com"
 
+    /// The only place Voiyce can be purchased: it ships as part of the Pentridge
+    /// product suite via Pentridge Labs. Every in-app purchase/upgrade action
+    /// opens this page instead of an in-app checkout.
+    static let pentridgeLabsPurchaseURL = "https://pentridgemedia.com/labs"
+
     static func accountScopedKey(_ baseKey: String, userID: String?) -> String {
         guard let userID, !userID.isEmpty else { return baseKey }
         return "\(baseKey)_\(userID)"

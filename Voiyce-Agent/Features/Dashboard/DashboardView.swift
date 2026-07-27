@@ -18,7 +18,6 @@ struct DashboardView: View {
     @Environment(NetworkMonitor.self) private var networkMonitor
     @Environment(UsageTracker.self) private var usageTracker
     @State private var weeklyData: [DailyUsage] = []
-    @State private var isBillingPlanPickerPresented = false
 
     private var wordsToday: Int {
         max(appState.wordsToday, usageTracker.todayStats().words)
@@ -343,7 +342,6 @@ struct DashboardView: View {
         .onChange(of: appState.dictationSessionsToday) { _, _ in
             refreshWeeklyData()
         }
-        .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
     private var billingOverviewCard: some View {
@@ -704,14 +702,7 @@ struct DashboardView: View {
     }
 
     private func openBillingDestination() {
-        if billingManager.canManageSubscription {
-            Task {
-                await billingManager.openBillingPortal()
-            }
-            return
-        }
-
-        isBillingPlanPickerPresented = true
+        billingManager.openPurchasePage()
     }
 }
 
