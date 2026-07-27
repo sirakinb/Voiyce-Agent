@@ -76,11 +76,7 @@ final class DictationCoordinator {
         targetAppName = targetApplication?.localizedName ?? "Unknown"
         targetAppBundleIdentifier = targetApplication?.bundleIdentifier
         if let targetApplication {
-            pasteTargetContext = PasteTargetContext(
-                processID: targetApplication.processIdentifier,
-                bundleIdentifier: targetApplication.bundleIdentifier,
-                appName: targetAppName
-            )
+            pasteTargetContext = TextInjector.capturePasteTargetContext(from: targetApplication)
         } else {
             pasteTargetContext = nil
         }

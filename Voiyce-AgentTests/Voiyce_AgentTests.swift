@@ -153,14 +153,15 @@ struct Voiyce_AgentTests {
 
     @MainActor
     @Test func textInjectorReportsInjectedWhenAccessibilityTrustedAndConfirmed() async throws {
+        var clipboardContents: String?
         var fieldValue = ""
         let injector = TextInjector(
             isAccessibilityTrusted: { true },
             publishToClipboard: { text in
-                fieldValue = text
+                clipboardContents = text
                 return true
             },
-            readClipboard: { fieldValue },
+            readClipboard: { clipboardContents },
             frontmostProcessID: { 100 },
             readFocusedFieldState: {
                 FocusedFieldState(
@@ -168,6 +169,8 @@ struct Voiyce_AgentTests {
                     selectedRange: TextSelectionRange(location: fieldValue.count, length: 0),
                     role: "AXTextField",
                     processID: 100,
+                    windowIdentity: "AXWindow|0,0,800,600",
+                    focusedElementIdentity: "AXTextField|10,20,300,24",
                     isIntrospectable: true
                 )
             },
@@ -179,6 +182,8 @@ struct Voiyce_AgentTests {
         )
 
         #expect(await injector.injectText("trusted insertion path") == .injected)
+        #expect(clipboardContents == "trusted insertion path")
+        #expect(fieldValue == "trusted insertion path")
     }
 
     @Test func accessibilityInsertionBlockedCopyPreservesWordsAndRoutesToSettings() throws {

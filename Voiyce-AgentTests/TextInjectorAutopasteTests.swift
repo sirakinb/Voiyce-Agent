@@ -15,32 +15,52 @@ private final class TextInjectorTestHarness {
     var targetPID: pid_t = 100
     var fieldValue = ""
     var selectedRange = TextSelectionRange(location: 0, length: 0)
+    var hasSelectedRange = true
     var fieldRole = "AXTextField"
     var introspectable = true
     var focusedProcessID: pid_t = 100
+    var windowIdentity = "AXWindow|0,0,800,600"
+    var focusedElementIdentity = "AXTextField|10,20,300,24"
     var pastePostCount = 0
+    var recordedChordSteps: [HIDPasteChordStep] = []
     var activateCallCount = 0
     var activateSucceeds = true
     var simulatePasteOnPost = true
     var activationRestoresFocus = true
+    var publishSucceeds = true
     var sleeps: [Duration] = []
 
-    func makeInjector() -> TextInjector {
+    func targetContext(bundleIdentifier: String? = "com.test", appName: String = "Test") -> PasteTargetContext {
+        PasteTargetContext(
+            processID: targetPID,
+            bundleIdentifier: bundleIdentifier,
+            appName: appName,
+            windowIdentity: windowIdentity,
+            focusedElementIdentity: focusedElementIdentity
+        )
+    }
+
+    func makeInjector(recordChord: Bool = false) -> TextInjector {
         TextInjector(
             isAccessibilityTrusted: { [self] in axTrusted },
             publishToClipboard: { [self] text in
+                guard publishSucceeds else { return false }
                 clipboard = text
                 return true
             },
             readClipboard: { [self] in clipboard },
             frontmostProcessID: { [self] in frontmostPID },
             readFocusedFieldState: { [self] in
-                FocusedFieldState(
+                let range = hasSelectedRange ? selectedRange : nil
+                let canConfirm = introspectable && hasSelectedRange
+                return FocusedFieldState(
                     value: introspectable ? fieldValue : nil,
-                    selectedRange: introspectable ? selectedRange : nil,
+                    selectedRange: range,
                     role: fieldRole,
                     processID: focusedProcessID,
-                    isIntrospectable: introspectable
+                    windowIdentity: windowIdentity,
+                    focusedElementIdentity: focusedElementIdentity,
+                    isIntrospectable: canConfirm
                 )
             },
             activateTargetProcess: { [self] pid in
@@ -54,7 +74,10 @@ private final class TextInjectorTestHarness {
             },
             postPasteChord: { [self] in
                 pastePostCount += 1
-                guard simulatePasteOnPost, introspectable else { return }
+                if recordChord {
+                    recordedChordSteps = TextInjector.hidPasteChordSteps()
+                }
+                guard simulatePasteOnPost, introspectable, hasSelectedRange else { return }
                 let replacement = PasteExpectation.expectedValue(
                     currentValue: fieldValue,
                     selectedRange: selectedRange,
@@ -74,6 +97,15 @@ private final class TextInjectorTestHarness {
 }
 
 struct TextInjectorAutopasteTests {
+    @Test func hidPasteChordUsesFlagsChangedSequence() {
+        #expect(TextInjector.hidPasteChordSteps() == [
+            .commandFlagsChanged(down: true),
+            .keyDown(0x09),
+            .keyUp(0x09),
+            .commandFlagsChanged(down: false)
+        ])
+    }
+
     @MainActor
     @Test func confirmedAppendDelivery() async {
         let harness = TextInjectorTestHarness()
@@ -81,8 +113,7 @@ struct TextInjectorAutopasteTests {
         harness.selectedRange = TextSelectionRange(location: 6, length: 0)
 
         let injector = harness.makeInjector()
-        let target = PasteTargetContext(processID: 100, bundleIdentifier: "com.test", appName: "Test")
-        let outcome = await injector.injectText("world", targetContext: target)
+        let outcome = await injector.injectText("world", targetContext: harness.targetContext())
 
         #expect(outcome == .injected)
         #expect(harness.fieldValue == "Hello world")
@@ -97,7 +128,7 @@ struct TextInjectorAutopasteTests {
         harness.selectedRange = TextSelectionRange(location: 1, length: 3)
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText("XYZ", targetContext: PasteTargetContext(processID: 100, bundleIdentifier: nil, appName: "Test"))
+        let outcome = await injector.injectText("XYZ", targetContext: harness.targetContext())
 
         #expect(outcome == .injected)
         #expect(harness.fieldValue == "aXYZef")
@@ -110,10 +141,24 @@ struct TextInjectorAutopasteTests {
         harness.selectedRange = TextSelectionRange(location: 0, length: 4)
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText("z", targetContext: PasteTargetContext(processID: 100, bundleIdentifier: nil, appName: "Test"))
+        let outcome = await injector.injectText("z", targetContext: harness.targetContext())
 
         #expect(outcome == .injected)
         #expect(harness.fieldValue == "zef")
+    }
+
+    @MainActor
+    @Test func missingSelectedRangeReturnsPasteUnconfirmed() async {
+        let harness = TextInjectorTestHarness()
+        harness.fieldValue = "abcdef"
+        harness.hasSelectedRange = false
+
+        let injector = harness.makeInjector()
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
+
+        #expect(outcome == .pasteUnconfirmed)
+        #expect(harness.clipboard == "hello")
+        #expect(harness.pastePostCount == 1)
     }
 
     @MainActor
@@ -122,7 +167,7 @@ struct TextInjectorAutopasteTests {
         harness.introspectable = false
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText("hello", targetContext: PasteTargetContext(processID: 100, bundleIdentifier: nil, appName: "Test"))
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
 
         #expect(outcome == .pasteUnconfirmed)
         #expect(harness.clipboard == "hello")
@@ -134,17 +179,26 @@ struct TextInjectorAutopasteTests {
         let harness = TextInjectorTestHarness()
         harness.frontmostPID = 200
         harness.focusedProcessID = 200
-        harness.targetPID = 100
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText(
-            "hello",
-            targetContext: PasteTargetContext(processID: 100, bundleIdentifier: nil, appName: "Test")
-        )
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
 
         #expect(outcome == .injected)
         #expect(harness.activateCallCount >= 1)
         #expect(harness.frontmostPID == 100)
+    }
+
+    @MainActor
+    @Test func mismatchedFocusedElementIdentityBlocksPaste() async {
+        let harness = TextInjectorTestHarness()
+        harness.focusedElementIdentity = "AXTextField|99,99,300,24"
+
+        let injector = harness.makeInjector()
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
+
+        #expect(outcome == .pasteUnconfirmed)
+        #expect(harness.clipboard == "hello")
+        #expect(harness.pastePostCount == 0)
     }
 
     @MainActor
@@ -155,14 +209,49 @@ struct TextInjectorAutopasteTests {
         harness.activationRestoresFocus = false
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText(
-            "hello",
-            targetContext: PasteTargetContext(processID: 100, bundleIdentifier: nil, appName: "Test")
-        )
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
 
         #expect(outcome == .pasteUnconfirmed)
         #expect(harness.clipboard == "hello")
         #expect(harness.pastePostCount == 0)
+    }
+
+    @MainActor
+    @Test func reactivationTimeoutRecoveryPublishFailureReturnsClipboardUnavailable() async {
+        let harness = TextInjectorTestHarness()
+        harness.frontmostPID = 200
+        harness.focusedProcessID = 200
+        harness.activationRestoresFocus = false
+        var publishAttempts = 0
+        let injector = TextInjector(
+            isAccessibilityTrusted: { true },
+            publishToClipboard: { text in
+                publishAttempts += 1
+                guard publishAttempts == 1 else { return false }
+                harness.clipboard = text
+                return true
+            },
+            readClipboard: { harness.clipboard },
+            frontmostProcessID: { harness.frontmostPID },
+            readFocusedFieldState: {
+                FocusedFieldState(
+                    value: harness.fieldValue,
+                    selectedRange: harness.selectedRange,
+                    role: harness.fieldRole,
+                    processID: harness.focusedProcessID,
+                    windowIdentity: harness.windowIdentity,
+                    focusedElementIdentity: harness.focusedElementIdentity,
+                    isIntrospectable: true
+                )
+            },
+            activateTargetProcess: { _ in false },
+            postPasteChord: {},
+            sleep: { duration in harness.sleeps.append(duration) }
+        )
+
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
+
+        #expect(outcome == .clipboardUnavailable)
     }
 
     @MainActor
@@ -171,13 +260,46 @@ struct TextInjectorAutopasteTests {
         harness.simulatePasteOnPost = false
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText(
-            "hello",
-            targetContext: PasteTargetContext(processID: 100, bundleIdentifier: nil, appName: "Test")
-        )
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
 
         #expect(outcome == .pasteUnconfirmed)
         #expect(harness.clipboard == "hello")
+    }
+
+    @MainActor
+    @Test func postMismatchRecoveryPublishFailureReturnsClipboardUnavailable() async {
+        let harness = TextInjectorTestHarness()
+        harness.simulatePasteOnPost = false
+        var publishAttempts = 0
+        let injector = TextInjector(
+            isAccessibilityTrusted: { true },
+            publishToClipboard: { text in
+                publishAttempts += 1
+                guard publishAttempts == 1 else { return false }
+                harness.clipboard = text
+                return true
+            },
+            readClipboard: { harness.clipboard },
+            frontmostProcessID: { harness.frontmostPID },
+            readFocusedFieldState: {
+                FocusedFieldState(
+                    value: harness.fieldValue,
+                    selectedRange: harness.selectedRange,
+                    role: harness.fieldRole,
+                    processID: harness.focusedProcessID,
+                    windowIdentity: harness.windowIdentity,
+                    focusedElementIdentity: harness.focusedElementIdentity,
+                    isIntrospectable: true
+                )
+            },
+            activateTargetProcess: { _ in true },
+            postPasteChord: { harness.pastePostCount += 1 },
+            sleep: { _ in }
+        )
+
+        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
+
+        #expect(outcome == .clipboardUnavailable)
     }
 
     @MainActor

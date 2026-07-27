@@ -25,6 +25,10 @@ struct PasteTargetContext: Equatable {
     let processID: pid_t
     let bundleIdentifier: String?
     let appName: String
+    /// Metadata-only window fingerprint (role + rounded frame), never title/path.
+    let windowIdentity: String?
+    /// Metadata-only focused-element fingerprint (role + rounded position).
+    let focusedElementIdentity: String?
 }
 
 struct TextSelectionRange: Equatable {
@@ -41,7 +45,15 @@ struct FocusedFieldState: Equatable {
     let selectedRange: TextSelectionRange?
     let role: String?
     let processID: pid_t?
+    let windowIdentity: String?
+    let focusedElementIdentity: String?
     let isIntrospectable: Bool
+}
+
+enum HIDPasteChordStep: Equatable {
+    case commandFlagsChanged(down: Bool)
+    case keyDown(CGKeyCode)
+    case keyUp(CGKeyCode)
 }
 
 enum PasteExpectation {
@@ -89,7 +101,6 @@ enum PasteExpectation {
 @MainActor
 final class TextInjector {
     private var lastInjection: (text: String, appName: String, timestamp: Date)?
-    private let duplicateSuppressionWindow: TimeInterval = 0.75
     private let pasteboardPropagationDelay: TimeInterval = 0.08
     private let targetReactivationDelay: TimeInterval = 0.18
     private let clipboardRestoreDelay: TimeInterval = 1.0
@@ -133,6 +144,26 @@ final class TextInjector {
         self.sleep = sleep
     }
 
+    static func capturePasteTargetContext(from application: NSRunningApplication) -> PasteTargetContext {
+        let field = defaultReadFocusedFieldState()
+        return PasteTargetContext(
+            processID: application.processIdentifier,
+            bundleIdentifier: application.bundleIdentifier,
+            appName: application.localizedName ?? "Unknown",
+            windowIdentity: field?.windowIdentity,
+            focusedElementIdentity: field?.focusedElementIdentity
+        )
+    }
+
+    static func hidPasteChordSteps() -> [HIDPasteChordStep] {
+        [
+            .commandFlagsChanged(down: true),
+            .keyDown(0x09),
+            .keyUp(0x09),
+            .commandFlagsChanged(down: false)
+        ]
+    }
+
     static func defaultPublishToClipboard(_ text: String) -> Bool {
         let pasteboard = NSPasteboard.general
         pasteboard.declareTypes([.string], owner: nil)
@@ -145,28 +176,37 @@ final class TextInjector {
     }
 
     static func defaultPostPasteChord() {
+        postHIDPasteChord(steps: hidPasteChordSteps())
+    }
+
+    static func postHIDPasteChord(steps: [HIDPasteChordStep]) {
         let source = CGEventSource(stateID: .hidSystemState)
-        let vKeyCode: CGKeyCode = 0x09
         let commandKeyCode: CGKeyCode = 0x37
 
-        if let commandDown = CGEvent(keyboardEventSource: source, virtualKey: commandKeyCode, keyDown: true) {
-            commandDown.flags = .maskCommand
-            commandDown.post(tap: .cghidEventTap)
-        }
-
-        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true) {
-            keyDown.flags = .maskCommand
-            keyDown.post(tap: .cghidEventTap)
-        }
-
-        if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false) {
-            keyUp.flags = .maskCommand
-            keyUp.post(tap: .cghidEventTap)
-        }
-
-        if let commandUp = CGEvent(keyboardEventSource: source, virtualKey: commandKeyCode, keyDown: false) {
-            commandUp.flags = []
-            commandUp.post(tap: .cghidEventTap)
+        for step in steps {
+            switch step {
+            case .commandFlagsChanged(let down):
+                guard let event = CGEvent(
+                    source: source,
+                    virtualKey: commandKeyCode,
+                    keyDown: down
+                ) else { continue }
+                event.type = .flagsChanged
+                event.flags = down ? .maskCommand : []
+                event.post(tap: .cghidEventTap)
+            case .keyDown(let keyCode):
+                guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true) else {
+                    continue
+                }
+                event.flags = .maskCommand
+                event.post(tap: .cghidEventTap)
+            case .keyUp(let keyCode):
+                guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
+                    continue
+                }
+                event.flags = .maskCommand
+                event.post(tap: .cghidEventTap)
+            }
         }
     }
 
@@ -205,15 +245,21 @@ final class TextInjector {
             }
         }
 
+        let windowIdentity = windowIdentity(for: element)
+        let focusedElementIdentity = focusedElementIdentity(for: element, role: role)
+
         var valueRef: CFTypeRef?
         let valueStatus = AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef)
         if valueStatus == .success, let value = valueRef as? String {
+            let canConfirmSelection = selectedRange != nil
             return FocusedFieldState(
                 value: value,
-                selectedRange: selectedRange ?? TextSelectionRange(location: value.count, length: 0),
+                selectedRange: selectedRange,
                 role: role,
                 processID: processID == 0 ? nil : processID,
-                isIntrospectable: true
+                windowIdentity: windowIdentity,
+                focusedElementIdentity: focusedElementIdentity,
+                isIntrospectable: canConfirmSelection
             )
         }
 
@@ -222,6 +268,8 @@ final class TextInjector {
             selectedRange: nil,
             role: role,
             processID: processID == 0 ? nil : processID,
+            windowIdentity: windowIdentity,
+            focusedElementIdentity: focusedElementIdentity,
             isIntrospectable: false
         )
     }
@@ -287,14 +335,6 @@ final class TextInjector {
             ?? "Unknown"
         let now = Date()
 
-        if let lastInjection,
-           lastInjection.text == text,
-           lastInjection.appName == destinationAppName,
-           now.timeIntervalSince(lastInjection.timestamp) < duplicateSuppressionWindow {
-            print("[TextInjector] Suppressed duplicate paste into \(destinationAppName)")
-            return .injected
-        }
-
         let axTrusted = isAccessibilityTrusted()
         guard axTrusted else {
             guard publishToClipboard(text) else {
@@ -321,72 +361,62 @@ final class TextInjector {
         let focusReresolvedMatchesTarget = focusRestore.focusMatchesTarget
 
         guard focusRestore.didRestore else {
-            logPasteDiagnostic(
+            return finishRecoveryPaste(
+                text: text,
+                injectionID: injectionID,
                 axTrusted: axTrusted,
                 frontmostMatchesTarget: frontmostMatchesTarget,
                 focusReresolvedMatchesTarget: focusReresolvedMatchesTarget,
+                prePasteField: readFocusedFieldState(),
                 postTap: "none",
-                focusedField: readFocusedFieldState(),
-                selectionLengthDelta: nil,
                 outcome: "pasteUnconfirmed"
             )
-            return .pasteUnconfirmed
         }
 
-        if resolvedTarget != nil {
-            await sleep(.milliseconds(Int(pasteboardPropagationDelay * 1000)))
-        } else {
-            await sleep(.milliseconds(Int(pasteboardPropagationDelay * 1000)))
-        }
+        await sleep(.milliseconds(Int(pasteboardPropagationDelay * 1000)))
 
         guard activeInjectionID == injectionID else {
-            return .pasteUnconfirmed
+            return ensureRecoveryClipboard(text: text) ? .pasteUnconfirmed : .clipboardUnavailable
         }
 
-        let prePasteField = readFocusedFieldState()
-        guard prePasteField != nil else {
-            return finishUnconfirmedPaste(
+        guard let prePasteField = readFocusedFieldState() else {
+            return finishRecoveryPaste(
                 text: text,
-                destinationAppName: destinationAppName,
                 injectionID: injectionID,
-                previousContents: previousContents,
-                timestamp: now,
                 axTrusted: axTrusted,
                 frontmostMatchesTarget: frontmostMatchesTarget,
                 focusReresolvedMatchesTarget: focusReresolvedMatchesTarget,
-                prePasteField: nil
+                prePasteField: nil,
+                postTap: "none",
+                outcome: "pasteUnconfirmed"
             )
         }
 
-        let prePasteSelection = prePasteField?.selectedRange ?? TextSelectionRange(location: 0, length: 0)
-        let prePasteValue = prePasteField?.value ?? ""
-        let expectedValue: String?
-        let expectedSelection: TextSelectionRange?
-
-        if let prePasteField, prePasteField.isIntrospectable, let selectedRange = prePasteField.selectedRange {
-            expectedValue = PasteExpectation.expectedValue(
-                currentValue: prePasteValue,
-                selectedRange: selectedRange,
-                inserting: text
-            )
-            expectedSelection = PasteExpectation.expectedSelectedRange(
-                afterInserting: text,
-                replacing: selectedRange
-            )
-        } else if let prePasteField, !prePasteField.isIntrospectable {
-            expectedValue = nil
-            expectedSelection = nil
-        } else {
-            expectedValue = PasteExpectation.expectedValue(
-                currentValue: prePasteValue,
-                selectedRange: prePasteSelection,
-                inserting: text
-            )
-            expectedSelection = PasteExpectation.expectedSelectedRange(
-                afterInserting: text,
-                replacing: prePasteSelection
+        guard prePasteField.isIntrospectable,
+              let prePasteValue = prePasteField.value,
+              let prePasteSelection = prePasteField.selectedRange else {
+            postPasteChord()
+            return finishRecoveryPaste(
+                text: text,
+                injectionID: injectionID,
+                axTrusted: axTrusted,
+                frontmostMatchesTarget: frontmostMatchesTarget,
+                focusReresolvedMatchesTarget: focusReresolvedMatchesTarget,
+                prePasteField: prePasteField,
+                postTap: "cghidEventTap",
+                outcome: "pasteUnconfirmed"
             )
         }
+
+        let expectedValue = PasteExpectation.expectedValue(
+            currentValue: prePasteValue,
+            selectedRange: prePasteSelection,
+            inserting: text
+        )
+        let expectedSelection = PasteExpectation.expectedSelectedRange(
+            afterInserting: text,
+            replacing: prePasteSelection
+        )
 
         postPasteChord()
         logPasteDiagnostic(
@@ -399,27 +429,13 @@ final class TextInjector {
             outcome: "posted"
         )
 
-        if expectedValue == nil {
-            return finishUnconfirmedPaste(
-                text: text,
-                destinationAppName: destinationAppName,
-                injectionID: injectionID,
-                previousContents: previousContents,
-                timestamp: now,
-                axTrusted: axTrusted,
-                frontmostMatchesTarget: frontmostMatchesTarget,
-                focusReresolvedMatchesTarget: focusReresolvedMatchesTarget,
-                prePasteField: prePasteField
-            )
-        }
-
         let confirmed = await waitForConfirmation(
-            expectedValue: expectedValue!,
-            expectedSelection: expectedSelection!
+            expectedValue: expectedValue,
+            expectedSelection: expectedSelection
         )
 
         guard activeInjectionID == injectionID else {
-            return .pasteUnconfirmed
+            return ensureRecoveryClipboard(text: text) ? .pasteUnconfirmed : .clipboardUnavailable
         }
 
         if confirmed {
@@ -441,16 +457,15 @@ final class TextInjector {
             return .injected
         }
 
-        return finishUnconfirmedPaste(
+        return finishRecoveryPaste(
             text: text,
-            destinationAppName: destinationAppName,
             injectionID: injectionID,
-            previousContents: previousContents,
-            timestamp: now,
             axTrusted: axTrusted,
             frontmostMatchesTarget: frontmostMatchesTarget,
             focusReresolvedMatchesTarget: focusReresolvedMatchesTarget,
-            prePasteField: prePasteField
+            prePasteField: prePasteField,
+            postTap: "cghidEventTap",
+            outcome: "pasteUnconfirmed"
         )
     }
 
@@ -464,7 +479,7 @@ final class TextInjector {
             return FocusRestoreResult(didRestore: true, focusMatchesTarget: true)
         }
 
-        if focusBelongsToTarget(readFocusedFieldState(), target: target),
+        if focusMatchesTarget(readFocusedFieldState(), target: target),
            frontmostMatchesTargetProcess(target) {
             return FocusRestoreResult(didRestore: true, focusMatchesTarget: true)
         }
@@ -476,7 +491,7 @@ final class TextInjector {
 
         let deadline = ContinuousClock.now + focusRestoreBudget
         while ContinuousClock.now < deadline {
-            if focusBelongsToTarget(readFocusedFieldState(), target: target),
+            if focusMatchesTarget(readFocusedFieldState(), target: target),
                frontmostMatchesTargetProcess(target) {
                 return FocusRestoreResult(didRestore: true, focusMatchesTarget: true)
             }
@@ -485,7 +500,7 @@ final class TextInjector {
 
         return FocusRestoreResult(
             didRestore: false,
-            focusMatchesTarget: focusBelongsToTarget(readFocusedFieldState(), target: target)
+            focusMatchesTarget: focusMatchesTarget(readFocusedFieldState(), target: target)
         )
     }
 
@@ -508,32 +523,35 @@ final class TextInjector {
         return false
     }
 
-    private func finishUnconfirmedPaste(
+    private func ensureRecoveryClipboard(text: String) -> Bool {
+        guard publishToClipboard(text) else { return false }
+        return readClipboard() == text
+    }
+
+    private func finishRecoveryPaste(
         text: String,
-        destinationAppName: String,
         injectionID: UUID,
-        previousContents: String?,
-        timestamp: Date,
         axTrusted: Bool,
         frontmostMatchesTarget: Bool,
         focusReresolvedMatchesTarget: Bool,
-        prePasteField: FocusedFieldState?
+        prePasteField: FocusedFieldState?,
+        postTap: String,
+        outcome: String
     ) -> TextInjectionOutcome {
         activeInjectionID = nil
         clipboardRestoreTask?.cancel()
-        _ = publishToClipboard(text)
         logPasteDiagnostic(
             axTrusted: axTrusted,
             frontmostMatchesTarget: frontmostMatchesTarget,
             focusReresolvedMatchesTarget: focusReresolvedMatchesTarget,
-            postTap: "cghidEventTap",
+            postTap: postTap,
             focusedField: prePasteField,
             selectionLengthDelta: prePasteField?.selectedRange?.length,
-            outcome: "pasteUnconfirmed"
+            outcome: outcome
         )
-        _ = destinationAppName
-        _ = previousContents
-        _ = timestamp
+        guard ensureRecoveryClipboard(text: text) else {
+            return .clipboardUnavailable
+        }
         return .pasteUnconfirmed
     }
 
@@ -562,9 +580,19 @@ final class TextInjector {
         return frontmostProcessID() == target.processID
     }
 
-    private func focusBelongsToTarget(_ field: FocusedFieldState?, target: PasteTargetContext) -> Bool {
-        guard let field, let processID = field.processID else { return false }
-        return processID == target.processID
+    private func focusMatchesTarget(_ field: FocusedFieldState?, target: PasteTargetContext) -> Bool {
+        guard let field, let processID = field.processID, processID == target.processID else {
+            return false
+        }
+        if let expectedWindow = target.windowIdentity,
+           field.windowIdentity != expectedWindow {
+            return false
+        }
+        if let expectedElement = target.focusedElementIdentity,
+           field.focusedElementIdentity != expectedElement {
+            return false
+        }
+        return true
     }
 
     private func resolveTargetContext(
@@ -578,11 +606,45 @@ final class TextInjector {
             return nil
         }
 
-        return PasteTargetContext(
-            processID: application.processIdentifier,
-            bundleIdentifier: bundleIdentifier,
-            appName: application.localizedName ?? appName ?? "Unknown"
-        )
+        return capturePasteTargetContext(from: application)
+    }
+
+    private static func windowIdentity(for element: AXUIElement) -> String? {
+        var windowRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXWindowAttribute as CFString, &windowRef) == .success,
+              let windowRef else {
+            return nil
+        }
+        return frameIdentity(for: windowRef as! AXUIElement, roleFallback: "AXWindow")
+    }
+
+    private static func focusedElementIdentity(for element: AXUIElement, role: String?) -> String? {
+        frameIdentity(for: element, roleFallback: role ?? "AXUnknown")
+    }
+
+    private static func frameIdentity(for element: AXUIElement, roleFallback: String) -> String? {
+        var roleRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
+        let role = (roleRef as? String) ?? roleFallback
+
+        var positionRef: CFTypeRef?
+        var sizeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionRef) == .success,
+              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeRef) == .success,
+              let positionRef, let sizeRef,
+              CFGetTypeID(positionRef) == AXValueGetTypeID(),
+              CFGetTypeID(sizeRef) == AXValueGetTypeID() else {
+            return role
+        }
+
+        var position = CGPoint.zero
+        var size = CGSize.zero
+        guard AXValueGetValue(positionRef as! AXValue, .cgPoint, &position),
+              AXValueGetValue(sizeRef as! AXValue, .cgSize, &size) else {
+            return role
+        }
+
+        return "\(role)|\(Int(position.x)),\(Int(position.y)),\(Int(size.width)),\(Int(size.height))"
     }
 
     private func logPasteDiagnostic(
