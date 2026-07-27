@@ -10,6 +10,7 @@ final class DictationCoordinator {
     private var modelContext: ModelContext?
     private var pendingStopRequest: PendingStopRequest?
     private var targetAppBundleIdentifier: String?
+    private var pasteTargetContext: PasteTargetContext?
 
     private var dictationStartTime: Date?
     private var targetAppName: String = ""
@@ -44,6 +45,7 @@ final class DictationCoordinator {
         voiceEngine.cleanupRecording()
         dictationStartTime = nil
         targetAppBundleIdentifier = nil
+        pasteTargetContext = nil
     }
 
     private struct PendingStopRequest {
@@ -73,6 +75,11 @@ final class DictationCoordinator {
         let targetApplication = NSWorkspace.shared.frontmostApplication
         targetAppName = targetApplication?.localizedName ?? "Unknown"
         targetAppBundleIdentifier = targetApplication?.bundleIdentifier
+        if let targetApplication {
+            pasteTargetContext = TextInjector.capturePasteTargetContext(from: targetApplication)
+        } else {
+            pasteTargetContext = nil
+        }
 
         NSSound(named: "Tink")?.play()
 
@@ -150,6 +157,7 @@ final class DictationCoordinator {
         let duration = dictationStartTime.map { Date().timeIntervalSince($0) }
         let targetAppBundleIdentifier = targetAppBundleIdentifier
         let targetAppName = targetAppName
+        let pasteTargetContext = pasteTargetContext
 
         // Send audio to Whisper API for transcription
         Task {
@@ -174,19 +182,20 @@ final class DictationCoordinator {
                     return
                 }
 
+                let injectionOutcome: TextInjectionOutcome? = injectText
+                    ? await textInjector.injectText(
+                        transcript,
+                        targetContext: pasteTargetContext,
+                        targetBundleIdentifier: targetAppBundleIdentifier,
+                        targetAppName: targetAppName
+                    )
+                    : nil
+
                 await MainActor.run {
                     totalInjectedText = transcript
                     latestTranscript = transcript
                     let transcriptWordCount = DictationDebugLogCopy.wordCount(in: transcript)
                     print(DictationDebugLogCopy.transcriptReadyForInsertion(wordCount: transcriptWordCount))
-
-                    let injectionOutcome: TextInjectionOutcome? = injectText
-                        ? textInjector.injectText(
-                            transcript,
-                            targetBundleIdentifier: targetAppBundleIdentifier,
-                            targetAppName: targetAppName
-                        )
-                        : nil
 
                     // Preserve the words regardless of insertion outcome so a
                     // blocked paste never loses the user's dictation.
@@ -247,6 +256,8 @@ final class DictationCoordinator {
             return .accessibilityInsertionBlocked
         case .clipboardUnavailable:
             return .textInsertionFailed
+        case .pasteUnconfirmed:
+            return .pasteUnconfirmed
         case .injected, .none:
             return nil
         }
@@ -262,7 +273,7 @@ final class DictationCoordinator {
     func copyLastTranscriptToClipboard() -> Bool {
         guard !latestTranscript.isEmpty else { return false }
         let didPublish = textInjector.copyToClipboard(latestTranscript)
-        if didPublish, errorState == .textInsertionFailed {
+        if didPublish, errorState == .textInsertionFailed || errorState == .pasteUnconfirmed {
             errorState = nil
         }
         return didPublish
@@ -304,6 +315,7 @@ final class DictationCoordinator {
 enum DictationErrorState: LocalizedError, Equatable {
     case microphonePermissionDenied
     case accessibilityInsertionBlocked
+    case pasteUnconfirmed
     case textInsertionFailed
     case authenticationRequired
     case noInternet
@@ -318,6 +330,8 @@ enum DictationErrorState: LocalizedError, Equatable {
             return "Microphone Access Needed"
         case .accessibilityInsertionBlocked:
             return "Accessibility Access Needed"
+        case .pasteUnconfirmed:
+            return "Paste Not Confirmed"
         case .textInsertionFailed:
             return "Couldn't Insert Text"
         case .authenticationRequired:
@@ -341,6 +355,8 @@ enum DictationErrorState: LocalizedError, Equatable {
             return "mic.slash.fill"
         case .accessibilityInsertionBlocked:
             return "hand.raised.slash.fill"
+        case .pasteUnconfirmed:
+            return "doc.on.clipboard"
         case .textInsertionFailed:
             return "doc.on.clipboard.fill"
         case .authenticationRequired:
@@ -364,6 +380,8 @@ enum DictationErrorState: LocalizedError, Equatable {
             return "Enable microphone access before starting dictation."
         case .accessibilityInsertionBlocked:
             return DictationRecoveryCopy.accessibilityInsertionBlockedDetail
+        case .pasteUnconfirmed:
+            return DictationRecoveryCopy.pasteUnconfirmedDetail
         case .textInsertionFailed:
             return DictationRecoveryCopy.textInsertionFailedDetail
         case .authenticationRequired:
@@ -390,6 +408,9 @@ enum DictationRecoveryCopy {
 
     static let accessibilityInsertionBlockedDetail = "Voiyce transcribed your words, but macOS blocked inserting them because Accessibility access is off. Your last dictation is on the clipboard — press Command-V to paste it now."
     static let accessibilityInsertionBlockedNextStep = "Click Open Accessibility Settings, turn on Voiyce under Privacy & Security > Accessibility, then hold Control again. Your last dictation is on the clipboard — press Command-V to paste it now."
+
+    static let pasteUnconfirmedDetail = "Voiyce couldn't confirm the automatic paste. If the words are not visible, press Command-V; they are on the clipboard."
+    static let pasteUnconfirmedNextStep = "If the words are not visible in the field, press Command-V to paste your last dictation. Your words are also saved in History."
 
     static let textInsertionFailedDetail = "Voiyce transcribed your words, but couldn't insert them into the app or copy them for you. Your last dictation is saved in History so it isn't lost."
     static let textInsertionFailedNextStep = "Click Copy Transcript to put your last dictation on the clipboard, then press Command-V to paste it. Your words are also saved in History."

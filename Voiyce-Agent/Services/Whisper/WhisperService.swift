@@ -184,6 +184,20 @@ enum DictationDebugLogCopy {
         "[Dictation] \(operation) failed."
     }
 
+    static func pasteDeliveryDiagnostic(
+        axTrusted: Bool,
+        frontmostMatchesTarget: Bool,
+        focusReresolvedMatchesTarget: Bool,
+        postTap: String,
+        axRole: String?,
+        selectionLengthDelta: Int?,
+        outcome: String
+    ) -> String {
+        let role = axRole ?? "unknown"
+        let selectionDelta = selectionLengthDelta.map(String.init) ?? "nil"
+        return "[Dictation] paste_delivery ax_trusted=\(axTrusted) frontmost_matches_target=\(frontmostMatchesTarget) focus_reresolved_matches_target=\(focusReresolvedMatchesTarget) post_tap=\(postTap) ax_role=\(role) selection_len_delta=\(selectionDelta) outcome=\(outcome)"
+    }
+
     static func wordCount(in text: String) -> Int {
         text
             .split { $0.isWhitespace || $0.isNewline }

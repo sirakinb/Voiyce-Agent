@@ -207,6 +207,17 @@ struct DashboardView: View {
                 actionTitle: "Copy Transcript",
                 action: { dictationCoordinator.copyLastTranscriptToClipboard() }
             )
+        case .pasteUnconfirmed:
+            return SystemStatusMessage(
+                id: "dictation-paste-unconfirmed",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.pasteUnconfirmedDetail,
+                nextStep: DictationRecoveryCopy.pasteUnconfirmedNextStep,
+                tone: .warning,
+                actionTitle: nil,
+                action: nil
+            )
         case .authenticationRequired:
             return SystemStatusMessage(
                 id: "dictation-auth-required",

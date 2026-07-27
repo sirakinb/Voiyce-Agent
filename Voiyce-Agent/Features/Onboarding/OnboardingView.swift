@@ -401,6 +401,17 @@ struct OnboardingView: View {
                 actionTitle: "Copy Transcript",
                 action: { dictationCoordinator.copyLastTranscriptToClipboard() }
             )
+        case .pasteUnconfirmed:
+            return SystemStatusMessage(
+                id: "onboarding-dictation-paste-unconfirmed",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.pasteUnconfirmedDetail,
+                nextStep: DictationRecoveryCopy.pasteUnconfirmedNextStep,
+                tone: .warning,
+                actionTitle: nil,
+                action: nil
+            )
         case .authenticationRequired:
             return SystemStatusMessage(
                 id: "onboarding-dictation-auth",
