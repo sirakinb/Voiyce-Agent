@@ -5,6 +5,7 @@
 
 import AppKit
 import Foundation
+import Speech
 import Testing
 @testable import Voiyce
 
@@ -42,6 +43,17 @@ struct Voiyce_AgentTests {
         #expect(PermissionRefreshPolicy.shouldStopPolling(
             dictationPermissionsGranted: true
         ))
+    }
+
+    @Test func speechRecognitionRoutingPromptsOnlyWhenUndetermined() throws {
+        // notDetermined is the only state where the system will show its dialog.
+        #expect(SpeechRecognitionRequestPolicy.action(for: .notDetermined) == .prompt)
+        // Already granted: no dialog, no Settings trip.
+        #expect(SpeechRecognitionRequestPolicy.action(for: .authorized) == .alreadyAuthorized)
+        // Determined-but-not-granted: re-requesting is a silent no-op, so route
+        // the user to System Settings instead of appearing to "do nothing".
+        #expect(SpeechRecognitionRequestPolicy.action(for: .denied) == .openSettings)
+        #expect(SpeechRecognitionRequestPolicy.action(for: .restricted) == .openSettings)
     }
 
     @Test func accessStateRecoveryCopyTellsUsersWhatToDoNext() throws {
