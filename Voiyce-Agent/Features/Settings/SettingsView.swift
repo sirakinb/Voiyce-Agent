@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var betaAccessCode = ""
     @State private var isRedeemingBetaCode = false
     @State private var permissionRefreshStatus: String?
+    @State private var launchAtLogin = LaunchAtLoginManager()
     #if DEBUG
     @State private var onboardingResetStatus: String?
     #endif
@@ -77,6 +78,7 @@ struct SettingsView: View {
         .background(GroovedBackground())
         .onAppear {
             permissions.checkAllPermissions()
+            launchAtLogin.refresh()
         }
         .onChange(of: appState.selectedSettingsTab) { _, tab in
             if tab == 2 {
@@ -85,6 +87,7 @@ struct SettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             permissions.checkAllPermissions()
+            launchAtLogin.refresh()
         }
         .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
@@ -211,11 +214,21 @@ struct SettingsView: View {
             }
 
             settingsSection(title: "Startup") {
-                settingsRow(icon: "power", title: "Launch at Login", subtitle: "Start Voiyce when you log in") {
-                    Toggle("", isOn: .constant(false))
-                        .toggleStyle(.switch)
-                        .tint(AppTheme.accent)
+                settingsRow(icon: "power", title: "Launch at Login", subtitle: launchAtLoginSubtitle) {
+                    Toggle("", isOn: Binding(
+                        get: { launchAtLogin.isEnabled },
+                        set: { launchAtLogin.setEnabled($0) }
+                    ))
+                    .toggleStyle(.switch)
+                    .tint(AppTheme.accent)
+                    .accessibilityIdentifier("settings-launch-at-login")
                 }
+            }
+
+            if let launchError = launchAtLogin.errorMessage {
+                Text(launchError)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.destructive)
             }
 
             settingsSection(title: "Dictation") {
@@ -489,6 +502,14 @@ struct SettingsView: View {
 
     private var betaAccessButtonTitle: String {
         isRedeemingBetaCode ? "Unlocking..." : "Unlock"
+    }
+
+    private var launchAtLoginSubtitle: String {
+        if launchAtLogin.needsApproval {
+            return "Approve Voiyce in System Settings › General › Login Items to finish enabling."
+        }
+
+        return "Start Voiyce automatically when you log in."
     }
 
     private func openBillingDestination() {

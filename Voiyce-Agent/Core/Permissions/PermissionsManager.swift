@@ -140,12 +140,35 @@ final class PermissionsManager {
     }
 
     func requestSpeechRecognitionPermission() {
-        SFSpeechRecognizer.requestAuthorization { [weak self] status in
-            Task { @MainActor in
-                self?.speechRecognitionGranted = (status == .authorized)
-                self?.refreshPermissions()
+        switch SpeechRecognitionRequestPolicy.action(for: SFSpeechRecognizer.authorizationStatus()) {
+        case .alreadyAuthorized:
+            speechRecognitionGranted = true
+            refreshPermissions()
+        case .openSettings:
+            // The system only presents its authorization dialog once. Once the
+            // user has denied (or the state is restricted), re-requesting is a
+            // silent no-op, so send them to System Settings instead.
+            openSpeechRecognitionSettings()
+        case .prompt:
+            SFSpeechRecognizer.requestAuthorization { [weak self] status in
+                Task { @MainActor in
+                    self?.speechRecognitionGranted = (status == .authorized)
+                    if status == .authorized {
+                        self?.refreshPermissions()
+                    } else {
+                        self?.openSpeechRecognitionSettings()
+                    }
+                }
             }
         }
+    }
+
+    func openSpeechRecognitionSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition") {
+            NSWorkspace.shared.open(url)
+        }
+
+        startPermissionRefreshTimer()
     }
 
     // MARK: - Accessibility
@@ -323,5 +346,29 @@ struct PermissionRefreshPolicy {
         dictationPermissionsGranted: Bool
     ) -> Bool {
         dictationPermissionsGranted
+    }
+}
+
+/// What tapping "Grant" for Speech Recognition should do, given the current
+/// authorization status. Pure so the routing can be unit-tested without the
+/// Speech framework.
+enum SpeechAuthorizationAction: Equatable {
+    case alreadyAuthorized
+    case prompt
+    case openSettings
+}
+
+struct SpeechRecognitionRequestPolicy {
+    static func action(for status: SFSpeechRecognizerAuthorizationStatus) -> SpeechAuthorizationAction {
+        switch status {
+        case .authorized:
+            return .alreadyAuthorized
+        case .notDetermined:
+            return .prompt
+        case .denied, .restricted:
+            return .openSettings
+        @unknown default:
+            return .openSettings
+        }
     }
 }
