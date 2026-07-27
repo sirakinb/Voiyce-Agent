@@ -1,5 +1,6 @@
 import SwiftData
 import Cocoa
+import ApplicationServices
 
 @Observable
 final class DictationCoordinator {
@@ -176,21 +177,36 @@ final class DictationCoordinator {
                 await MainActor.run {
                     totalInjectedText = transcript
                     latestTranscript = transcript
-                    errorState = nil
-                    lastSuccessfulTranscriptionAt = Date()
                     let transcriptWordCount = DictationDebugLogCopy.wordCount(in: transcript)
                     print(DictationDebugLogCopy.transcriptReadyForInsertion(wordCount: transcriptWordCount))
-                    if injectText {
-                        textInjector.injectText(
+
+                    let injectionOutcome: TextInjectionOutcome? = injectText
+                        ? textInjector.injectText(
                             transcript,
                             targetBundleIdentifier: targetAppBundleIdentifier,
                             targetAppName: targetAppName
                         )
-                    }
+                        : nil
+
+                    // Preserve the words regardless of insertion outcome so a
+                    // blocked paste never loses the user's dictation.
                     if persistTranscript {
                         saveDictation(text: transcript)
                     }
-                    completion?(.success(transcript))
+
+                    if let insertionError = Self.postTranscriptionState(
+                        injectText: injectText,
+                        injectionOutcome: injectionOutcome
+                    ) {
+                        errorState = insertionError
+                        lastErrorAt = Date()
+                        print(DictationDebugLogCopy.operationFailed("insertion"))
+                        completion?(.failure(insertionError))
+                    } else {
+                        errorState = nil
+                        lastSuccessfulTranscriptionAt = Date()
+                        completion?(.success(transcript))
+                    }
                 }
             } catch {
                 let mappedError = mapError(error)
@@ -218,6 +234,51 @@ final class DictationCoordinator {
         }
     }
 
+    /// Never report a successful dictation when the words could not actually be
+    /// inserted. When injection is requested but Accessibility trust blocked it,
+    /// surface the recovery state; otherwise there is no insertion error.
+    static func postTranscriptionState(
+        injectText: Bool,
+        injectionOutcome: TextInjectionOutcome?
+    ) -> DictationErrorState? {
+        guard injectText else { return nil }
+        switch injectionOutcome {
+        case .accessibilityDenied:
+            return .accessibilityInsertionBlocked
+        case .clipboardUnavailable:
+            return .textInsertionFailed
+        case .injected, .none:
+            return nil
+        }
+    }
+
+    /// User-initiated recovery after a failed publication: put the last
+    /// transcript back on the clipboard through the verified seam. Only clears the
+    /// error when the write is confirmed, so the UI never implies the words are on
+    /// the clipboard unless they actually are. The transcript also remains in
+    /// history regardless, so nothing is lost.
+    @MainActor
+    @discardableResult
+    func copyLastTranscriptToClipboard() -> Bool {
+        guard !latestTranscript.isEmpty else { return false }
+        let didPublish = textInjector.copyToClipboard(latestTranscript)
+        if didPublish, errorState == .textInsertionFailed {
+            errorState = nil
+        }
+        return didPublish
+    }
+
+    /// Called when Voiyce becomes active again (e.g. returning from System
+    /// Settings). If the only outstanding error was a blocked insertion and
+    /// Accessibility is now trusted, clear it so the next dictation isn't gated
+    /// by a stale error.
+    func refreshAccessibilityRecovery() {
+        guard errorState == .accessibilityInsertionBlocked else { return }
+        if AXIsProcessTrusted() {
+            errorState = nil
+        }
+    }
+
     private func mapError(_ error: Error) -> DictationErrorState {
         if let error = error as? DictationErrorState {
             return error
@@ -240,8 +301,10 @@ final class DictationCoordinator {
     }
 }
 
-enum DictationErrorState: LocalizedError {
+enum DictationErrorState: LocalizedError, Equatable {
     case microphonePermissionDenied
+    case accessibilityInsertionBlocked
+    case textInsertionFailed
     case authenticationRequired
     case noInternet
     case noAudioCaptured
@@ -253,6 +316,10 @@ enum DictationErrorState: LocalizedError {
         switch self {
         case .microphonePermissionDenied:
             return "Microphone Access Needed"
+        case .accessibilityInsertionBlocked:
+            return "Accessibility Access Needed"
+        case .textInsertionFailed:
+            return "Couldn't Insert Text"
         case .authenticationRequired:
             return "Sign In Required"
         case .noInternet:
@@ -272,6 +339,10 @@ enum DictationErrorState: LocalizedError {
         switch self {
         case .microphonePermissionDenied:
             return "mic.slash.fill"
+        case .accessibilityInsertionBlocked:
+            return "hand.raised.slash.fill"
+        case .textInsertionFailed:
+            return "doc.on.clipboard.fill"
         case .authenticationRequired:
             return "person.crop.circle.badge.exclamationmark"
         case .noInternet:
@@ -291,6 +362,10 @@ enum DictationErrorState: LocalizedError {
         switch self {
         case .microphonePermissionDenied:
             return "Enable microphone access before starting dictation."
+        case .accessibilityInsertionBlocked:
+            return DictationRecoveryCopy.accessibilityInsertionBlockedDetail
+        case .textInsertionFailed:
+            return DictationRecoveryCopy.textInsertionFailedDetail
         case .authenticationRequired:
             return "Your Voiyce session is no longer valid. Sign in again before transcribing."
         case .noInternet:
@@ -312,6 +387,12 @@ enum DictationRecoveryCopy {
 
     static let transcriptionServiceName = "Transcription service"
     static let accountUsageLimitDetail = "This account has reached its current transcription limit."
+
+    static let accessibilityInsertionBlockedDetail = "Voiyce transcribed your words, but macOS blocked inserting them because Accessibility access is off. Your last dictation is on the clipboard — press Command-V to paste it now."
+    static let accessibilityInsertionBlockedNextStep = "Click Open Accessibility Settings, turn on Voiyce under Privacy & Security > Accessibility, then hold Control again. Your last dictation is on the clipboard — press Command-V to paste it now."
+
+    static let textInsertionFailedDetail = "Voiyce transcribed your words, but couldn't insert them into the app or copy them for you. Your last dictation is saved in History so it isn't lost."
+    static let textInsertionFailedNextStep = "Click Copy Transcript to put your last dictation on the clipboard, then press Command-V to paste it. Your words are also saved in History."
     static let serviceLimitDetail = "Voiyce transcription is temporarily unavailable because the beta service limit was reached."
     static let serviceLimitNextStep = "Try again later. If this blocks setup, email \(supportEmail) with the time it happened."
 

@@ -194,6 +194,31 @@ struct DashboardView: View {
                     permissions.requestMicrophonePermission()
                 }
             )
+        case .accessibilityInsertionBlocked:
+            return SystemStatusMessage(
+                id: "dictation-accessibility-blocked",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.accessibilityInsertionBlockedDetail,
+                nextStep: DictationRecoveryCopy.accessibilityInsertionBlockedNextStep,
+                tone: .warning,
+                actionTitle: "Open Accessibility Settings",
+                action: {
+                    rememberPermissionReturn()
+                    permissions.openAccessibilitySettings()
+                }
+            )
+        case .textInsertionFailed:
+            return SystemStatusMessage(
+                id: "dictation-text-insertion-failed",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.textInsertionFailedDetail,
+                nextStep: DictationRecoveryCopy.textInsertionFailedNextStep,
+                tone: .warning,
+                actionTitle: "Copy Transcript",
+                action: { dictationCoordinator.copyLastTranscriptToClipboard() }
+            )
         case .authenticationRequired:
             return SystemStatusMessage(
                 id: "dictation-auth-required",
