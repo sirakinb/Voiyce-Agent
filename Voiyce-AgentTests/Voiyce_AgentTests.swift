@@ -71,37 +71,37 @@ struct Voiyce_AgentTests {
     }
 
     @MainActor
-    @Test func textInjectorReportsClipboardUnavailableWhenTrustedButWriteFails() throws {
+    @Test func textInjectorReportsClipboardUnavailableWhenTrustedButWriteFails() async throws {
         // Accessibility trusted, but the pasteboard write/readback fails: never
         // claim the paste happened — report the failed publication instead.
         let injector = TextInjector(
             isAccessibilityTrusted: { true },
             publishToClipboard: { _ in false }
         )
-        #expect(injector.injectText("trusted but clipboard broke") == .clipboardUnavailable)
+        #expect(await injector.injectText("trusted but clipboard broke") == .clipboardUnavailable)
     }
 
     @MainActor
-    @Test func textInjectorReportsClipboardUnavailableWhenUntrustedAndWriteFails() throws {
+    @Test func textInjectorReportsClipboardUnavailableWhenUntrustedAndWriteFails() async throws {
         // Accessibility off AND the clipboard fallback write fails: the words are
         // neither inserted nor on the clipboard, so do not claim they are.
         let injector = TextInjector(
             isAccessibilityTrusted: { false },
             publishToClipboard: { _ in false }
         )
-        #expect(injector.injectText("untrusted and clipboard broke") == .clipboardUnavailable)
+        #expect(await injector.injectText("untrusted and clipboard broke") == .clipboardUnavailable)
     }
 
     @MainActor
-    @Test func duplicateSuppressionCannotMaskAFailedPublication() throws {
+    @Test func duplicateSuppressionCannotMaskAFailedPublication() async throws {
         // A failed publish must not be recorded for duplicate suppression;
         // repeating the identical paste must fail again, never replay as success.
         let injector = TextInjector(
             isAccessibilityTrusted: { true },
             publishToClipboard: { _ in false }
         )
-        #expect(injector.injectText("same words") == .clipboardUnavailable)
-        #expect(injector.injectText("same words") == .clipboardUnavailable)
+        #expect(await injector.injectText("same words") == .clipboardUnavailable)
+        #expect(await injector.injectText("same words") == .clipboardUnavailable)
     }
 
     @MainActor
@@ -138,13 +138,13 @@ struct Voiyce_AgentTests {
     }
 
     @MainActor
-    @Test func textInjectorReportsAccessibilityDeniedAndKeepsWordsOnClipboard() throws {
+    @Test func textInjectorReportsAccessibilityDeniedAndKeepsWordsOnClipboard() async throws {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString("prior-clipboard", forType: .string)
 
         let injector = TextInjector(isAccessibilityTrusted: { false })
-        let outcome = injector.injectText("keep these dictated words")
+        let outcome = await injector.injectText("keep these dictated words")
 
         #expect(outcome == .accessibilityDenied)
         // The transcript stays on the clipboard so the user can paste it manually.
@@ -152,9 +152,33 @@ struct Voiyce_AgentTests {
     }
 
     @MainActor
-    @Test func textInjectorReportsInjectedWhenAccessibilityTrusted() throws {
-        let injector = TextInjector(isAccessibilityTrusted: { true })
-        #expect(injector.injectText("trusted insertion path") == .injected)
+    @Test func textInjectorReportsInjectedWhenAccessibilityTrustedAndConfirmed() async throws {
+        var fieldValue = ""
+        let injector = TextInjector(
+            isAccessibilityTrusted: { true },
+            publishToClipboard: { text in
+                fieldValue = text
+                return true
+            },
+            readClipboard: { fieldValue },
+            frontmostProcessID: { 100 },
+            readFocusedFieldState: {
+                FocusedFieldState(
+                    value: fieldValue,
+                    selectedRange: TextSelectionRange(location: fieldValue.count, length: 0),
+                    role: "AXTextField",
+                    processID: 100,
+                    isIntrospectable: true
+                )
+            },
+            activateTargetProcess: { _ in true },
+            postPasteChord: {
+                fieldValue = "trusted insertion path"
+            },
+            sleep: { _ in }
+        )
+
+        #expect(await injector.injectText("trusted insertion path") == .injected)
     }
 
     @Test func accessibilityInsertionBlockedCopyPreservesWordsAndRoutesToSettings() throws {
