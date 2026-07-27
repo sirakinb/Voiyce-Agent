@@ -191,10 +191,30 @@ struct TextInjectorAutopasteTests {
     @MainActor
     @Test func mismatchedFocusedElementIdentityBlocksPaste() async {
         let harness = TextInjectorTestHarness()
+        let target = harness.targetContext()
         harness.focusedElementIdentity = "AXTextField|99,99,300,24"
 
         let injector = harness.makeInjector()
-        let outcome = await injector.injectText("hello", targetContext: harness.targetContext())
+        let outcome = await injector.injectText("hello", targetContext: target)
+
+        #expect(outcome == .pasteUnconfirmed)
+        #expect(harness.clipboard == "hello")
+        #expect(harness.pastePostCount == 0)
+    }
+
+    @MainActor
+    @Test func missingCapturedIdentityDegradesWithoutPosting() async {
+        let harness = TextInjectorTestHarness()
+        let target = PasteTargetContext(
+            processID: 100,
+            bundleIdentifier: "com.test",
+            appName: "Test",
+            windowIdentity: nil,
+            focusedElementIdentity: "AXTextField|10,20,300,24"
+        )
+
+        let injector = harness.makeInjector()
+        let outcome = await injector.injectText("hello", targetContext: target)
 
         #expect(outcome == .pasteUnconfirmed)
         #expect(harness.clipboard == "hello")

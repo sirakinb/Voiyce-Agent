@@ -187,25 +187,25 @@ final class TextInjector {
             switch step {
             case .commandFlagsChanged(let down):
                 guard let event = CGEvent(
-                    source: source,
+                    keyboardEventSource: source,
                     virtualKey: commandKeyCode,
                     keyDown: down
                 ) else { continue }
-                event.type = .flagsChanged
-                event.flags = down ? .maskCommand : []
-                event.post(tap: .cghidEventTap)
+                event.type = CGEventType.flagsChanged
+                event.flags = down ? CGEventFlags.maskCommand : CGEventFlags([])
+                event.post(tap: CGEventTapLocation.cghidEventTap)
             case .keyDown(let keyCode):
                 guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true) else {
                     continue
                 }
-                event.flags = .maskCommand
-                event.post(tap: .cghidEventTap)
+                event.flags = CGEventFlags.maskCommand
+                event.post(tap: CGEventTapLocation.cghidEventTap)
             case .keyUp(let keyCode):
                 guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
                     continue
                 }
-                event.flags = .maskCommand
-                event.post(tap: .cghidEventTap)
+                event.flags = CGEventFlags.maskCommand
+                event.post(tap: CGEventTapLocation.cghidEventTap)
             }
         }
     }
@@ -584,15 +584,13 @@ final class TextInjector {
         guard let field, let processID = field.processID, processID == target.processID else {
             return false
         }
-        if let expectedWindow = target.windowIdentity,
-           field.windowIdentity != expectedWindow {
+        guard let expectedWindow = target.windowIdentity,
+              let expectedElement = target.focusedElementIdentity,
+              let fieldWindow = field.windowIdentity,
+              let fieldElement = field.focusedElementIdentity else {
             return false
         }
-        if let expectedElement = target.focusedElementIdentity,
-           field.focusedElementIdentity != expectedElement {
-            return false
-        }
-        return true
+        return fieldWindow == expectedWindow && fieldElement == expectedElement
     }
 
     private func resolveTargetContext(
@@ -606,7 +604,7 @@ final class TextInjector {
             return nil
         }
 
-        return capturePasteTargetContext(from: application)
+        return TextInjector.capturePasteTargetContext(from: application)
     }
 
     private static func windowIdentity(for element: AXUIElement) -> String? {
