@@ -97,6 +97,7 @@ private final class TextInjectorTestHarness {
 }
 
 struct TextInjectorAutopasteTests {
+    @MainActor
     @Test func hidPasteChordUsesFlagsChangedSequence() {
         #expect(TextInjector.hidPasteChordSteps() == [
             .commandFlagsChanged(down: true),
