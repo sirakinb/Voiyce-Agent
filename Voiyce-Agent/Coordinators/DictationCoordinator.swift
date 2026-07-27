@@ -245,9 +245,27 @@ final class DictationCoordinator {
         switch injectionOutcome {
         case .accessibilityDenied:
             return .accessibilityInsertionBlocked
+        case .clipboardUnavailable:
+            return .textInsertionFailed
         case .injected, .none:
             return nil
         }
+    }
+
+    /// User-initiated recovery after a failed publication: put the last
+    /// transcript back on the clipboard through the verified seam. Only clears the
+    /// error when the write is confirmed, so the UI never implies the words are on
+    /// the clipboard unless they actually are. The transcript also remains in
+    /// history regardless, so nothing is lost.
+    @MainActor
+    @discardableResult
+    func copyLastTranscriptToClipboard() -> Bool {
+        guard !latestTranscript.isEmpty else { return false }
+        let didPublish = textInjector.copyToClipboard(latestTranscript)
+        if didPublish, errorState == .textInsertionFailed {
+            errorState = nil
+        }
+        return didPublish
     }
 
     /// Called when Voiyce becomes active again (e.g. returning from System
@@ -286,6 +304,7 @@ final class DictationCoordinator {
 enum DictationErrorState: LocalizedError, Equatable {
     case microphonePermissionDenied
     case accessibilityInsertionBlocked
+    case textInsertionFailed
     case authenticationRequired
     case noInternet
     case noAudioCaptured
@@ -299,6 +318,8 @@ enum DictationErrorState: LocalizedError, Equatable {
             return "Microphone Access Needed"
         case .accessibilityInsertionBlocked:
             return "Accessibility Access Needed"
+        case .textInsertionFailed:
+            return "Couldn't Insert Text"
         case .authenticationRequired:
             return "Sign In Required"
         case .noInternet:
@@ -320,6 +341,8 @@ enum DictationErrorState: LocalizedError, Equatable {
             return "mic.slash.fill"
         case .accessibilityInsertionBlocked:
             return "hand.raised.slash.fill"
+        case .textInsertionFailed:
+            return "doc.on.clipboard.fill"
         case .authenticationRequired:
             return "person.crop.circle.badge.exclamationmark"
         case .noInternet:
@@ -341,6 +364,8 @@ enum DictationErrorState: LocalizedError, Equatable {
             return "Enable microphone access before starting dictation."
         case .accessibilityInsertionBlocked:
             return DictationRecoveryCopy.accessibilityInsertionBlockedDetail
+        case .textInsertionFailed:
+            return DictationRecoveryCopy.textInsertionFailedDetail
         case .authenticationRequired:
             return "Your Voiyce session is no longer valid. Sign in again before transcribing."
         case .noInternet:
@@ -365,6 +390,9 @@ enum DictationRecoveryCopy {
 
     static let accessibilityInsertionBlockedDetail = "Voiyce transcribed your words, but macOS blocked inserting them because Accessibility access is off. Your last dictation is on the clipboard — press Command-V to paste it now."
     static let accessibilityInsertionBlockedNextStep = "Click Open Accessibility Settings, turn on Voiyce under Privacy & Security > Accessibility, then hold Control again. Your last dictation is on the clipboard — press Command-V to paste it now."
+
+    static let textInsertionFailedDetail = "Voiyce transcribed your words, but couldn't insert them into the app or copy them for you. Your last dictation is saved in History so it isn't lost."
+    static let textInsertionFailedNextStep = "Click Copy Transcript to put your last dictation on the clipboard, then press Command-V to paste it. Your words are also saved in History."
     static let serviceLimitDetail = "Voiyce transcription is temporarily unavailable because the beta service limit was reached."
     static let serviceLimitNextStep = "Try again later. If this blocks setup, email \(supportEmail) with the time it happened."
 

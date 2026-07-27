@@ -62,6 +62,79 @@ struct Voiyce_AgentTests {
             injectText: false,
             injectionOutcome: nil
         ) == nil)
+        // Clipboard publication failed entirely → distinct recovery state, not a
+        // silent success and not the "words are on the clipboard" state.
+        #expect(DictationCoordinator.postTranscriptionState(
+            injectText: true,
+            injectionOutcome: .clipboardUnavailable
+        ) == .textInsertionFailed)
+    }
+
+    @MainActor
+    @Test func textInjectorReportsClipboardUnavailableWhenTrustedButWriteFails() throws {
+        // Accessibility trusted, but the pasteboard write/readback fails: never
+        // claim the paste happened — report the failed publication instead.
+        let injector = TextInjector(
+            isAccessibilityTrusted: { true },
+            publishToClipboard: { _ in false }
+        )
+        #expect(injector.injectText("trusted but clipboard broke") == .clipboardUnavailable)
+    }
+
+    @MainActor
+    @Test func textInjectorReportsClipboardUnavailableWhenUntrustedAndWriteFails() throws {
+        // Accessibility off AND the clipboard fallback write fails: the words are
+        // neither inserted nor on the clipboard, so do not claim they are.
+        let injector = TextInjector(
+            isAccessibilityTrusted: { false },
+            publishToClipboard: { _ in false }
+        )
+        #expect(injector.injectText("untrusted and clipboard broke") == .clipboardUnavailable)
+    }
+
+    @MainActor
+    @Test func duplicateSuppressionCannotMaskAFailedPublication() throws {
+        // A failed publish must not be recorded for duplicate suppression;
+        // repeating the identical paste must fail again, never replay as success.
+        let injector = TextInjector(
+            isAccessibilityTrusted: { true },
+            publishToClipboard: { _ in false }
+        )
+        #expect(injector.injectText("same words") == .clipboardUnavailable)
+        #expect(injector.injectText("same words") == .clipboardUnavailable)
+    }
+
+    @MainActor
+    @Test func copyLastTranscriptRecoversFromInsertionFailure() throws {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        let coordinator = DictationCoordinator()
+        coordinator.latestTranscript = "recover these dictated words"
+        coordinator.errorState = .textInsertionFailed
+
+        let didCopy = coordinator.copyLastTranscriptToClipboard()
+        #expect(didCopy)
+        // Verified write clears the failure state and the words are on the clipboard.
+        #expect(coordinator.errorState == nil)
+        #expect(pasteboard.string(forType: .string) == "recover these dictated words")
+
+        // Nothing to recover when there is no transcript.
+        let empty = DictationCoordinator()
+        empty.latestTranscript = ""
+        #expect(!empty.copyLastTranscriptToClipboard())
+    }
+
+    @Test func textInsertionFailedCopyDoesNotClaimClipboardAndOffersRecovery() throws {
+        let detail = DictationErrorState.textInsertionFailed.errorDescription ?? ""
+        // Must NOT claim the words are on the clipboard — they aren't in this state.
+        #expect(!detail.localizedCaseInsensitiveContains("on the clipboard"))
+        // Words are preserved and a retry-copy path is offered.
+        #expect(detail.localizedCaseInsensitiveContains("History"))
+        #expect(DictationRecoveryCopy.textInsertionFailedNextStep
+            .localizedCaseInsensitiveContains("Copy Transcript"))
+        #expect(DictationRecoveryCopy.textInsertionFailedNextStep
+            .localizedCaseInsensitiveContains("Command-V"))
     }
 
     @MainActor

@@ -391,6 +391,17 @@ struct OnboardingView: View {
                 actionTitle: "Open Accessibility Settings",
                 action: { permissions.openAccessibilitySettings() }
             )
+        case .textInsertionFailed:
+            return SystemStatusMessage(
+                id: "onboarding-dictation-text-insertion-failed",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.textInsertionFailedDetail,
+                nextStep: DictationRecoveryCopy.textInsertionFailedNextStep,
+                tone: .warning,
+                actionTitle: "Copy Transcript",
+                action: { dictationCoordinator.copyLastTranscriptToClipboard() }
+            )
         case .authenticationRequired:
             return SystemStatusMessage(
                 id: "onboarding-dictation-auth",

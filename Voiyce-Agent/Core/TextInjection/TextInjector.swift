@@ -5,8 +5,15 @@ import ApplicationServices
 /// Accessibility trust; without it the ⌘V CGEvent silently no-ops, so we report
 /// that back to the caller instead of pretending the words landed.
 enum TextInjectionOutcome: Equatable {
+    /// Accessibility trusted, transcript verified on the clipboard, ⌘V scheduled.
     case injected
+    /// Accessibility off; the ⌘V would no-op, but the transcript is verifiably on
+    /// the clipboard for a manual paste.
     case accessibilityDenied
+    /// The transcript could not be published to the clipboard at all (write or
+    /// readback failed). The words are neither inserted nor on the clipboard, so
+    /// the caller must fall back to persisted history and a retry-copy path.
+    case clipboardUnavailable
 }
 
 @MainActor
@@ -22,8 +29,36 @@ final class TextInjector {
     /// touching real system state. Defaults to the live `AXIsProcessTrusted()`.
     private let isAccessibilityTrusted: () -> Bool
 
-    init(isAccessibilityTrusted: @escaping () -> Bool = { AXIsProcessTrusted() }) {
+    /// Publishes text to the clipboard and verifies it via readback. Injected so
+    /// tests can force a publication failure deterministically without depending
+    /// on real pasteboard state. Returns whether the transcript is verifiably on
+    /// the clipboard.
+    private let publishToClipboard: (String) -> Bool
+
+    init(
+        isAccessibilityTrusted: @escaping () -> Bool = { AXIsProcessTrusted() },
+        publishToClipboard: @escaping (String) -> Bool = TextInjector.defaultPublishToClipboard
+    ) {
         self.isAccessibilityTrusted = isAccessibilityTrusted
+        self.publishToClipboard = publishToClipboard
+    }
+
+    /// Default clipboard publication: write the string and confirm it landed by
+    /// reading it straight back. A failed write or a mismatched readback means the
+    /// words are not on the clipboard, so we must not report success.
+    static func defaultPublishToClipboard(_ text: String) -> Bool {
+        let pasteboard = NSPasteboard.general
+        pasteboard.declareTypes([.string], owner: nil)
+        let didWrite = pasteboard.setString(text, forType: .string)
+        return didWrite && pasteboard.string(forType: .string) == text
+    }
+
+    /// User-initiated recovery: place `text` back on the clipboard through the
+    /// same verified seam. Returns whether the write was confirmed so callers
+    /// never imply the words are on the clipboard when they aren't.
+    @discardableResult
+    func copyToClipboard(_ text: String) -> Bool {
+        publishToClipboard(text)
     }
 
     /// Inject a chunk of text into the currently focused app using pasteboard + Cmd+V.
@@ -78,6 +113,10 @@ final class TextInjector {
             ?? "Unknown"
         let now = Date()
 
+        // Duplicate suppression only fires for a paste that already landed
+        // successfully: `lastInjection` is recorded solely after a verified
+        // publish below, so a prior failed publication can never be replayed here
+        // as a fake success.
         if let lastInjection,
            lastInjection.text == text,
            lastInjection.appName == destinationAppName,
@@ -87,29 +126,35 @@ final class TextInjector {
         }
 
         // Without Accessibility trust the ⌘V CGEvent posts but is silently
-        // dropped by the window server. Detect that up front, keep the transcript
-        // on the clipboard so the user can paste it manually, and report the
-        // blocked outcome instead of faking a successful insertion.
+        // dropped by the window server. Detect that up front and fall back to a
+        // manual paste — but only claim the transcript is on the clipboard when
+        // the write is actually verified. If even that fails, report it so the
+        // caller can surface history + a retry-copy path instead of losing words.
         guard isAccessibilityTrusted() else {
-            let pasteboard = NSPasteboard.general
-            pasteboard.declareTypes([.string], owner: nil)
-            pasteboard.setString(text, forType: .string)
+            guard publishToClipboard(text) else {
+                print("[TextInjector] Accessibility not trusted and clipboard publish failed")
+                return .clipboardUnavailable
+            }
             print("[TextInjector] Accessibility not trusted; left transcript on clipboard for manual paste")
             return .accessibilityDenied
         }
 
-        lastInjection = (text: text, appName: destinationAppName, timestamp: now)
         let pasteboard = NSPasteboard.general
         let previousContents = pasteboard.string(forType: .string)
+
+        // Publish + verify before scheduling the paste. A failed publication must
+        // never be reported as an insertion — the ⌘V would paste stale or empty
+        // clipboard contents.
+        guard publishToClipboard(text) else {
+            print("[TextInjector] Failed to publish transcript to pasteboard")
+            return .clipboardUnavailable
+        }
+
+        // The transcript is verifiably on the clipboard and the paste is about to
+        // be queued, so it is now safe to record for duplicate suppression.
+        lastInjection = (text: text, appName: destinationAppName, timestamp: now)
         let injectionID = UUID()
         activeInjectionID = injectionID
-
-        pasteboard.declareTypes([.string], owner: nil)
-        let didWriteTranscript = pasteboard.setString(text, forType: .string)
-        guard didWriteTranscript, pasteboard.string(forType: .string) == text else {
-            print("[TextInjector] Failed to publish transcript to pasteboard")
-            return .injected
-        }
 
         let shouldReactivateTarget = {
             guard let targetApplication, let targetBundleIdentifier else { return false }

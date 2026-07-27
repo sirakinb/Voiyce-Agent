@@ -208,6 +208,17 @@ struct DashboardView: View {
                     permissions.openAccessibilitySettings()
                 }
             )
+        case .textInsertionFailed:
+            return SystemStatusMessage(
+                id: "dictation-text-insertion-failed",
+                icon: error.icon,
+                title: error.title,
+                detail: DictationRecoveryCopy.textInsertionFailedDetail,
+                nextStep: DictationRecoveryCopy.textInsertionFailedNextStep,
+                tone: .warning,
+                actionTitle: "Copy Transcript",
+                action: { dictationCoordinator.copyLastTranscriptToClipboard() }
+            )
         case .authenticationRequired:
             return SystemStatusMessage(
                 id: "dictation-auth-required",
