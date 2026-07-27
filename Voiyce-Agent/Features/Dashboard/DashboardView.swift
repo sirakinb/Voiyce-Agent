@@ -149,7 +149,7 @@ struct DashboardView: View {
                     icon: "creditcard.trianglebadge.exclamationmark",
                     title: billingManager.paymentRequiredTitle,
                     detail: billingManager.paymentRequiredDetail,
-                    nextStep: "Click \(billingActionTitle), finish checkout in Stripe, then return to Voiyce and refresh billing access.",
+                    nextStep: "Click \(billingActionTitle) to finish at pentridgemedia.com/labs, then return to Voiyce and refresh billing access.",
                     tone: .info,
                     actionTitle: billingActionTitle,
                     action: { openBillingDestination() }

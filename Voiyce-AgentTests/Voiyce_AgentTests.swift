@@ -46,7 +46,7 @@ struct Voiyce_AgentTests {
 
     @Test func accessStateRecoveryCopyTellsUsersWhatToDoNext() throws {
         #expect(AccessState.signedOut.recoveryStep.contains("Sign in again"))
-        #expect(AccessState.paymentRequired.recoveryStep.contains("Choose a plan"))
+        #expect(AccessState.paymentRequired.recoveryStep.contains("Pentridge Labs"))
         #expect(AccessState.signedOut.recoveryStep.contains("restart"))
         #expect(AccessState.paymentRequired.recoveryStep.contains("restart"))
         #expect(!AccessState.signedOut.recoveryStep.localizedCaseInsensitiveContains("backend"))

@@ -75,7 +75,7 @@ enum AccessState {
         case .signedOut:
             return "Sign in again, then restart Dictation."
         case .paymentRequired:
-            return "Choose a plan or refresh billing, then restart Dictation."
+            return "Get Voiyce at Pentridge Labs or refresh billing, then restart Dictation."
         }
     }
 }

@@ -34,9 +34,6 @@ enum AppConstants {
     static let freeWordLimit = 2500
     static let trialLengthDays = 7
     static let averageTypingWordsPerMinute = 45
-    static let proMonthlyPriceDisplay = "$12/month"
-    static let proYearlyPriceDisplay = "$120/year"
-    static let proYearlyEffectiveMonthlyPriceDisplay = "$10/month"
     static let maxDictationDuration: TimeInterval = 55
     static let supportEmail = "aki.b@pentridgemedia.com"
 
