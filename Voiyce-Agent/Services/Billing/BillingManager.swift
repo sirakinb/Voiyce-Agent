@@ -6,52 +6,14 @@ import InsForgeCore
 import InsForgeDatabase
 import InsForgeFunctions
 
+/// Decoded from the backend billing status for internal compatibility. Voiyce is
+/// sold only through Pentridge Labs, so plans are no longer surfaced or chosen in
+/// the app — this type carries no user-facing display copy.
 enum BillingPlan: String, CaseIterable, Identifiable, Decodable, Sendable {
     case monthly
     case yearly
 
     var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .monthly:
-            return "Pro Monthly"
-        case .yearly:
-            return "Pro Yearly"
-        }
-    }
-
-    var priceDisplay: String {
-        switch self {
-        case .monthly:
-            return AppConstants.proMonthlyPriceDisplay
-        case .yearly:
-            return AppConstants.proYearlyPriceDisplay
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .monthly:
-            return "Unlimited dictation with flexible monthly billing."
-        case .yearly:
-            return "Unlimited dictation for the year at \(AppConstants.proYearlyEffectiveMonthlyPriceDisplay) effective."
-        }
-    }
-
-    var badge: String? {
-        switch self {
-        case .monthly:
-            return nil
-        case .yearly:
-            return "Best value"
-        }
-    }
-}
-
-enum BillingLimitCopy {
-    static let settingsSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets while agent tiers are finalized."
-    static let checkoutSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets; Power-level Act limits are not sold in this build."
 }
 
 struct BillingStatusSnapshot: Decodable, Sendable {
@@ -133,10 +95,6 @@ struct BillingStatusSnapshot: Decodable, Sendable {
     }
 }
 
-private struct BillingURLResponse: Decodable {
-    let url: String
-}
-
 private struct SyncBillingResponse: Decodable {
     let synced: Bool
     let hasSubscription: Bool
@@ -159,8 +117,6 @@ final class BillingManager {
 
     var status: BillingStatusSnapshot?
     var isRefreshing = false
-    var isOpeningCheckout = false
-    var isOpeningPortal = false
     var errorMessage: String?
     var infoMessage: String?
 
@@ -212,37 +168,6 @@ final class BillingManager {
         return tier == "pro" ? "Unlimited" : "10,000 words/month"
     }
 
-    var betaMonthlySpendRemainingDisplay: String {
-        betaCurrencyDisplay(status?.betaMonthlySpendRemainingUSD ?? 0)
-    }
-
-    var betaMonthlySpendUsedDisplay: String {
-        betaCurrencyDisplay(status?.betaMonthlySpendUsedUSD ?? 0)
-    }
-
-    var betaMonthlySpendLimitDisplay: String {
-        currencyDisplay(status?.betaMonthlySpendLimitUSD ?? 20)
-    }
-
-    var preferredPlan: BillingPlan? {
-        status?.preferredPlan
-    }
-
-    var activePlan: BillingPlan? {
-        status?.activePlan
-    }
-
-    var checkoutDefaultPlan: BillingPlan {
-        preferredPlan ?? .yearly
-    }
-
-    private var preferredPlanTitle: String? {
-        preferredPlan?.title
-    }
-
-    private var activeSubscriptionPlan: BillingPlan? {
-        activePlan ?? preferredPlan
-    }
 
     var requiresSubscription: Bool {
         // No snapshot yet (e.g. network failure at launch): fail closed so a
@@ -280,15 +205,7 @@ final class BillingManager {
         }
 
         if hasActiveSubscription {
-            if let activeSubscriptionPlan {
-                return "Voiyce \(activeSubscriptionPlan.title)"
-            }
-
             return "Voiyce Pro"
-        }
-
-        if hasBetaAccess {
-            return betaMonthlyCapReached ? "Beta Cap Reached" : "Voiyce Beta"
         }
 
         if requiresSubscription {
@@ -312,101 +229,38 @@ final class BillingManager {
         }
 
         if hasActiveSubscription {
-            if let activeSubscriptionPlan, cancelAtPeriodEnd, let renewalDateLabel {
-                return "\(activeSubscriptionPlan.title) is active through \(renewalDateLabel). Subscription ends at period close."
-            }
-
-            if let activeSubscriptionPlan, let renewalDateLabel {
-                return "\(activeSubscriptionPlan.title) is active. Renews on \(renewalDateLabel)."
-            }
-
-            if let activeSubscriptionPlan {
-                return "\(activeSubscriptionPlan.title) is active. Manage or cancel anytime from billing."
-            }
-
             if cancelAtPeriodEnd, let renewalDateLabel {
-                return "Active through \(renewalDateLabel). Subscription ends at period close."
+                return "Voiyce Pro is active through \(renewalDateLabel). It ends at period close."
             }
 
             if let renewalDateLabel {
-                return "Unlimited dictation is active. Renews on \(renewalDateLabel)."
+                return "Voiyce Pro is active. Renews on \(renewalDateLabel)."
             }
 
-            return "Unlimited dictation is active. Manage or cancel anytime from billing."
-        }
-
-        if hasBetaAccess {
-            return "Beta access is active."
+            return "Voiyce Pro is active."
         }
 
         if requiresSubscription {
-            if let preferredPlanTitle {
-                return "Your \(AppConstants.trialLengthDays)-day Pro trial ended. \(preferredPlanTitle) is already saved from the website and will be preselected in checkout."
-            }
-
-            return "Your \(AppConstants.trialLengthDays)-day Pro trial ended. Choose Monthly or Yearly to keep dictating."
+            return "Your \(AppConstants.trialLengthDays)-day trial ended. Get Voiyce at Pentridge Labs to keep dictating."
         }
 
-        if let preferredPlanTitle {
-            return "\(freeWordsRemaining) of \(AppConstants.freeWordLimit) trial words remaining. \(preferredPlanTitle) is saved from the website if you decide to upgrade."
-        }
-
-        return "\(freeWordsRemaining) of \(AppConstants.freeWordLimit) trial words remaining. No credit card required during trial."
+        return "\(freeWordsRemaining) of \(AppConstants.freeWordLimit) trial words remaining."
     }
 
     var primaryActionTitle: String {
-        if hasActiveSubscription {
-            return "Manage Subscription"
-        }
-
-        if let preferredPlan {
-            switch preferredPlan {
-            case .monthly:
-                return requiresSubscription ? "Choose Monthly Plan" : "View Monthly Plan"
-            case .yearly:
-                return requiresSubscription ? "Choose Yearly Plan" : "View Yearly Plan"
-            }
-        }
-
-        if requiresSubscription {
-            return "Choose Plan"
-        }
-
-        return "View Plans"
+        hasActiveSubscription ? "Manage on Pentridge Labs" : "Get Voiyce"
     }
 
     var paymentRequiredTitle: String {
-        guard let preferredPlanTitle else {
-            return "Choose A Plan"
-        }
-
-        return "Finish \(preferredPlanTitle)"
+        "Your Trial Has Ended"
     }
 
     var paymentRequiredDetail: String {
-        guard let preferredPlanTitle else {
-            return "Your Pro trial has ended. Pick Monthly or Yearly to keep dictating with unlimited words."
-        }
-
-        return "Your Pro trial has ended. \(preferredPlanTitle) is already selected from the website, so you can finish checkout and keep dictating with unlimited words."
+        "Voiyce is now part of the Pentridge suite. Get it at pentridgemedia.com/labs to keep dictating."
     }
 
     var inactiveTrialFooter: String {
-        if hasBetaAccess {
-            return "The promo code unlocks dictation. Rate limits may apply."
-        }
-
-        let base = "Your Pro trial ends after \(AppConstants.trialLengthDays) days or when you reach \(AppConstants.freeWordLimit) words, whichever comes first."
-
-        guard !hasActiveSubscription, let preferredPlanTitle else {
-            return base
-        }
-
-        return "\(base) \(preferredPlanTitle) is saved from the website and will be preselected if you upgrade."
-    }
-
-    var usageLimitSummary: String {
-        BillingLimitCopy.settingsSummary
+        "Your trial ends after \(AppConstants.trialLengthDays) days or when you reach \(AppConstants.freeWordLimit) words, whichever comes first."
     }
 
     var canManageSubscription: Bool {
@@ -427,23 +281,6 @@ final class BillingManager {
 
     private var currentPeriodEnd: Date? {
         status?.currentPeriodEnd
-    }
-
-    private func currencyDisplay(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "$\(value)"
-    }
-
-    private func betaCurrencyDisplay(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 4
-        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "$\(value)"
     }
 
     func reset() {
@@ -516,25 +353,6 @@ final class BillingManager {
         await refreshStatus()
     }
 
-    func redeemBetaAccessCode(_ code: String) async {
-        let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedCode.isEmpty else {
-            errorMessage = "Enter a beta code to unlock beta access."
-            return
-        }
-
-        clearMessages()
-
-        do {
-            status = try await client.database
-                .rpc("redeem_beta_access_code", args: ["p_code": normalizedCode])
-                .executeSingle()
-            infoMessage = "Beta access unlocked."
-        } catch {
-            errorMessage = "That beta code is not valid. Check the code and try again."
-        }
-    }
-
     func recordWordUsage(_ wordCount: Int) async {
         guard wordCount > 0 else { return }
 
@@ -549,36 +367,15 @@ final class BillingManager {
         }
     }
 
-    func beginCheckout(plan: BillingPlan = .monthly) async {
-        guard !isOpeningCheckout else { return }
-
+    /// Voiyce is sold only through Pentridge Labs, so every purchase/upgrade/
+    /// manage action opens that page in the browser instead of an in-app
+    /// Stripe checkout or billing portal.
+    func openPurchasePage() {
         clearMessages()
-        isOpeningCheckout = true
-        defer { isOpeningCheckout = false }
 
         do {
-            let response: BillingURLResponse = try await client.functions.invoke(
-                "create-checkout-session",
-                body: ["plan": plan.rawValue]
-            )
-            try openExternalURL(from: response.url)
-            infoMessage = "Stripe Checkout opened in your browser."
-        } catch {
-            errorMessage = friendlyMessage(for: error)
-        }
-    }
-
-    func openBillingPortal() async {
-        guard !isOpeningPortal else { return }
-
-        clearMessages()
-        isOpeningPortal = true
-        defer { isOpeningPortal = false }
-
-        do {
-            let response: BillingURLResponse = try await client.functions.invoke("create-portal-session")
-            try openExternalURL(from: response.url)
-            infoMessage = "Stripe billing portal opened in your browser."
+            try openExternalURL(from: AppConstants.pentridgeLabsPurchaseURL)
+            infoMessage = "Opening Pentridge Labs in your browser."
         } catch {
             errorMessage = friendlyMessage(for: error)
         }
@@ -598,11 +395,9 @@ final class BillingManager {
 
         switch state {
         case "success":
-            infoMessage = "Billing completed. Refreshing your access now."
+            infoMessage = "Refreshing your access now."
         case "cancelled":
-            infoMessage = "Checkout was cancelled."
-        case "portal":
-            infoMessage = "Billing portal closed. Refreshing your access now."
+            infoMessage = "No changes made. Refreshing your access."
         default:
             infoMessage = "Refreshing your billing access."
         }
@@ -631,7 +426,7 @@ final class BillingManager {
 }
 
 enum BillingRecoveryCopy {
-    static let checkoutLinkInvalid = "Billing could not open the checkout link. Try again, then contact support if it keeps happening."
+    static let checkoutLinkInvalid = "Voiyce could not open Pentridge Labs. Try again, then contact support if it keeps happening."
     static let generic = "Billing could not update just now. Try again, then contact support if it keeps happening."
 
     static func message(for error: Error) -> String {

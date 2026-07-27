@@ -8,15 +8,17 @@ import InsForgeAuth
 import SwiftUI
 
 enum SettingsLaunchCopy {
-    static let supportExportSubtitle = "Creates a local redacted Agent Log bundle for support."
+    static let supportExportSubtitle = "Creates a local redacted diagnostics bundle for support."
     static let supportExportFailed = "Could not export the redacted support log."
     static let supportExportedPrefix = "Redacted support log exported:"
+    static let productSuiteAttribution = "Part of the Pentridge product suite"
 
     static var visibleStrings: [String] {
         [
             supportExportSubtitle,
             supportExportFailed,
-            supportExportedPrefix
+            supportExportedPrefix,
+            productSuiteAttribution
         ]
     }
 }
@@ -26,9 +28,6 @@ struct SettingsView: View {
     @Environment(AuthenticationManager.self) private var authenticationManager
     @Environment(BillingManager.self) private var billingManager
     @Environment(PermissionsManager.self) private var permissions
-    @State private var isBillingPlanPickerPresented = false
-    @State private var betaAccessCode = ""
-    @State private var isRedeemingBetaCode = false
     @State private var permissionRefreshStatus: String?
     @State private var launchAtLogin = LaunchAtLoginManager()
     #if DEBUG
@@ -89,7 +88,6 @@ struct SettingsView: View {
             permissions.checkAllPermissions()
             launchAtLogin.refresh()
         }
-        .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
     // MARK: - General Tab
@@ -141,51 +139,6 @@ struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .buttonStyle(.plain)
                     .disabled(isBillingBusy)
-                }
-
-                settingsRow(
-                    icon: "gauge.with.dots.needle",
-                    title: "Usage Limits",
-                    subtitle: billingManager.usageLimitSummary
-                ) {
-                    EmptyView()
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Usage Limits. \(billingManager.usageLimitSummary)")
-                .accessibilityIdentifier("settings-billing-limits")
-            }
-
-            settingsSection(title: "PROMO CODE") {
-                settingsRow(
-                    icon: "sparkles",
-                    title: betaAccessTitle,
-                    subtitle: betaAccessSubtitle
-                ) {
-                    HStack(spacing: 8) {
-                        TextField("Code", text: $betaAccessCode)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                            .disabled(billingManager.hasBetaAccess || isRedeemingBetaCode)
-                            .onSubmit {
-                                redeemBetaAccessCode()
-                            }
-
-                        Button(betaAccessButtonTitle) {
-                            redeemBetaAccessCode()
-                        }
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accent.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                        .disabled(
-                            billingManager.hasBetaAccess
-                            || isRedeemingBetaCode
-                            || betaAccessCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        )
-                    }
                 }
             }
 
@@ -401,7 +354,7 @@ struct SettingsView: View {
             AppTheme.ridge.frame(height: 1)
 
             // Credits
-            Text("Independent Voiyce platform")
+            Text(SettingsLaunchCopy.productSuiteAttribution)
                 .font(AppTheme.captionFont)
                 .foregroundStyle(AppTheme.textSecondary)
 
@@ -469,39 +422,11 @@ struct SettingsView: View {
     }
 
     private var isBillingBusy: Bool {
-        billingManager.isRefreshing || billingManager.isOpeningCheckout || billingManager.isOpeningPortal
+        billingManager.isRefreshing
     }
 
     private var billingActionTitle: String {
-        if billingManager.isOpeningCheckout {
-            return "Opening Checkout..."
-        }
-
-        if billingManager.isOpeningPortal {
-            return "Opening Portal..."
-        }
-
-        return billingManager.primaryActionTitle
-    }
-
-    private var betaAccessTitle: String {
-        if billingManager.hasBetaAccess {
-            return billingManager.betaMonthlyCapReached ? "Monthly Budget Used" : "Unlocked"
-        }
-
-        return "Redeem Code"
-    }
-
-    private var betaAccessSubtitle: String {
-        if billingManager.hasBetaAccess {
-            return "Rate limits may apply."
-        }
-
-        return ""
-    }
-
-    private var betaAccessButtonTitle: String {
-        isRedeemingBetaCode ? "Unlocking..." : "Unlock"
+        billingManager.primaryActionTitle
     }
 
     private var launchAtLoginSubtitle: String {
@@ -513,32 +438,7 @@ struct SettingsView: View {
     }
 
     private func openBillingDestination() {
-        if billingManager.canManageSubscription {
-            Task {
-                await billingManager.openBillingPortal()
-            }
-            return
-        }
-
-        isBillingPlanPickerPresented = true
-    }
-
-    private func redeemBetaAccessCode() {
-        guard !isRedeemingBetaCode else { return }
-
-        isRedeemingBetaCode = true
-        Task {
-            await billingManager.redeemBetaAccessCode(betaAccessCode)
-            appState.accessState = billingManager.accessState(
-                isAuthenticated: authenticationManager.isAuthenticated
-            )
-
-            if billingManager.hasBetaAccess {
-                betaAccessCode = ""
-            }
-
-            isRedeemingBetaCode = false
-        }
+        billingManager.openPurchasePage()
     }
 
     // MARK: - Reusable Components

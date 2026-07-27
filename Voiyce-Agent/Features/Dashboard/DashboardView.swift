@@ -18,7 +18,6 @@ struct DashboardView: View {
     @Environment(NetworkMonitor.self) private var networkMonitor
     @Environment(UsageTracker.self) private var usageTracker
     @State private var weeklyData: [DailyUsage] = []
-    @State private var isBillingPlanPickerPresented = false
 
     private var wordsToday: Int {
         max(appState.wordsToday, usageTracker.todayStats().words)
@@ -74,17 +73,6 @@ struct DashboardView: View {
     private var freeWordsProgress: Double {
         guard AppConstants.freeWordLimit > 0 else { return 0 }
         return min(Double(billingManager.freeWordsUsed) / Double(AppConstants.freeWordLimit), 1)
-    }
-
-    private var betaSpendProgress: Double {
-        guard let status = billingManager.status,
-              status.betaMonthlySpendLimitUSD > 0 else {
-            return 0
-        }
-
-        let used = NSDecimalNumber(decimal: status.betaMonthlySpendUsedUSD).doubleValue
-        let limit = NSDecimalNumber(decimal: status.betaMonthlySpendLimitUSD).doubleValue
-        return min(used / limit, 1)
     }
 
     private var billingActionTitle: String {
@@ -150,7 +138,7 @@ struct DashboardView: View {
                     icon: "creditcard.trianglebadge.exclamationmark",
                     title: billingManager.paymentRequiredTitle,
                     detail: billingManager.paymentRequiredDetail,
-                    nextStep: "Click \(billingActionTitle), finish checkout in Stripe, then return to Voiyce and refresh billing access.",
+                    nextStep: "Click \(billingActionTitle) to finish at pentridgemedia.com/labs, then return to Voiyce and refresh billing access.",
                     tone: .info,
                     actionTitle: billingActionTitle,
                     action: { openBillingDestination() }
@@ -368,7 +356,6 @@ struct DashboardView: View {
         .onChange(of: appState.dictationSessionsToday) { _, _ in
             refreshWeeklyData()
         }
-        .billingPlanPicker(isPresented: $isBillingPlanPickerPresented)
     }
 
     private var billingOverviewCard: some View {
@@ -414,28 +401,6 @@ struct DashboardView: View {
                     }
 
                     Text("Your account includes Voiyce access. No individual billing required.")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-            } else if billingManager.hasBetaAccess {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("\(billingManager.betaMonthlySpendRemainingDisplay) total beta budget left")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-
-                        Spacer()
-
-                        Text("\(billingManager.betaMonthlySpendUsedDisplay) / \(billingManager.betaMonthlySpendLimitDisplay) used")
-                            .font(AppTheme.captionFont)
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-
-                    ProgressView(value: betaSpendProgress)
-                        .progressViewStyle(.linear)
-                        .tint(billingManager.betaMonthlyCapReached ? AppTheme.warning : AppTheme.accent)
-
-                    Text(billingManager.inactiveTrialFooter)
                         .font(AppTheme.captionFont)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -729,14 +694,7 @@ struct DashboardView: View {
     }
 
     private func openBillingDestination() {
-        if billingManager.canManageSubscription {
-            Task {
-                await billingManager.openBillingPortal()
-            }
-            return
-        }
-
-        isBillingPlanPickerPresented = true
+        billingManager.openPurchasePage()
     }
 }
 

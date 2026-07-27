@@ -234,7 +234,7 @@ struct Voiyce_AgentTests {
 
     @Test func accessStateRecoveryCopyTellsUsersWhatToDoNext() throws {
         #expect(AccessState.signedOut.recoveryStep.contains("Sign in again"))
-        #expect(AccessState.paymentRequired.recoveryStep.contains("Choose a plan"))
+        #expect(AccessState.paymentRequired.recoveryStep.contains("Pentridge Labs"))
         #expect(AccessState.signedOut.recoveryStep.contains("restart"))
         #expect(AccessState.paymentRequired.recoveryStep.contains("restart"))
         #expect(!AccessState.signedOut.recoveryStep.localizedCaseInsensitiveContains("backend"))
@@ -271,7 +271,7 @@ struct Voiyce_AgentTests {
         #expect(OnboardingPermissionCopy.requiredAccessNextStep.localizedCaseInsensitiveContains("Continue unlocks"))
     }
 
-    @Test func onboardingLaunchCopyStaysAgentContextPositioned() throws {
+    @Test func onboardingLaunchCopyStaysDictationPositioned() throws {
         let forbiddenTerms = [
             "boost productivity",
             "revolutionize",
@@ -285,7 +285,16 @@ struct Voiyce_AgentTests {
             "Computer Use",
             "SDP",
             "VideoDB",
-            "Realtime"
+            "Realtime",
+            // Voiyce is a dictation-only Pentridge product: no agent-era positioning.
+            "Context, Talk",
+            "handoff",
+            "Agent Log",
+            "memory layer",
+            "screen context",
+            "Codex",
+            "Claude Code",
+            "agent"
         ]
 
         for copy in OnboardingLaunchCopy.visibleStrings {
@@ -294,13 +303,24 @@ struct Voiyce_AgentTests {
             }
         }
 
-        #expect(OnboardingLaunchCopy.overviewHeadline.localizedCaseInsensitiveContains("memory layer"))
-        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("Context"))
-        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("Talk"))
-        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("Act"))
-        #expect(OnboardingLaunchCopy.handoffDetail.localizedCaseInsensitiveContains("Codex"))
-        #expect(OnboardingLaunchCopy.handoffDetail.localizedCaseInsensitiveContains("Claude Code"))
-        #expect(OnboardingLaunchCopy.learnBodyWithPreview.localizedCaseInsensitiveContains("repeated explanations"))
+        // Positioned around dictation: speak, and text lands in your app.
+        #expect(OnboardingLaunchCopy.overviewHeadline.localizedCaseInsensitiveContains("speech"))
+        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("text"))
+        #expect(OnboardingLaunchCopy.previewBody.localizedCaseInsensitiveContains("Voiyce"))
+        #expect(OnboardingLaunchCopy.learnBodyWithPreview.localizedCaseInsensitiveContains("words"))
+    }
+
+    @MainActor
+    @Test func pentridgeSuiteCopyIsAccurate() throws {
+        // Voiyce ships as part of the Pentridge product suite — not an independent platform.
+        #expect(SettingsLaunchCopy.productSuiteAttribution.localizedCaseInsensitiveContains("Pentridge"))
+        #expect(!SettingsLaunchCopy.productSuiteAttribution.localizedCaseInsensitiveContains("Independent"))
+
+        // The purchase prompt must route to Pentridge Labs without promising "unlimited"
+        // usage — the Pentridge Standard tier is capped at 10,000 words/month.
+        let paymentDetail = BillingManager().paymentRequiredDetail
+        #expect(paymentDetail.localizedCaseInsensitiveContains("Pentridge"))
+        #expect(!paymentDetail.localizedCaseInsensitiveContains("unlimited"))
     }
 
     @Test func menuBarLaunchCopyStaysUserFacing() throws {
