@@ -5,6 +5,7 @@
 
 import AppKit
 import Foundation
+import ServiceManagement
 import Speech
 import Testing
 @testable import Voiyce
@@ -54,6 +55,58 @@ struct Voiyce_AgentTests {
         // the user to System Settings instead of appearing to "do nothing".
         #expect(SpeechRecognitionRequestPolicy.action(for: .denied) == .openSettings)
         #expect(SpeechRecognitionRequestPolicy.action(for: .restricted) == .openSettings)
+    }
+
+    @Test func launchAtLoginStateMapsFromServiceStatus() throws {
+        // A registered login item reads as on — both `.enabled` and
+        // `.requiresApproval` (registered, pending user approval) count.
+        #expect(LaunchAtLoginStatePolicy.isEnabled(for: .enabled))
+        #expect(LaunchAtLoginStatePolicy.isEnabled(for: .requiresApproval))
+        // Not-registered states read as off.
+        #expect(!LaunchAtLoginStatePolicy.isEnabled(for: .notRegistered))
+        #expect(!LaunchAtLoginStatePolicy.isEnabled(for: .notFound))
+
+        // `.requiresApproval` is the one state that must surface the approval hint.
+        #expect(LaunchAtLoginStatePolicy.needsApproval(for: .requiresApproval))
+        #expect(!LaunchAtLoginStatePolicy.needsApproval(for: .enabled))
+        #expect(!LaunchAtLoginStatePolicy.needsApproval(for: .notRegistered))
+        #expect(!LaunchAtLoginStatePolicy.needsApproval(for: .notFound))
+    }
+
+    @Test func launchAtLoginTogglesRegisterWithoutDoubleRegistering() throws {
+        // Enabling from an unregistered state registers once; the fake lands in
+        // `.requiresApproval` (the common real-world outcome), which reads on.
+        let service = FakeLoginItemService(status: .notRegistered, registerResult: .requiresApproval)
+        let manager = LaunchAtLoginManager(service: service)
+        #expect(!manager.isEnabled)
+
+        manager.setEnabled(true)
+        #expect(service.registerCount == 1)
+        #expect(manager.isEnabled)        // registered → on
+        #expect(manager.needsApproval)    // pending approval → subtitle hint
+        #expect(manager.errorMessage == nil)
+
+        // Tapping on again while `.requiresApproval` must NOT re-register (that
+        // is what previously threw kSMErrorAlreadyRegistered).
+        manager.setEnabled(true)
+        #expect(service.registerCount == 1)
+        #expect(manager.isEnabled)
+
+        // Turning off from `.requiresApproval` must unregister.
+        manager.setEnabled(false)
+        #expect(service.unregisterCount == 1)
+        #expect(!manager.isEnabled)
+        #expect(!manager.needsApproval)
+    }
+
+    @Test func launchAtLoginSurfacesRegistrationErrors() throws {
+        let service = FakeLoginItemService(status: .notRegistered, registerError: FakeLoginItemError.boom)
+        let manager = LaunchAtLoginManager(service: service)
+
+        manager.setEnabled(true)
+        #expect(service.registerCount == 1)
+        #expect(manager.errorMessage != nil)
+        #expect(!manager.isEnabled) // stayed unregistered after the failed register
     }
 
     @Test func accessStateRecoveryCopyTellsUsersWhatToDoNext() throws {
@@ -405,5 +458,40 @@ struct Voiyce_AgentTests {
         #expect(AuthenticationRecoveryCopy.message(for: rawError).contains("try again"))
         #expect(SignInNetworkRecoveryCopy.authNextStep.contains("Reconnect"))
         #expect(BillingRecoveryCopy.message(for: rawError).contains("Try again"))
+    }
+}
+
+private enum FakeLoginItemError: Error { case boom }
+
+/// In-memory `LoginItemService` for exercising `LaunchAtLoginManager` state
+/// transitions without touching the real login-item registration.
+private final class FakeLoginItemService: LoginItemService {
+    private(set) var status: SMAppService.Status
+    private(set) var registerCount = 0
+    private(set) var unregisterCount = 0
+
+    /// Status the fake moves to after a successful `register()`.
+    private let registerResult: SMAppService.Status
+    private let registerError: Error?
+
+    init(
+        status: SMAppService.Status,
+        registerResult: SMAppService.Status = .enabled,
+        registerError: Error? = nil
+    ) {
+        self.status = status
+        self.registerResult = registerResult
+        self.registerError = registerError
+    }
+
+    func register() throws {
+        registerCount += 1
+        if let registerError { throw registerError }
+        status = registerResult
+    }
+
+    func unregister() throws {
+        unregisterCount += 1
+        status = .notRegistered
     }
 }
