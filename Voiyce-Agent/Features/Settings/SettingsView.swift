@@ -135,17 +135,6 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     .disabled(isBillingBusy)
                 }
-
-                settingsRow(
-                    icon: "gauge.with.dots.needle",
-                    title: "Usage Limits",
-                    subtitle: billingManager.usageLimitSummary
-                ) {
-                    EmptyView()
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Usage Limits. \(billingManager.usageLimitSummary)")
-                .accessibilityIdentifier("settings-billing-limits")
             }
 
             if let infoMessage = authenticationManager.infoMessage {

@@ -16,11 +16,6 @@ enum BillingPlan: String, CaseIterable, Identifiable, Decodable, Sendable {
     var id: String { rawValue }
 }
 
-enum BillingLimitCopy {
-    static let settingsSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets while agent tiers are finalized."
-    static let checkoutSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets; Power-level Act limits are not sold in this build."
-}
-
 struct BillingStatusSnapshot: Decodable, Sendable {
     let freeWordsLimit: Int
     let freeWordsUsed: Int
@@ -173,17 +168,6 @@ final class BillingManager {
         return tier == "pro" ? "Unlimited" : "10,000 words/month"
     }
 
-    var betaMonthlySpendRemainingDisplay: String {
-        betaCurrencyDisplay(status?.betaMonthlySpendRemainingUSD ?? 0)
-    }
-
-    var betaMonthlySpendUsedDisplay: String {
-        betaCurrencyDisplay(status?.betaMonthlySpendUsedUSD ?? 0)
-    }
-
-    var betaMonthlySpendLimitDisplay: String {
-        currencyDisplay(status?.betaMonthlySpendLimitUSD ?? 20)
-    }
 
     var requiresSubscription: Bool {
         // No snapshot yet (e.g. network failure at launch): fail closed so a
@@ -279,10 +263,6 @@ final class BillingManager {
         "Your trial ends after \(AppConstants.trialLengthDays) days or when you reach \(AppConstants.freeWordLimit) words, whichever comes first."
     }
 
-    var usageLimitSummary: String {
-        BillingLimitCopy.settingsSummary
-    }
-
     var canManageSubscription: Bool {
         hasActiveSubscription && !(status?.stripeCustomerID?.isEmpty ?? true)
     }
@@ -301,23 +281,6 @@ final class BillingManager {
 
     private var currentPeriodEnd: Date? {
         status?.currentPeriodEnd
-    }
-
-    private func currencyDisplay(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "$\(value)"
-    }
-
-    private func betaCurrencyDisplay(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 4
-        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "$\(value)"
     }
 
     func reset() {

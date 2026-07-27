@@ -75,17 +75,6 @@ struct DashboardView: View {
         return min(Double(billingManager.freeWordsUsed) / Double(AppConstants.freeWordLimit), 1)
     }
 
-    private var betaSpendProgress: Double {
-        guard let status = billingManager.status,
-              status.betaMonthlySpendLimitUSD > 0 else {
-            return 0
-        }
-
-        let used = NSDecimalNumber(decimal: status.betaMonthlySpendUsedUSD).doubleValue
-        let limit = NSDecimalNumber(decimal: status.betaMonthlySpendLimitUSD).doubleValue
-        return min(used / limit, 1)
-    }
-
     private var billingActionTitle: String {
         billingManager.primaryActionTitle
     }
@@ -387,28 +376,6 @@ struct DashboardView: View {
                     }
 
                     Text("Your account includes Voiyce access. No individual billing required.")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-            } else if billingManager.hasBetaAccess {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("\(billingManager.betaMonthlySpendRemainingDisplay) total beta budget left")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-
-                        Spacer()
-
-                        Text("\(billingManager.betaMonthlySpendUsedDisplay) / \(billingManager.betaMonthlySpendLimitDisplay) used")
-                            .font(AppTheme.captionFont)
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-
-                    ProgressView(value: betaSpendProgress)
-                        .progressViewStyle(.linear)
-                        .tint(billingManager.betaMonthlyCapReached ? AppTheme.warning : AppTheme.accent)
-
-                    Text(billingManager.inactiveTrialFooter)
                         .font(AppTheme.captionFont)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
