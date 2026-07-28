@@ -135,6 +135,7 @@ for forbidden in \
   "Hermes Agent" \
   "OpenClaw" \
   "Claude Code" \
+  "Accelerate your productivity" \
   "Speak naturally. We handle the rest."; do
   if rg -q -F "$forbidden" landing-page/src/app landing-page/src/components; then
     fail "Found stale agent-mode positioning copy: $forbidden"
