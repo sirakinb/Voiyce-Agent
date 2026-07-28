@@ -33,18 +33,20 @@ final class Voiyce_AgentUITests: XCTestCase {
     func testDashboardSettingsAndPermissionsNavigation() throws {
         launchAndWaitForDashboard()
         assertNoInternalImplementationTerms(on: "Dashboard")
+        XCTAssertTrue(app.staticTexts["Words Today"].exists)
 
         click(ui("sidebar-settings"))
         XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 5))
-        XCTAssertTrue(ui("settings-billing-limits").exists)
-        let billingLimitLabel = ui("settings-billing-limits").label
-        XCTAssertTrue(billingLimitLabel.contains("Usage Limits"))
+        XCTAssertTrue(app.staticTexts["Billing"].exists)
+        XCTAssertTrue(ui("settings-launch-at-login").exists)
         assertNoInternalImplementationTerms(on: "Settings")
 
         click(settingsTab("Permissions"))
         XCTAssertTrue(app.staticTexts["System Permissions"].waitForExistence(timeout: 5))
         XCTAssertTrue(ui("permission-row-microphone").exists)
-        XCTAssertTrue(ui("permission-row-screen-recording").exists)
+        XCTAssertTrue(ui("permission-row-speech-recognition").exists)
+        XCTAssertTrue(ui("permission-row-accessibility").exists)
+        XCTAssertFalse(ui("permission-row-screen-recording").exists)
         XCTAssertTrue(ui("permissions-refresh").exists)
         XCTAssertTrue(ui("permissions-open-system-settings").exists)
         click(ui("permissions-refresh"))
@@ -64,13 +66,13 @@ final class Voiyce_AgentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["System Permissions"].waitForExistence(timeout: 5))
 
         click(ui("sidebar-dashboard"))
-        XCTAssertTrue(app.staticTexts["Pro Trial"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Words Today"].waitForExistence(timeout: 5))
     }
 
     private func launchAndWaitForDashboard() {
         launchAppWindowIfNeeded()
         XCTAssertTrue(ui("sidebar-dashboard").waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Pro Trial"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Words Today"].waitForExistence(timeout: 10))
     }
 
     private func launchAppWindowIfNeeded() {
@@ -112,26 +114,6 @@ final class Voiyce_AgentUITests: XCTestCase {
         element.click()
     }
 
-    private func waitForLabel(_ identifier: String, containing text: String, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            let element = ui(identifier)
-            if !element.exists {
-                RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-                continue
-            }
-
-            if element.label.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-
-        let element = ui(identifier)
-        guard element.exists else { return false }
-        return element.label.localizedCaseInsensitiveContains(text)
-    }
-
     private func focusApp() {
         app.activate()
         NSWorkspace.shared.hideOtherApplications()
@@ -145,7 +127,6 @@ final class Voiyce_AgentUITests: XCTestCase {
             }
 
             let buttonTitles = [
-                "Don’t Allow",
                 "Don't Allow",
                 "Not Now",
                 "OK",

@@ -9,14 +9,14 @@ usage() {
   cat <<'EOF'
 Usage: scripts/verify-agent-usage-caps.sh [--skip-deno-tests]
 
-Verifies the self-serve server-side usage-cap implementation without deploying
+Verifies the retained server-side usage-cap implementation without deploying
 or mutating external services:
   1. Checks the SQL tier/cap matrix for Default, Pro, and Power.
   2. Checks reserve/finalize RPC hardening for daily/monthly cap enforcement.
-  3. Checks Realtime, transcription, Computer Use, and screen-context functions
-     are wired to reserve/finalize usage when VOIYCE_ENFORCE_AGENT_USAGE_CAPS is enabled.
+  3. Checks the retained transcription function is wired to reserve/finalize
+     usage when VOIYCE_ENFORCE_AGENT_USAGE_CAPS is enabled.
   4. Checks backend tests cover account-limit responses before OpenAI and
-     reserve/finalize calls plus usage units for each cost-bearing capability.
+     reserve/finalize calls plus usage units for transcription.
   5. Runs the relevant Deno tests unless --skip-deno-tests is provided.
 
 Options:
@@ -128,32 +128,17 @@ for (tier, capability), (daily, monthly) in expected_caps.items():
 print(f"verified {len(expected_caps)} tier/capability cap rows")
 PY
 
-log "Checking function and test wiring"
+log "Checking retained transcription function and test wiring"
 python3 <<'PY'
 from pathlib import Path
 
 root = Path.cwd()
 
 capabilities = {
-    "realtime": {
-        "source": "insforge/functions/realtime-session/index.ts",
-        "test": "insforge/functions/realtime-session/index.test.ts",
-        "env": "VOIYCE_REALTIME_ESTIMATED_SESSION_COST_USD",
-    },
     "transcription": {
         "source": "insforge/functions/transcribe-audio/index.ts",
         "test": "insforge/functions/transcribe-audio/index.test.ts",
         "env": "OPENAI_TRANSCRIPTION_COST_CENTS_PER_MINUTE",
-    },
-    "computer_use": {
-        "source": "insforge/functions/computer-use-step/index.ts",
-        "test": "insforge/functions/computer-use-step/index.test.ts",
-        "env": "VOIYCE_COMPUTER_USE_ESTIMATED_STEP_COST_USD",
-    },
-    "context": {
-        "source": "insforge/functions/screen-context/index.ts",
-        "test": "insforge/functions/screen-context/index.test.ts",
-        "env": "VOIYCE_SCREEN_CONTEXT_ESTIMATED_REQUEST_COST_USD",
     },
 }
 
@@ -189,16 +174,14 @@ for capability, config in capabilities.items():
     if missing_test:
         raise SystemExit(f"{config['test']} missing: {', '.join(missing_test)}")
 
-print(f"verified {len(capabilities)} cost-bearing function/test pairs")
+print(f"verified {len(capabilities)} retained cost-bearing function/test pair")
 PY
 
 if [[ "$RUN_DENO_TESTS" -eq 1 ]]; then
-  log "Running backend usage-cap tests"
+  log "Running retained backend usage-cap tests"
   deno test --allow-env \
-    insforge/functions/realtime-session/index.test.ts \
     insforge/functions/transcribe-audio/index.test.ts \
-    insforge/functions/computer-use-step/index.test.ts \
-    insforge/functions/screen-context/index.test.ts
+    insforge/functions/check-pentridge-subscription/index.test.ts
 else
   log "Skipping Deno tests (--skip-deno-tests)"
 fi

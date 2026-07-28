@@ -16,8 +16,9 @@ Deno.test("entitled first-login user gets a billing profile before Pentridge ent
 
   const calls: Array<{ kind: string; body?: unknown }> = []
   const originalFetch = globalThis.fetch
-  globalThis.fetch = async (input, init) => {
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
+    const method = init?.method ?? "GET"
     if (url.includes("/api/auth/sessions/current")) {
       calls.push({ kind: "auth" })
       return new Response(JSON.stringify({
@@ -27,15 +28,15 @@ Deno.test("entitled first-login user gets a billing profile before Pentridge ent
 
     if (url.includes("/api/database/records/billing_profiles")) {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined
-      if (init?.method === "POST") {
+      if (method === "POST") {
         calls.push({ kind: "profile-insert", body })
         return new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } })
       }
-      if (init?.method === "PATCH") {
+      if (method === "PATCH") {
         calls.push({ kind: "profile-cache", body })
         return new Response(null, { status: 204 })
       }
-      if (init?.method === "GET") {
+      if (method === "GET") {
         calls.push({ kind: "profile-read" })
         return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } })
       }
