@@ -483,16 +483,8 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(hex: 0x08090D),
-                    Color(hex: 0x111117),
-                    Color(hex: 0x17131E)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppTheme.backgroundPrimary
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 GeometryReader { proxy in
@@ -517,7 +509,6 @@ struct OnboardingView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(Color.black.opacity(0.18))
 
                 Divider()
                     .overlay(AppTheme.ridge)
