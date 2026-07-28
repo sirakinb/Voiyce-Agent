@@ -197,7 +197,7 @@ export default function LandingPage() {
       <section id="how-it-works" className="scroll-mt-36 py-40 px-6 relative z-20 bg-black">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">Speak naturally. We handle the rest.</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">From voice to polished text.</h2>
             <p className="text-xl text-[#888888] font-light max-w-2xl mx-auto">
               Voiyce doesn&apos;t just transcribe—it understands context, removes filler words, and adds perfect punctuation instantly.
             </p>

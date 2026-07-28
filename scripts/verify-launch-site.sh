@@ -129,7 +129,13 @@ for label in "metadataBase: new URL(\"https://voiyce.us\")" "summary_large_image
     fail "Missing required metadata label: $label"
   fi
 done
-for forbidden in "Stop re-explaining your work to AI" "agent context layer" "Hermes Agent" "OpenClaw" "Claude Code"; do
+for forbidden in \
+  "Stop re-explaining your work to AI" \
+  "agent context layer" \
+  "Hermes Agent" \
+  "OpenClaw" \
+  "Claude Code" \
+  "Speak naturally. We handle the rest."; do
   if rg -q -F "$forbidden" landing-page/src/app landing-page/src/components; then
     fail "Found stale agent-mode positioning copy: $forbidden"
   fi
@@ -270,7 +276,7 @@ PY
   log "Checking live home page content and CTAs"
   assert_file_contains "$TMP_DIR/home.html" "home headline" "Write at the speed"
   assert_file_contains "$TMP_DIR/home.html" "dictation positioning" "Built for dictation"
-  assert_file_contains "$TMP_DIR/auth.html" "auth CTA href" 'href="/auth?intent=download"'
+  assert_file_contains "$TMP_DIR/home.html" "auth CTA href" 'href="/auth?intent=download"'
   assert_file_contains "$TMP_DIR/home.html" "how-it-works anchor" 'href="#how-it-works"'
   assert_file_contains "$TMP_DIR/home.html" "privacy footer link" 'href="/privacy"'
   assert_file_contains "$TMP_DIR/home.html" "terms footer link" 'href="/terms"'
