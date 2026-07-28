@@ -38,7 +38,7 @@ final class Voiyce_AgentUITestsLaunchTests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["sidebar-dashboard"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["sidebar-settings"].firstMatch.exists)
-        XCTAssertTrue(app.staticTexts["Pro Trial"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Words Today"].waitForExistence(timeout: 10))
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Dashboard"
