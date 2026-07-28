@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import HeroParticles from "@/components/HeroParticles";
 import HeroAnimation from "@/components/HeroAnimation";
@@ -70,7 +71,7 @@ export default function LandingPage() {
       >
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mx-auto w-full max-w-4xl flex-wrap">
           <div className="flex flex-col items-center sm:items-start">
-            <img src="/voiyce_logo.png" alt="Voiyce Logo" className="h-[160px] w-auto object-contain -my-[68px]" />
+            <Image src="/voiyce_logo.png" alt="Voiyce Logo" width={320} height={160} className="h-[160px] w-auto object-contain -my-[68px]" />
             <span className="mt-[6px] text-[10px] font-medium tracking-wide text-[#8A8A94] whitespace-nowrap">
               Part of the Pentridge product suite
             </span>
@@ -116,7 +117,7 @@ export default function LandingPage() {
             </motion.h1>
 
             <motion.p variants={fadeIn} className="text-xl md:text-2xl text-[#888888] mb-12 leading-relaxed max-w-2xl font-light">
-              Voiyce captures your voice and instantly turns it into perfectly formatted text in any app. No more typing. Accelerate your productivity.
+              Hold a hotkey, speak naturally, and drop polished text into the app you are already using.
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex w-full justify-center">
@@ -364,7 +365,7 @@ export default function LandingPage() {
                   "https://images.unsplash.com/photo-1589156229687-496a31ad1d1f?w=100&h=100&fit=crop&crop=face",
                   "https://images.unsplash.com/photo-1463453091185-61582044d556?w=100&h=100&fit=crop&crop=face"
                 ].map((src, i) => (
-                  <img key={i} src={src} alt="User avatar" className={`w-14 h-14 rounded-full border-2 border-black object-cover shadow-lg z-[${5-i}]`} />
+                  <Image key={i} src={src} alt="User avatar" width={56} height={56} className={`w-14 h-14 rounded-full border-2 border-black object-cover shadow-lg z-[${5-i}]`} />
                 ))}
               </div>
             </div>
@@ -432,9 +433,11 @@ export default function LandingPage() {
       <footer className="py-14 md:py-16 px-6 border-t border-white/5 text-center text-[#888888] text-sm relative z-10 bg-black">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 md:gap-10">
           <div className="flex w-full md:w-auto items-center justify-start">
-            <img
+            <Image
               src="/voiyce_logo.png"
               alt="Voiyce Logo"
+              width={320}
+              height={160}
               className="h-28 sm:h-32 md:h-40 w-auto max-w-[min(320px,100%)] object-contain object-left opacity-95 hover:opacity-100 transition-opacity"
             />
           </div>

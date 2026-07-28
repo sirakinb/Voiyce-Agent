@@ -97,7 +97,6 @@ for path in \
   landing-page/src/app/terms/page.tsx \
   landing-page/src/components/HeroAnimation.tsx \
   landing-page/src/lib/voiyce-config.ts \
-  landing-page/public/hermes-agent.png \
   landing-page/public/voiyce_logo.png \
   landing-page/public/og-header.png \
   landing-page/src/app/icon.png \
@@ -108,7 +107,7 @@ done
 
 log "Checking launch copy guardrails"
 if rg -n -i \
-  "boost productivity|revolutionize|unlock your potential|AI-powered|seamless experience|write at the speed|download for macos" \
+  "boost productivity|revolutionize|unlock your potential|AI-powered|seamless experience|accelerate your productivity|no more typing" \
   landing-page/src/app landing-page/src/components landing-page/src/lib; then
   fail "Forbidden or outdated launch copy found."
 fi
@@ -119,20 +118,20 @@ if rg -n "<img" \
   fail "Raw img elements found on launch-critical landing surfaces. Use next/image or non-image icon presentation."
 fi
 
-log "Checking agent context positioning"
-for label in "Stop re-explaining your work to AI" "agent context layer" "Claude Code" "Codex" "Hermes Agent" "OpenClaw" "Cursor"; do
+log "Checking dictation positioning"
+for label in "Write at the speed of thought" "Built for dictation" "dictation layer"; do
   if ! rg -q -F "$label" landing-page/src/app landing-page/src/components; then
     fail "Missing required positioning label: $label"
   fi
 done
-assert_file_contains "landing-page/src/app/page.tsx" "Hermes local image asset" "/hermes-agent.png"
-assert_file_contains "landing-page/src/app/page.tsx" "OpenClaw local image asset" "/openclaw.svg"
-if rg -n "https://openclaw[.]ai|favicon[.]svg" landing-page/src/app/page.tsx landing-page/src/components; then
-  fail "OpenClaw logo must use the local /openclaw.svg asset, not a remote favicon."
-fi
 for label in "metadataBase: new URL(\"https://voiyce.us\")" "summary_large_image" "/og-header.png"; do
   if ! rg -q -F "$label" landing-page/src/app/layout.tsx; then
     fail "Missing required metadata label: $label"
+  fi
+done
+for forbidden in "Stop re-explaining your work to AI" "agent context layer" "Hermes Agent" "OpenClaw" "Claude Code"; do
+  if rg -q -F "$forbidden" landing-page/src/app landing-page/src/components; then
+    fail "Found stale agent-mode positioning copy: $forbidden"
   fi
 done
 
@@ -148,19 +147,19 @@ if rg -n "support@voiyce\.com" landing-page/src/app/terms/page.tsx landing-page/
 fi
 
 log "Checking legal product coverage"
-for label in "Screen context" "Local memory" "support export" "OpenAI" "VideoDB"; do
+for label in "dictation" "OpenAI" "Local transcript history" "Microphone"; do
   if ! rg -q -F "$label" landing-page/src/app/privacy/page.tsx; then
     fail "Privacy Policy is missing required product coverage: $label"
   fi
 done
-for label in "Session only" "30 days" "90 days" "Forever" "Raw screenshots" "Private Mode" "app/site" "exclusions skip matching memory writes" "Voiyce-written" "vault notes"; do
-  if ! rg -q -F "$label" landing-page/src/app/privacy/page.tsx; then
-    fail "Privacy Policy is missing concrete local storage coverage: $label"
-  fi
-done
-for label in "context capture" "local memory" "agent handoff" "screen context"; do
+for label in "macOS dictation" "hotkey" "trial"; do
   if ! rg -q -i -F "$label" landing-page/src/app/terms/page.tsx; then
     fail "Terms of Service is missing required product coverage: $label"
+  fi
+done
+for forbidden in "Agent Log" "agent handoff" "Local memory" "VideoDB"; do
+  if rg -q -i -F "$forbidden" landing-page/src/app/privacy/page.tsx landing-page/src/app/terms/page.tsx; then
+    fail "Found stale agent-mode legal copy: $forbidden"
   fi
 done
 
@@ -269,18 +268,14 @@ require_ico(Path(sys.argv[3]))
 PY
 
   log "Checking live home page content and CTAs"
-  assert_file_contains "$TMP_DIR/home.html" "home headline" "Stop re-explaining"
-  assert_file_contains "$TMP_DIR/home.html" "home headline continuation" "your work to AI"
-  assert_file_contains "$TMP_DIR/home.html" "agent context positioning" "agent context layer"
-  assert_file_contains "$TMP_DIR/home.html" "auth CTA href" 'href="/auth?intent=download"'
+  assert_file_contains "$TMP_DIR/home.html" "home headline" "Write at the speed"
+  assert_file_contains "$TMP_DIR/home.html" "dictation positioning" "Built for dictation"
+  assert_file_contains "$TMP_DIR/auth.html" "auth CTA href" 'href="/auth?intent=download"'
   assert_file_contains "$TMP_DIR/home.html" "how-it-works anchor" 'href="#how-it-works"'
   assert_file_contains "$TMP_DIR/home.html" "privacy footer link" 'href="/privacy"'
   assert_file_contains "$TMP_DIR/home.html" "terms footer link" 'href="/terms"'
-  for agent in "Claude Code" "Codex" "Hermes Agent" "OpenClaw" "Cursor"; do
-    assert_file_contains "$TMP_DIR/home.html" "agent label" "$agent"
-  done
-  assert_file_not_contains "$TMP_DIR/home.html" "removed agent label" "ChatGPT"
-  assert_file_not_contains "$TMP_DIR/home.html" "removed agent label" "Make.com"
+  assert_file_not_contains "$TMP_DIR/home.html" "stale agent headline" "Stop re-explaining"
+  assert_file_not_contains "$TMP_DIR/home.html" "stale agent positioning" "agent context layer"
 
   log "Checking live auth, download, and legal content"
   assert_file_contains "$TMP_DIR/auth.html" "auth route title" "Create Account"
@@ -290,18 +285,10 @@ PY
   assert_file_contains "$TMP_DIR/download-health.json" "download health ok" '"ok":true'
   assert_file_contains "$TMP_DIR/privacy.html" "privacy title" "Privacy Policy"
   assert_file_contains "$TMP_DIR/privacy.html" "privacy contact" "$CONTACT_EMAIL"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy screen coverage" "Screen context"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy memory coverage" "Local memory"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy local retention coverage" "Session only"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy raw screenshot coverage" "Raw screenshots"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy private mode coverage" "Private Mode"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy exclusion coverage" "app/site"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy vault-delete coverage" "Voiyce-written"
-  assert_file_contains "$TMP_DIR/privacy.html" "privacy vault-delete coverage" "vault notes"
+  assert_file_contains "$TMP_DIR/privacy.html" "privacy dictation coverage" "dictation"
   assert_file_contains "$TMP_DIR/terms.html" "terms title" "Terms of Service"
   assert_file_contains "$TMP_DIR/terms.html" "terms contact" "$CONTACT_EMAIL"
-  assert_file_contains "$TMP_DIR/terms.html" "terms context coverage" "context capture"
-  assert_file_contains "$TMP_DIR/terms.html" "terms memory coverage" "local memory"
+  assert_file_contains "$TMP_DIR/terms.html" "terms dictation coverage" "macOS dictation"
 
   if [[ "$RUN_VISUAL" -eq 1 ]]; then
     require_command node

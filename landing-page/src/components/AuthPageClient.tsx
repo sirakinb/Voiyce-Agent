@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -9,17 +10,48 @@ import { getInsForgeBrowserClient } from "@/lib/insforge-browser";
 import {
   buildDownloadHref,
   buildAuthHref,
+  intentHeadline,
+  intentSupportingCopy,
   normalizeIntent,
+  supportEmail,
 } from "@/lib/voiyce-config";
 
 const PENTRIDGE_LABS_URL = "https://pentridgemedia.com/labs";
 
 function friendlyErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  const normalized = message.trim().toLowerCase();
+
+  if (
+    normalized.includes("network") ||
+    normalized.includes("fetch") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("internet") ||
+    normalized.includes("offline")
+  ) {
+    return "Check your connection, then try again.";
   }
 
-  return "Something went wrong. Please try again.";
+  if (
+    normalized.includes("invalid login") ||
+    normalized.includes("invalid credentials") ||
+    normalized.includes("email or password") ||
+    normalized.includes("invalid email or password")
+  ) {
+    return "That email or password did not match.";
+  }
+
+  if (message.trim().length > 0) {
+    return message;
+  }
+
+  return "Voiyce could not complete sign-in. Check your connection and try again.";
 }
 
 function requiresEmailVerification(error: unknown): boolean {
@@ -70,9 +102,7 @@ export default function AuthPageClient() {
 
       if (user) {
         router.replace(redirectHref);
-        return;
       }
-
     }
 
     void restoreSession();
@@ -190,17 +220,18 @@ export default function AuthPageClient() {
   return (
     <div className="min-h-screen bg-[#050505] text-white overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-purple-500/10 blur-[140px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(circle_at_top,black_25%,transparent_78%)]" />
+        <AuthBackground />
       </div>
 
       <div className="relative flex min-h-screen items-center justify-center px-4 py-4 md:px-6 md:py-6">
         <div className="w-full max-w-[34rem]">
           <div className="mb-3 flex justify-center">
             <Link href="/" className="inline-flex items-center text-[#C9C9D1] transition-colors hover:text-white">
-              <img
+              <Image
                 src="/voiyce_logo.png"
                 alt="Voiyce"
+                width={384}
+                height={192}
                 className="block h-[168px] w-auto max-w-full object-contain md:h-[192px]"
               />
             </Link>
@@ -210,11 +241,14 @@ export default function AuthPageClient() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#73737D]">
-                  Sign In
+                  {showVerificationStep ? "Verify Email" : "Account"}
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">
-                  {showVerificationStep ? "Verify your email" : "Welcome back"}
+                  {showVerificationStep ? "Verify your email" : "Create your account"}
                 </h2>
+                {!showVerificationStep ? (
+                  <p className="mt-2 text-sm leading-7 text-[#A7A7B0]">{intentHeadline(intent)}</p>
+                ) : null}
               </div>
               <Link
                 href={buildAuthHref(intent)}
@@ -227,7 +261,7 @@ export default function AuthPageClient() {
             <p className="mt-4 text-sm leading-7 text-[#90909A]">
               {showVerificationStep
                 ? `Enter the 6-digit code we emailed to ${verificationEmail}.`
-                : "Sign in to your account. Once you're in, we'll send you straight to the Mac installer page."}
+                : intentSupportingCopy(intent)}
             </p>
 
             {!showVerificationStep ? (
@@ -249,76 +283,63 @@ export default function AuthPageClient() {
                   className="mt-3 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#7C58EB] px-5 py-4 text-base font-medium text-white transition-colors hover:bg-[#8B6BF2] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white">
-                    <img src="/pentridge-p.png" alt="" className="h-3 w-3 object-contain" />
+                    <Image src="/pentridge-p.png" alt="" width={12} height={12} className="h-3 w-3 object-contain" />
                   </span>
-                  Continue with Pentridge
+                  Continue to download
                 </button>
 
-                {errorMessage ? (
-                  <p className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <p className="mt-4 text-xs leading-6 text-[#7A7A84]">
+                  Google opens a secure browser handoff. Email sign-in happens here on the website,
+                  then you sign in again inside the Mac app to finish permissions and setup.
+                </p>
 
-                {infoMessage ? (
-                  <p className="mt-4 rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
-                    {infoMessage}
-                  </p>
-                ) : null}
+                <AuthFeedback errorMessage={errorMessage} infoMessage={infoMessage} />
 
                 {showEmailForm ? (
-                  <>
-                    <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-[0.28em] text-[#5F5F68]">
-                      <div className="h-px flex-1 bg-white/10" />
-                      or
-                      <div className="h-px flex-1 bg-white/10" />
-                    </div>
+                  <form className="mt-6 space-y-4" onSubmit={submitCredentials}>
+                    <AuthDivider />
 
-                    <form className="space-y-4" onSubmit={submitCredentials}>
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Email</span>
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(event) => setEmail(event.target.value)}
-                          placeholder="you@company.com"
-                          autoComplete="email"
-                          required
-                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
-                        />
-                      </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Email</span>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="you@company.com"
+                        autoComplete="email"
+                        required
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                      />
+                    </label>
 
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Password</span>
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(event) => setPassword(event.target.value)}
-                          placeholder="Your password"
-                          autoComplete="current-password"
-                          required
-                          minLength={6}
-                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
-                        />
-                      </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">Password</span>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Your password"
+                        autoComplete="current-password"
+                        required
+                        minLength={6}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition-colors placeholder:text-[#666670] focus:border-white/20"
+                      />
+                    </label>
 
-                      <button
-                        type="submit"
-                        disabled={isWorking}
-                        className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-base font-semibold text-black transition-colors hover:bg-[#E8E8EC] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isWorking ? "Working..." : "Sign in and continue"}
-                      </button>
-                    </form>
-                  </>
+                    <button
+                      type="submit"
+                      disabled={isWorking}
+                      className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-base font-semibold text-black transition-colors hover:bg-[#E8E8EC] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isWorking ? "Working..." : "Continue to download"}
+                    </button>
+                  </form>
                 ) : null}
               </>
             ) : (
               <form className="mt-8 space-y-4" onSubmit={submitVerification}>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">
-                    6-digit code
-                  </span>
+                  <span className="mb-2 block text-sm font-medium text-[#CBCBD3]">6-digit code</span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -331,24 +352,14 @@ export default function AuthPageClient() {
                   />
                 </label>
 
-                {errorMessage ? (
-                  <p className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                    {errorMessage}
-                  </p>
-                ) : null}
-
-                {infoMessage ? (
-                  <p className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
-                    {infoMessage}
-                  </p>
-                ) : null}
+                <AuthFeedback errorMessage={errorMessage} infoMessage={infoMessage} />
 
                 <button
                   type="submit"
                   disabled={isWorking || verificationCode.trim().length < 6}
                   className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-base font-semibold text-black transition-colors hover:bg-[#E8E8EC] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isWorking ? "Verifying..." : "Verify and continue"}
+                  {isWorking ? "Verifying..." : "Continue to download"}
                 </button>
 
                 <div className="flex items-center justify-between gap-4 text-sm">
@@ -387,6 +398,17 @@ export default function AuthPageClient() {
               </Link>
               .
             </p>
+
+            <p className="mt-4 text-xs leading-6 text-[#6F6F77]">
+              Need help finishing setup? Email{" "}
+              <a
+                href={`mailto:${supportEmail}`}
+                className="text-[#D8D8DE] underline decoration-white/20 underline-offset-4"
+              >
+                {supportEmail}
+              </a>
+              .
+            </p>
           </div>
 
           <p className="mt-6 text-center text-sm text-[#8A8A94]">
@@ -403,5 +425,47 @@ export default function AuthPageClient() {
         </div>
       </div>
     </div>
+  );
+}
+
+function AuthBackground() {
+  return (
+    <>
+      <div className="absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-purple-500/10 blur-[140px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(circle_at_top,black_25%,transparent_78%)]" />
+    </>
+  );
+}
+
+function AuthDivider() {
+  return (
+    <div className="my-2 flex items-center gap-4 text-xs uppercase tracking-[0.28em] text-[#5F5F68]">
+      <div className="h-px flex-1 bg-white/10" />
+      or
+      <div className="h-px flex-1 bg-white/10" />
+    </div>
+  );
+}
+
+function AuthFeedback({
+  errorMessage,
+  infoMessage,
+}: {
+  errorMessage: string | null;
+  infoMessage: string | null;
+}) {
+  return (
+    <>
+      {errorMessage ? (
+        <p className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          {errorMessage}
+        </p>
+      ) : null}
+      {infoMessage ? (
+        <p className="mt-4 rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
+          {infoMessage}
+        </p>
+      ) : null}
+    </>
   );
 }

@@ -119,24 +119,18 @@ require_png(Path(sys.argv[2]), (1200, 630))
 require_ico(Path(sys.argv[3]))
 PY
 
-log "Checking production agent-context positioning"
-assert_file_contains "$TMP_DIR/home.html" "home headline" "Stop re-explaining"
-assert_file_contains "$TMP_DIR/home.html" "home headline continuation" "your work to AI"
-assert_file_contains "$TMP_DIR/home.html" "agent-context positioning" "agent context layer"
-assert_file_contains "$TMP_DIR/home.html" "metadata title" "Stop re-explaining your work to AI."
+log "Checking production dictation positioning"
+assert_file_contains "$TMP_DIR/home.html" "home headline" "Write at the speed"
+assert_file_contains "$TMP_DIR/home.html" "dictation positioning" "Built for dictation"
+assert_file_contains "$TMP_DIR/home.html" "metadata title" "Write at the speed of thought."
 assert_file_contains "$TMP_DIR/home.html" "twitter summary card" "summary_large_image"
 assert_file_contains "$TMP_DIR/home.html" "production OG URL" "${BASE}/og-header.png"
 assert_file_contains "$TMP_DIR/home.html" "auth CTA href" 'href="/auth?intent=download"'
 
-for agent in "Claude Code" "Codex" "Hermes Agent" "OpenClaw" "Cursor"; do
-  assert_file_contains "$TMP_DIR/home.html" "agent label" "$agent"
-done
-
 log "Checking production stale-copy guardrails"
 for forbidden in \
-  "Write at the speed of thought" \
-  "Download Voiyce for macOS" \
-  "Download for MacOS" \
+  "Stop re-explaining your work to AI" \
+  "agent context layer" \
   "Accelerate your productivity" \
   "No more typing" \
   "Speak naturally. We handle the rest"
@@ -152,9 +146,9 @@ assert_file_contains "$TMP_DIR/download.html" "download route metadata" "Downloa
 assert_file_contains "$TMP_DIR/download-health.json" "download health ok" '"ok":true'
 assert_file_contains "$TMP_DIR/privacy.html" "privacy title" "Privacy Policy"
 assert_file_contains "$TMP_DIR/privacy.html" "privacy contact" "$CONTACT_EMAIL"
-assert_file_contains "$TMP_DIR/privacy.html" "privacy memory coverage" "Local memory"
+assert_file_contains "$TMP_DIR/privacy.html" "privacy dictation coverage" "dictation"
 assert_file_contains "$TMP_DIR/terms.html" "terms title" "Terms of Service"
 assert_file_contains "$TMP_DIR/terms.html" "terms contact" "$CONTACT_EMAIL"
-assert_file_contains "$TMP_DIR/terms.html" "terms context coverage" "context capture"
+assert_file_contains "$TMP_DIR/terms.html" "terms dictation coverage" "macOS dictation"
 
 log "Production landing verification passed"
