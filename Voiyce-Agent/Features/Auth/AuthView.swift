@@ -41,7 +41,7 @@ struct AuthView: View {
             return SignInNetworkRecoveryCopy.authTitle
         }
 
-        return isShowingVerification ? "Verify your email" : "Finish signing in on your Mac"
+        return isShowingVerification ? AppAuthCopy.verificationTitle : AppAuthCopy.signInTitle
     }
 
     private var subtitleText: String {
@@ -50,8 +50,8 @@ struct AuthView: View {
         }
 
         return isShowingVerification
-            ? "Enter the 6-digit code we sent so Voiyce can continue setup on this Mac."
-            : "Use the same Google or email account you created on voiyce.com. The browser signup unlocks the download, and this sign-in unlocks permissions, mic testing, and your live shortcut."
+            ? AppAuthCopy.verificationSubtitle(email: authenticationManager.pendingVerificationEmail ?? email)
+            : AppAuthCopy.signInSubtitle
     }
 
     private var bundledLogoImage: NSImage? {
@@ -64,16 +64,8 @@ struct AuthView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(hex: 0x09090C),
-                    Color(hex: 0x111117),
-                    Color(hex: 0x17131E)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppTheme.backgroundPrimary
+                .ignoresSafeArea()
 
             GeometryReader { proxy in
                 let horizontalPadding = min(max(proxy.size.width * 0.04, 24), 44)
@@ -96,7 +88,6 @@ struct AuthView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color.black.opacity(0.18))
         }
         .accessibilityIdentifier("auth-view")
         .onChange(of: authenticationManager.pendingVerificationEmail) { _, pendingEmail in
@@ -131,11 +122,11 @@ struct AuthView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Label("Website sign-in and app sign-in stay separate by design.", systemImage: "arrow.triangle.branch")
+                Label(AppAuthCopy.twoStepTitle, systemImage: "arrow.triangle.branch")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text("That extra sign-in is what lets macOS keep the app session secure on this device without depending on a browser session transfer.")
+                Text(AppAuthCopy.twoStepDetail)
                     .font(AppTheme.captionFont)
                     .foregroundStyle(AppTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -143,6 +134,23 @@ struct AuthView: View {
             .padding(18)
             .background(Color.white.opacity(0.04))
             .clipShape(RoundedRectangle(cornerRadius: 18))
+
+            HStack(spacing: 6) {
+                Text(AppAuthCopy.noAccountPrompt)
+                    .font(AppTheme.captionFont)
+                    .foregroundStyle(AppTheme.textSecondary)
+
+                Button {
+                    if let url = URL(string: AppConstants.pentridgeLabsPurchaseURL) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Text(AppAuthCopy.signUpLinkTitle)
+                        .font(AppTheme.captionFont.weight(.semibold))
+                        .foregroundStyle(AppTheme.accent)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -205,7 +213,7 @@ struct AuthView: View {
                             .tint(.white)
                     }
 
-                    Text(authMode == .signIn ? "Sign In to Voiyce" : "Create Account")
+                    Text(authMode == .signIn ? AppAuthCopy.signInButton : AppAuthCopy.createAccountButton)
                         .font(.system(size: 14, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -220,8 +228,8 @@ struct AuthView: View {
 
             Text(
                 authMode == .signUp
-                ? "Email sign-up uses a 6-digit verification code before the first session starts."
-                : "Google opens a secure browser handoff. Email sign-in happens directly in the app."
+                ? AppAuthCopy.emailSignUpFootnote
+                : AppAuthCopy.emailSignInFootnote
             )
             .font(AppTheme.captionFont)
             .foregroundStyle(AppTheme.textSecondary)
@@ -233,10 +241,6 @@ struct AuthView: View {
 
     private var verificationCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("We sent a 6-digit code to \(authenticationManager.pendingVerificationEmail ?? email).")
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textSecondary)
-
             styledField {
                 TextField("6-digit code", text: $verificationCode)
                     .textFieldStyle(.plain)
@@ -256,7 +260,7 @@ struct AuthView: View {
                             .tint(.white)
                     }
 
-                    Text("Verify and Continue")
+                    Text(AppAuthCopy.verifyButton)
                         .font(.system(size: 14, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -274,7 +278,7 @@ struct AuthView: View {
             .accessibilityIdentifier("auth-verify-button")
 
             HStack(spacing: 14) {
-                Button("Resend Code") {
+                Button(AppAuthCopy.resendCode) {
                     Task {
                         await authenticationManager.resendVerificationCode()
                     }
@@ -283,7 +287,7 @@ struct AuthView: View {
                 .disabled(authenticationManager.isWorking || isOffline)
                 .foregroundStyle(AppTheme.accent)
 
-                Button("Back to Sign In") {
+                Button(AppAuthCopy.backToSignIn) {
                     authenticationManager.cancelEmailVerification()
                     authMode = .signIn
                 }
@@ -307,7 +311,7 @@ struct AuthView: View {
                 Image(systemName: "globe")
                     .font(.system(size: 14, weight: .semibold))
 
-                Text("Continue with Google")
+                Text(AppAuthCopy.googleButton)
                     .font(.system(size: 14, weight: .semibold))
             }
             .frame(maxWidth: .infinity)
@@ -356,32 +360,11 @@ struct AuthView: View {
     private var brandColumn: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 34)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.05),
-                            Color.white.opacity(0.02)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.white.opacity(0.04))
                 .overlay {
                     RoundedRectangle(cornerRadius: 34)
                         .stroke(Color.white.opacity(0.07), lineWidth: 1)
                 }
-
-            Circle()
-                .fill(AppTheme.accent.opacity(0.22))
-                .frame(width: 320, height: 320)
-                .blur(radius: 60)
-                .offset(x: 180, y: -120)
-
-            Circle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 220, height: 220)
-                .blur(radius: 84)
-                .offset(x: -150, y: 210)
 
             Group {
                 if let logoImage = bundledLogoImage {
@@ -390,7 +373,6 @@ struct AuthView: View {
                         .interpolation(.high)
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: 640, maxHeight: 460)
-                        .shadow(color: AppTheme.accent.opacity(0.32), radius: 40, y: 20)
                 } else {
                     Text("Voiyce")
                         .font(.system(size: 92, weight: .bold, design: .rounded))

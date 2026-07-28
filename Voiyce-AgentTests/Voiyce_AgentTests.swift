@@ -589,6 +589,32 @@ struct Voiyce_AgentTests {
         }
     }
 
+    @Test func appAuthCopyAlignsWithWebsiteFlow() throws {
+        let forbiddenTerms = [
+            "Open" + "AI",
+            "backend",
+            "API",
+            "token",
+            "secret",
+            "HTTP",
+            "InsForge"
+        ]
+
+        for copy in AppAuthCopy.visibleStrings {
+            for forbiddenTerm in forbiddenTerms {
+                #expect(!copy.localizedCaseInsensitiveContains(forbiddenTerm))
+            }
+        }
+
+        #expect(AppAuthCopy.signInTitle == "Welcome back")
+        #expect(AppAuthCopy.signInSubtitle.localizedCaseInsensitiveContains("voiyce.us"))
+        #expect(AppAuthCopy.signInSubtitle.localizedCaseInsensitiveContains("Pentridge"))
+        #expect(AppAuthCopy.twoStepDetail.localizedCaseInsensitiveContains("download"))
+        #expect(AppAuthCopy.verifyButton == "Verify and continue")
+        #expect(AppAuthCopy.signInButton == "Sign in and continue")
+        #expect(AppAuthCopy.signUpLinkTitle.localizedCaseInsensitiveContains("Pentridge Labs"))
+    }
+
     @Test func authAndBillingRecoveryCopyDoNotExposeRawErrors() throws {
         let rawError = NSError(
             domain: "backend.OPENAI_API_KEY",
