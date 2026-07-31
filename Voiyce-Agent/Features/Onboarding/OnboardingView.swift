@@ -3,7 +3,7 @@ import InsForgeAuth
 import SwiftUI
 
 enum OnboardingPermissionCopy {
-    static let headline = "Let Voiyce listen, type, and understand your screen."
+    static let headline = "Let Voiyce hear you and type for you."
     static let body = "Turn on the access below. When you come back from System Settings, Voiyce checks again automatically."
 
     static let microphoneTitle = "Microphone"
@@ -14,8 +14,8 @@ enum OnboardingPermissionCopy {
     static let speechRecognitionMissingDetail = "Voiyce still needs Speech Recognition access to finish setup cleanly on macOS."
 
     static let accessibilityTitle = "Accessibility"
-    static let accessibilityGrantedDescription = "Lets Voiyce place finished text in the app you're using and run approved Act steps."
-    static let accessibilityMissingDescription = "Turn on the exact Voiyce entry so approved typing and clicks can work."
+    static let accessibilityGrantedDescription = "Lets Voiyce place finished text into whatever app you're typing in."
+    static let accessibilityMissingDescription = "Turn on the exact Voiyce entry so your dictated text can land in other apps."
 
     static let screenRecordingTitle = "Screen Recording"
     static let screenRecordingGrantedDescription = "Lets Context, Talk, and Act understand what is on your screen when you ask."
@@ -55,32 +55,16 @@ enum OnboardingPermissionCopy {
 }
 
 enum OnboardingLaunchCopy {
-    static let overviewHeadline = "Give your work a reusable memory layer."
-    static let overviewBody = "Dictate when it helps, then let Context, Talk, and Act carry what you said, saw, and decided into the next agent handoff."
-    static let captureTitle = "Capture the work"
-    static let captureDetail = "Voice, screen context, and approved actions become structured memory you can reuse."
-    static let handoffTitle = "Move between agents"
-    static let handoffDetail = "Brief Codex, Claude Code, Cursor, Hermes, and other tools without rebuilding the backstory."
-    static let controlTitle = "Stay in control"
-    static let controlDetail = "Private Mode, exclusions, permissions, and Agent Log keep the context trail visible."
-    static let previewHeadline = "Run one short voice check."
-    static let previewBody = "This checks the same recording path used by Dictation and Talk, but keeps the text inside Voiyce so you can confirm setup before using it across apps."
-    static let learnHeadlineWithoutPreview = "Your first context handoff is ready."
-    static let learnHeadlineWithPreview = "Nice job. Voiyce can now carry the details."
-    static let learnBodyWithoutPreview = "Even without a recorded sample, the important setup is in place: Voiyce can listen, read approved screen context, and prepare reusable memory for your agent workflow."
-    static let learnBodyWithPreview = "That short test proves Voiyce can capture your words. From here, Context, Talk, and Act can use the same setup to reduce repeated explanations."
+    static let previewHeadline = "Say one line out loud."
+    static let previewBody = "This runs the exact recording path your dictation uses, but keeps the text here inside Voiyce so you can confirm everything works before using it in other apps."
+    static let learnHeadlineWithoutPreview = "You're set up to talk instead of type."
+    static let learnHeadlineWithPreview = "Nice. That's your words, typed for you."
+    static let learnBodyWithoutPreview = "Even without a recorded sample, the important part is in place: Voiyce can hear you and place finished text wherever you're typing."
+    static let learnBodyWithPreview = "That short test proves Voiyce can capture your voice and turn it into clean text. The same hold-to-talk shortcut now works in every app on this Mac."
     static let learnNoticeTitle = "Why this matters"
 
     static var visibleStrings: [String] {
         [
-            overviewHeadline,
-            overviewBody,
-            captureTitle,
-            captureDetail,
-            handoffTitle,
-            handoffDetail,
-            controlTitle,
-            controlDetail,
             previewHeadline,
             previewBody,
             learnHeadlineWithoutPreview,
@@ -152,10 +136,6 @@ struct OnboardingView: View {
         switch currentStep {
         case .context:
             return !appState.onboardingDiscoverySource.isEmpty && !appState.onboardingRole.isEmpty
-        case .overview:
-            return true
-        case .privacy:
-            return appState.onboardingPrivacyPreference != .unset
         case .permissions:
             return permissions.allPermissionsGranted
         case .microphoneTest:
@@ -244,10 +224,6 @@ struct OnboardingView: View {
 
     private var roleSummary: String {
         appState.onboardingRole.isEmpty ? "Not chosen yet" : appState.onboardingRole
-    }
-
-    private var privacySummary: String {
-        appState.onboardingPrivacyPreference.title
     }
 
     private var statusColor: Color {
@@ -476,6 +452,27 @@ struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
+            // Soft accent bloom so the flat panel reads as lit rather than painted.
+            RadialGradient(
+                colors: [AppTheme.accent.opacity(0.16), .clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 620
+            )
+            .ignoresSafeArea()
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
+
+            RadialGradient(
+                colors: [Color(hex: 0x4B2E83).opacity(0.13), .clear],
+                center: .bottomTrailing,
+                startRadius: 0,
+                endRadius: 560
+            )
+            .ignoresSafeArea()
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
+
             VStack(spacing: 0) {
                 GeometryReader { proxy in
                     let horizontalPadding = min(max(proxy.size.width * 0.04, 24), 48)
@@ -491,6 +488,13 @@ struct OnboardingView: View {
 
                             leftPanel
                                 .frame(maxWidth: contentWidth, alignment: .leading)
+                                .id(stepIndex)
+                                .transition(
+                                    .asymmetric(
+                                        insertion: .opacity.combined(with: .offset(y: 12)),
+                                        removal: .opacity
+                                    )
+                                )
                         }
                         .padding(.horizontal, horizontalPadding)
                         .padding(.vertical, 24)
@@ -521,10 +525,6 @@ struct OnboardingView: View {
         switch currentStep {
         case .context:
             contextStep
-        case .overview:
-            overviewStep
-        case .privacy:
-            privacyStep
         case .permissions:
             permissionsStep
         case .microphoneTest:
@@ -537,117 +537,59 @@ struct OnboardingView: View {
     }
 
     private var contextStep: some View {
-        VStack(alignment: .leading, spacing: 26) {
-            StepEyebrow(stage: currentStage, step: "Quick Setup")
+        VStack(alignment: .leading, spacing: 30) {
+            VStack(alignment: .leading, spacing: 16) {
+                StepEyebrow(stage: currentStage, step: "Quick Setup")
 
-            Text("Set up Voiyce for this Mac.")
-                .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(AppTheme.textPrimary)
+                GradientHeadline(
+                    leading: "Let's tune Voiyce",
+                    accent: "to you."
+                )
 
-            Text("Give us just enough context to shape the setup language and the first-run trial summary. Nothing here changes your account globally.")
-                .font(.system(size: 15))
-                .foregroundStyle(AppTheme.textSecondary)
+                Text("Two quick questions. They shape the language you'll see during setup — nothing here changes your account.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 620, alignment: .leading)
+            }
 
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 18) {
-                    contextQuestionCard(title: "Where did you hear about Voiyce?") {
-                        OptionGrid(options: discoverySources, selectedOption: appState.onboardingDiscoverySource) { source in
-                            chooseDiscoverySource(source)
-                        }
-                    }
-
-                    contextQuestionCard(title: "What kind of work do you do most days?") {
-                        OptionGrid(options: roleOptions, selectedOption: appState.onboardingRole) { role in
-                            chooseRole(role)
-                        }
-                    }
+                HStack(alignment: .top, spacing: 20) {
+                    discoveryCard
+                    roleCard
                 }
-
-                VStack(alignment: .leading, spacing: 18) {
-                    contextQuestionCard(title: "Where did you hear about Voiyce?") {
-                        OptionGrid(options: discoverySources, selectedOption: appState.onboardingDiscoverySource) { source in
-                            chooseDiscoverySource(source)
-                        }
-                    }
-
-                    contextQuestionCard(title: "What kind of work do you do most days?") {
-                        OptionGrid(options: roleOptions, selectedOption: appState.onboardingRole) { role in
-                            chooseRole(role)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var overviewStep: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            StepEyebrow(stage: currentStage, step: "How It Works")
-
-            Text(OnboardingLaunchCopy.overviewHeadline)
-                .font(.system(size: 36, weight: .bold))
-                .foregroundStyle(AppTheme.textPrimary)
-
-            Text(OnboardingLaunchCopy.overviewBody)
-                .font(.system(size: 16))
-                .foregroundStyle(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            VStack(spacing: 14) {
-                FeatureCalloutCard(
-                    icon: "waveform.badge.mic",
-                    title: OnboardingLaunchCopy.captureTitle,
-                    detail: OnboardingLaunchCopy.captureDetail
-                )
-                FeatureCalloutCard(
-                    icon: "text.bubble.fill",
-                    title: OnboardingLaunchCopy.handoffTitle,
-                    detail: OnboardingLaunchCopy.handoffDetail
-                )
-                FeatureCalloutCard(
-                    icon: "rectangle.and.pencil.and.ellipsis",
-                    title: OnboardingLaunchCopy.controlTitle,
-                    detail: OnboardingLaunchCopy.controlDetail
-                )
+                VStack(alignment: .leading, spacing: 20) {
+                    discoveryCard
+                    roleCard
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    private var privacyStep: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            StepEyebrow(stage: currentStage, step: "Data Mode")
-
-            Text("You control how Voiyce handles your data.")
-                .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(AppTheme.textPrimary)
-
-            Text("Pick the mode you want on this Mac. You can change it later in settings after onboarding.")
-                .font(.system(size: 15))
-                .foregroundStyle(AppTheme.textSecondary)
-
-            VStack(spacing: 14) {
-                PrivacyChoiceCard(
-                    title: "Help improve Voiyce",
-                    description: "Allows product-improvement usage while you evaluate the app. Best if you want the default experience and future quality tuning.",
-                    badge: "Recommended",
-                    isSelected: appState.onboardingPrivacyPreference == .standard
-                ) {
-                    choosePrivacyPreference(.standard)
-                }
-
-                PrivacyChoiceCard(
-                    title: "Privacy mode",
-                    description: "Keeps your dictation data out of product-improvement training. Best if your work is sensitive and you want stricter data handling without changing the transcription engine.",
-                    badge: "Private",
-                    isSelected: appState.onboardingPrivacyPreference == .privateMode
-                ) {
-                    choosePrivacyPreference(.privateMode)
-                }
+    private var discoveryCard: some View {
+        QuestionCard(
+            index: "01",
+            title: "Where did you hear about Voiyce?",
+            isAnswered: !appState.onboardingDiscoverySource.isEmpty
+        ) {
+            OptionGrid(options: discoverySources, selectedOption: appState.onboardingDiscoverySource) { source in
+                chooseDiscoverySource(source)
             }
+        }
+    }
 
-            Text(appState.onboardingPrivacyPreference.summary)
-                .font(AppTheme.captionFont)
-                .foregroundStyle(AppTheme.textSecondary)
+    private var roleCard: some View {
+        QuestionCard(
+            index: "02",
+            title: "What kind of work do you do most days?",
+            isAnswered: !appState.onboardingRole.isEmpty
+        ) {
+            OptionGrid(options: roleOptions, selectedOption: appState.onboardingRole) { role in
+                chooseRole(role)
+            }
         }
     }
 
@@ -709,23 +651,6 @@ struct OnboardingView: View {
                     secondaryAction: { permissions.openAccessibilitySettings() }
                 )
 
-                #if VOIYCE_PRO
-                PermissionStatusCard(
-                    icon: "rectangle.on.rectangle",
-                    title: OnboardingPermissionCopy.screenRecordingTitle,
-                    description: SystemPermissionStatusCopy.description(
-                        for: .screenRecording,
-                        isGranted: permissions.screenRecordingGranted,
-                        screenRecordingStatusMessage: permissions.screenRecordingStatusMessage,
-                        surface: .onboarding
-                    ),
-                    isGranted: permissions.screenRecordingGranted,
-                    primaryTitle: "Grant Access",
-                    primaryAction: { permissions.requestScreenRecordingPermission() },
-                    secondaryTitle: "Open Settings",
-                    secondaryAction: { permissions.openScreenRecordingSettings() }
-                )
-                #endif
             }
 
             if !permissions.allPermissionsGranted {
@@ -735,16 +660,6 @@ struct OnboardingView: View {
                     nextStep: OnboardingPermissionCopy.requiredAccessNextStep
                 )
             }
-
-            #if VOIYCE_PRO
-            if permissions.allPermissionsGranted && !permissions.screenRecordingGranted {
-                NoticeCard(
-                    title: OnboardingPermissionCopy.agentScreenAccessTitle,
-                    message: OnboardingPermissionCopy.agentScreenAccessMessage,
-                    nextStep: OnboardingPermissionCopy.agentScreenAccessNextStep
-                )
-            }
-            #endif
         }
     }
 
@@ -907,11 +822,6 @@ struct OnboardingView: View {
                     detail: roleSummary,
                     badge: "Role"
                 )
-                SummaryCard(
-                    title: "Privacy mode",
-                    detail: privacySummary,
-                    badge: "Data"
-                )
             }
 
             if let infoMessage = billingManager.infoMessage {
@@ -967,11 +877,6 @@ struct OnboardingView: View {
         persistOnboardingAnswers()
     }
 
-    private func choosePrivacyPreference(_ preference: OnboardingPrivacyPreference) {
-        appState.onboardingPrivacyPreference = preference
-        persistOnboardingAnswers()
-    }
-
     private func persistOnboardingAnswers() {
         let userID = authenticationManager.currentUser?.id
         let defaults = UserDefaults.standard
@@ -982,10 +887,6 @@ struct OnboardingView: View {
         defaults.set(
             appState.onboardingRole,
             forKey: AppConstants.accountScopedKey(AppConstants.onboardingRoleKey, userID: userID)
-        )
-        defaults.set(
-            appState.onboardingPrivacyPreference.rawValue,
-            forKey: AppConstants.accountScopedKey(AppConstants.onboardingPrivacyPreferenceKey, userID: userID)
         )
     }
 
@@ -1060,28 +961,10 @@ struct OnboardingView: View {
         appState.isOnboardingComplete = true
     }
 
-    private func contextQuestionCard<Content: View>(
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(AppTheme.textPrimary)
-
-            content()
-        }
-        .padding(22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-    }
 }
 
 private enum OnboardingStep: Int, CaseIterable {
     case context
-    case overview
-    case privacy
     case permissions
     case microphoneTest
     case learn
@@ -1089,9 +972,9 @@ private enum OnboardingStep: Int, CaseIterable {
 
     var stage: SetupStage {
         switch self {
-        case .context, .overview:
+        case .context:
             return .signUp
-        case .privacy, .permissions:
+        case .permissions:
             return .permissions
         case .microphoneTest:
             return .setup
@@ -1110,17 +993,115 @@ private struct StepEyebrow: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(stage.rawValue)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1.4)
                 .foregroundStyle(AppTheme.accent)
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 11)
                 .padding(.vertical, 5)
-                .background(AppTheme.accent.opacity(0.12))
-                .clipShape(Capsule())
+                .background(
+                    Capsule().fill(AppTheme.accent.opacity(0.14))
+                )
+                .overlay(
+                    Capsule().stroke(AppTheme.accent.opacity(0.28), lineWidth: 1)
+                )
 
             Text(step.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(AppTheme.textSecondary)
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(1.4)
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.75))
         }
+    }
+}
+
+/// Two-tone display headline: the accent clause is filled with the brand gradient.
+private struct GradientHeadline: View {
+    let leading: String
+    let accent: String
+
+    var body: some View {
+        (
+            Text(leading + " ")
+                .foregroundStyle(AppTheme.textPrimary)
+            + Text(accent)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [AppTheme.accent, Color(hex: 0xB79BFF)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+        )
+        .font(.system(size: 40, weight: .bold))
+        .tracking(-0.8)
+        .lineSpacing(2)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Glass question card with a numbered index that fills in once answered.
+private struct QuestionCard<Content: View>: View {
+    let index: String
+    let title: String
+    let isAnswered: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 12) {
+                Text(index)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(isAnswered ? Color.white : AppTheme.textSecondary)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        Circle().fill(
+                            isAnswered
+                            ? AnyShapeStyle(LinearGradient(
+                                colors: [AppTheme.accent, Color(hex: 0x8B6BF2)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ))
+                            : AnyShapeStyle(Color.white.opacity(0.06))
+                        )
+                    )
+                    .overlay(
+                        Circle().stroke(
+                            isAnswered ? AppTheme.accent.opacity(0.5) : AppTheme.ridge,
+                            lineWidth: 1
+                        )
+                    )
+
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+
+            content
+
+            Spacer(minLength: 0)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.white.opacity(0.035))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    LinearGradient(
+                        colors: isAnswered
+                        ? [AppTheme.accent.opacity(0.4), AppTheme.accent.opacity(0.08)]
+                        : [Color.white.opacity(0.10), Color.white.opacity(0.03)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .animation(.easeOut(duration: 0.22), value: isAnswered)
     }
 }
 
@@ -1130,53 +1111,79 @@ private struct JourneyHeader: View {
     let stepCount: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 10) {
                     Text(stage.rawValue)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1.6)
                         .foregroundStyle(AppTheme.accent)
 
+                    Circle()
+                        .fill(AppTheme.textSecondary.opacity(0.35))
+                        .frame(width: 3, height: 3)
+
                     Text("Step \(stepIndex + 1) of \(stepCount)")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(AppTheme.textSecondary)
                 }
 
                 Spacer()
 
                 Text("Voiyce setup")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .tracking(0.4)
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(Color.white.opacity(0.04))
-                    .clipShape(Capsule())
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.white.opacity(0.05)))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.07), lineWidth: 1))
             }
 
-            HStack(spacing: 8) {
-                ForEach(0..<stepCount, id: \.self) { index in
-                    Capsule()
-                        .fill(progressColor(for: index))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 6)
+            GeometryReader { proxy in
+                let spacing: CGFloat = 6
+                let segment = (proxy.size.width - (spacing * CGFloat(stepCount - 1))) / CGFloat(stepCount)
+
+                HStack(spacing: spacing) {
+                    ForEach(0..<stepCount, id: \.self) { index in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.07))
+
+                            if index <= stepIndex {
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [AppTheme.accent, Color(hex: 0x9B7BFF)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: max(segment, 0))
+                                    .opacity(index == stepIndex ? 1 : 0.45)
+                                    .shadow(
+                                        color: index == stepIndex ? AppTheme.accent.opacity(0.5) : .clear,
+                                        radius: 6
+                                    )
+                            }
+                        }
+                        .frame(width: max(segment, 0), height: 4)
+                    }
                 }
             }
+            .frame(height: 4)
+            .animation(.easeInOut(duration: 0.3), value: stepIndex)
         }
-        .padding(18)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-    }
-
-    private func progressColor(for index: Int) -> Color {
-        if index < stepIndex {
-            return AppTheme.accent.opacity(0.35)
-        }
-
-        if index == stepIndex {
-            return AppTheme.accent
-        }
-
-        return Color.white.opacity(0.08)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color.white.opacity(0.035))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        )
     }
 }
 
@@ -1186,14 +1193,18 @@ private struct OptionGrid: View {
     let onSelect: (String) -> Void
 
     private let columns = [
-        GridItem(.adaptive(minimum: 140), spacing: 12)
+        GridItem(.adaptive(minimum: 132), spacing: 10)
     ]
 
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
             ForEach(options, id: \.self) { option in
-                Button(option) {
-                    onSelect(option)
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.7)) {
+                        onSelect(option)
+                    }
+                } label: {
+                    Text(option)
                 }
                 .buttonStyle(OptionChipButtonStyle(isSelected: option == selectedOption))
             }
@@ -1206,92 +1217,39 @@ private struct OptionChipButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(isSelected ? AppTheme.textPrimary : AppTheme.textSecondary)
+            .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
+            .foregroundStyle(isSelected ? Color.white : AppTheme.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.vertical, 11)
             .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(isSelected ? AppTheme.accent.opacity(0.14) : Color.white.opacity(configuration.isPressed ? 0.07 : 0.04))
+                RoundedRectangle(cornerRadius: 13)
+                    .fill(
+                        isSelected
+                        ? AnyShapeStyle(LinearGradient(
+                            colors: [AppTheme.accent.opacity(0.85), Color(hex: 0x7C58EB).opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        : AnyShapeStyle(Color.white.opacity(configuration.isPressed ? 0.09 : 0.045))
+                    )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? AppTheme.accent.opacity(0.6) : AppTheme.ridge, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 13)
+                    .stroke(
+                        isSelected ? AppTheme.accent.opacity(0.9) : Color.white.opacity(0.08),
+                        lineWidth: 1
+                    )
             )
-    }
-}
-
-private struct FeatureCalloutCard: View {
-    let icon: String
-    let title: String
-    let detail: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(AppTheme.accent)
-                .frame(width: 28)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Text(detail)
-                    .font(AppTheme.bodyFont)
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-    }
-}
-
-private struct PrivacyChoiceCard: View {
-    let title: String
-    let description: String
-    let badge: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(title)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-
-                    Spacer()
-
-                    Text(badge)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(isSelected ? AppTheme.textPrimary : AppTheme.textSecondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background((isSelected ? AppTheme.accent : AppTheme.textSecondary).opacity(0.14))
-                        .clipShape(Capsule())
-                }
-
-                Text(description)
-                    .font(AppTheme.bodyFont)
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? AppTheme.accent.opacity(0.12) : Color.white.opacity(0.04))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? AppTheme.accent.opacity(0.55) : AppTheme.ridge, lineWidth: 1)
+            .shadow(
+                color: isSelected ? AppTheme.accent.opacity(0.32) : .clear,
+                radius: 10,
+                y: 3
             )
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-        }
-        .buttonStyle(.plain)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
@@ -1373,36 +1331,6 @@ private struct SummaryCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 18))
-    }
-}
-
-private struct DataModeCard: View {
-    let title: String
-    let systemImage: String
-    let tint: Color
-    let isActive: Bool
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 58, height: 58)
-                .background(tint.opacity(0.14))
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-
-            Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(AppTheme.textPrimary)
-        }
-        .padding(22)
-        .frame(maxWidth: .infinity)
-        .background(isActive ? tint.opacity(0.12) : Color.white.opacity(0.04))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(isActive ? tint.opacity(0.55) : AppTheme.ridge, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22))
     }
 }
 

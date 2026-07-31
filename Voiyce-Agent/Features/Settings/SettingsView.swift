@@ -710,8 +710,14 @@ struct SettingsView: View {
                     .foregroundStyle(AppTheme.textPrimary)
 
                 HStack(spacing: 24) {
-                    aboutDetail(label: "Version", value: "1.0.0")
-                    aboutDetail(label: "Build", value: "14")
+                    aboutDetail(
+                        label: "Version",
+                        value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+                    )
+                    aboutDetail(
+                        label: "Build",
+                        value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+                    )
                     aboutDetail(label: "Platform", value: "macOS")
                 }
             }

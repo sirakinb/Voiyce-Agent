@@ -340,9 +340,9 @@ enum AccessState {
         case .active:
             return "Continue using Voiyce."
         case .signedOut:
-            return "Sign in again, then restart Dictation, Context, Talk, or Act."
+            return "Sign in again, then restart dictation."
         case .paymentRequired:
-            return "Choose a plan or refresh billing, then restart Dictation, Context, Talk, or Act."
+            return "Choose a plan or refresh billing, then restart dictation."
         }
     }
 }

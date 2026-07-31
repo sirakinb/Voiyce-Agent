@@ -180,7 +180,7 @@ assert_file_contains "landing-page/src/components/DownloadPageClient.tsx" "autom
 
 log "Checking auth recovery copy"
 assert_file_contains "landing-page/src/components/AuthPageClient.tsx" "auth source headline" "Create your account"
-assert_file_contains "landing-page/src/components/AuthPageClient.tsx" "auth source primary action" "Continue to download"
+assert_file_contains "landing-page/src/components/AuthPageClient.tsx" "auth source primary action" "Continue with Pentridge"
 assert_file_contains "landing-page/src/components/AuthPageClient.tsx" "auth source terms link" 'href="/terms"'
 assert_file_contains "landing-page/src/components/AuthPageClient.tsx" "auth source privacy link" 'href="/privacy"'
 assert_file_contains "landing-page/src/components/AuthPageClient.tsx" "auth network recovery copy" "Check your connection, then try again."

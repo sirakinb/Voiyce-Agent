@@ -1,5 +1,6 @@
 import Cocoa
 import ApplicationServices
+import Carbon.HIToolbox
 
 @MainActor
 final class TextInjector {
@@ -8,6 +9,12 @@ final class TextInjector {
     private let pasteboardPropagationDelay: TimeInterval = 0.08
     private let targetReactivationDelay: TimeInterval = 0.18
     private let clipboardRestoreDelay: TimeInterval = 1.0
+    /// The dictation hotkey is hold-Control, so the user's finger is often still on a
+    /// modifier when the transcript arrives. A synthetic Cmd+V posted while a physical
+    /// modifier is down reads as Ctrl+Cmd+V in modifier-tracking apps and is dropped.
+    private let modifierReleaseTimeout: TimeInterval = 2.0
+    private let focusSettleTimeout: TimeInterval = 1.0
+    private let pollInterval: TimeInterval = 0.02
     private var activeInjectionID: UUID?
 
     /// Inject a chunk of text into the currently focused app using pasteboard + Cmd+V.
@@ -92,12 +99,23 @@ final class TextInjector {
         }
 
         let pasteDelay = shouldReactivateTarget ? targetReactivationDelay : pasteboardPropagationDelay
-        DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(pasteDelay * 1_000_000_000))
+            guard self.activeInjectionID == injectionID else { return }
+
+            if IsSecureEventInputEnabled() {
+                print("[TextInjector] Secure input is enabled; synthetic paste may be blocked. Transcript remains on the clipboard.")
+            }
+
+            await self.waitForPhysicalModifierRelease()
+            await self.waitForTargetFocus(
+                bundleIdentifier: targetBundleIdentifier,
+                targetApplication: targetApplication
+            )
             guard self.activeInjectionID == injectionID else { return }
             self.postPasteCommand()
-        }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + pasteDelay + clipboardRestoreDelay) {
+            try? await Task.sleep(nanoseconds: UInt64(self.clipboardRestoreDelay * 1_000_000_000))
             guard self.activeInjectionID == injectionID else { return }
             guard pasteboard.string(forType: .string) == text else {
                 // The user or another app changed the clipboard after paste; do not overwrite it.
@@ -113,6 +131,41 @@ final class TextInjector {
         }
     }
 
+    /// Wait until Control/Option/Shift are physically released so the synthetic Cmd+V
+    /// isn't contaminated into a different chord. Times out rather than stalling forever.
+    private func waitForPhysicalModifierRelease() async {
+        let deadline = Date().addingTimeInterval(modifierReleaseTimeout)
+        while Date() < deadline {
+            let flags = CGEventSource.flagsState(.combinedSessionState)
+            let blockingModifiers: CGEventFlags = [.maskControl, .maskAlternate, .maskShift]
+            if flags.intersection(blockingModifiers).isEmpty {
+                return
+            }
+            try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+        }
+        print("[TextInjector] Proceeding with paste despite held modifier keys (timeout)")
+    }
+
+    /// Wait until the target app is actually frontmost before posting the keystroke,
+    /// re-activating it if needed. A fixed delay is not enough for slower apps.
+    private func waitForTargetFocus(
+        bundleIdentifier: String?,
+        targetApplication: NSRunningApplication?
+    ) async {
+        guard let bundleIdentifier else { return }
+        let deadline = Date().addingTimeInterval(focusSettleTimeout)
+        while Date() < deadline {
+            if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleIdentifier {
+                return
+            }
+            if let targetApplication, !targetApplication.isTerminated {
+                targetApplication.activate(options: [])
+            }
+            try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+        }
+        print("[TextInjector] Target app never became frontmost; pasting into current app")
+    }
+
     private func resolveTargetApplication(bundleIdentifier: String?) -> NSRunningApplication? {
         guard let bundleIdentifier, !bundleIdentifier.isEmpty else {
             return nil
@@ -126,13 +179,25 @@ final class TextInjector {
     private func postPasteCommand() {
         let source = CGEventSource(stateID: .privateState)
         let vKeyCode: CGKeyCode = 0x09
+        let commandKeyCode: CGKeyCode = 0x37
+
+        // Post an explicit Command press around the V keystroke. Some apps
+        // (notably Electron/Chromium) track modifier state from flagsChanged
+        // events and ignore a bare V keyDown that only carries the Command flag.
+        let commandDown = CGEvent(keyboardEventSource: source, virtualKey: commandKeyCode, keyDown: true)
+        commandDown?.flags = .maskCommand
 
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true)
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false)
         keyDown?.flags = .maskCommand
         keyUp?.flags = .maskCommand
 
+        let commandUp = CGEvent(keyboardEventSource: source, virtualKey: commandKeyCode, keyDown: false)
+        commandUp?.flags = []
+
+        commandDown?.post(tap: .cgSessionEventTap)
         keyDown?.post(tap: .cgSessionEventTap)
         keyUp?.post(tap: .cgSessionEventTap)
+        commandUp?.post(tap: .cgSessionEventTap)
     }
 }

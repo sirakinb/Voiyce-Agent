@@ -35,6 +35,7 @@ struct Voiyce_AgentTests {
         #expect(appState.selectedSettingsTab == 0)
     }
 
+    #if VOIYCE_PRO
     @Test func permissionReturnRestoresAgentScreen() throws {
         UserDefaults.standard.removeObject(forKey: "permissionReturnTab")
         UserDefaults.standard.removeObject(forKey: "permissionReturnSettingsTab")
@@ -54,6 +55,7 @@ struct Voiyce_AgentTests {
 
         #expect(appState.selectedTab == .dashboard)
     }
+    #endif
 
     @Test func permissionRefreshPollingIncludesScreenRecordingWhenRequired() throws {
         #expect(!PermissionRefreshPolicy.shouldStopPolling(
@@ -78,6 +80,7 @@ struct Voiyce_AgentTests {
         ))
     }
 
+    #if VOIYCE_PRO
     @Test func agentModeCopyMatchesExpectedCapabilities() throws {
         #expect(AgentMode.off.summary.contains("No session memory"))
         #expect(AgentMode.off.summary.contains("Start Context, Talk, or Act"))
@@ -98,7 +101,9 @@ struct Voiyce_AgentTests {
         #expect(AgentSafetyMode.normal.subtitle.contains("sensitive actions"))
         #expect(AgentSafetyMode.unrestricted.subtitle.contains("full system deletion"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func agentModeRuntimeBoundariesAreExplicit() throws {
         #expect(!AgentMode.off.startsSessionContext)
         #expect(!AgentMode.off.startsRealtimeVoice)
@@ -118,7 +123,9 @@ struct Voiyce_AgentTests {
         #expect(AgentMode.act.startsRealtimeVoice)
         #expect(AgentMode.act.enablesActions)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func agentCapabilityTierGatesModesAndStorage() throws {
         #expect(AgentCapabilityTier.defaultTier.supports(.context))
         #expect(AgentCapabilityTier.defaultTier.supports(.talk))
@@ -169,7 +176,9 @@ struct Voiyce_AgentTests {
             pentridgeTier: "power"
         ) == .power)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func appStateReconcilesUnsupportedPersistedAgentModeWithTier() throws {
         let originalMode = UserDefaults.standard.string(forKey: "agentMode")
         defer {
@@ -188,7 +197,9 @@ struct Voiyce_AgentTests {
 
         #expect(appState.agentMode == .talk)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func realtimeWebClientStopInvalidatesPendingConnectAndReleasesAudio() throws {
         #expect(realtimeHTML.contains("let connectionAttemptID = 0;"))
         #expect(realtimeHTML.contains("const attemptID = ++connectionAttemptID;"))
@@ -200,7 +211,9 @@ struct Voiyce_AgentTests {
         #expect(realtimeHTML.contains("releaseMediaStream(stream);"))
         #expect(realtimeHTML.contains("remoteAudio.srcObject = null;"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func realtimeWebClientConnectsMicrophonePeerAndRemoteAudioPath() throws {
         #expect(realtimeHTML.contains(#"<audio id="remoteAudio" autoplay></audio>"#))
         #expect(realtimeHTML.contains(#"navigator.mediaDevices.getUserMedia({ audio: true })"#))
@@ -215,7 +228,9 @@ struct Voiyce_AgentTests {
         #expect(realtimeHTML.contains(#"emitTelemetry("audio_connection_ready")"#))
         #expect(realtimeHTML.contains(#"event.type === "response.audio.delta""#))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func realtimeWebClientRegistersExpectedTalkTools() throws {
         let expectedToolNames = [
             "check_calendar",
@@ -243,7 +258,9 @@ struct Voiyce_AgentTests {
         #expect(realtimeHTML.contains("screen, focus paint, tour guide"))
         #expect(realtimeHTML.contains("local memory, active-session context"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func realtimeWebClientSupportsConfirmationApproveCancelAndStop() throws {
         #expect(realtimeHTML.contains("result.needsConfirmation && result.confirmationID"))
         #expect(realtimeHTML.contains(#"confirm.textContent = "Confirm""#))
@@ -257,7 +274,9 @@ struct Voiyce_AgentTests {
         #expect(realtimeHTML.contains(#"description: "Approve, cancel, or stop the session for a pending Voiyce confirmation after the user answers by voice."#))
         #expect(realtimeHTML.contains(#"decision: { type: "string", description: "approve, cancel, or stop_session." }"#))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func sessionContextCaptureScriptRecordsScreenMicrophoneAndSystemAudio() throws {
         let script = VideoDBAgentMemory.captureScriptForTesting
 
@@ -272,7 +291,9 @@ struct Voiyce_AgentTests {
         #expect(script.contains("primary_video_channel_id=primary_id"))
         #expect(script.contains("async for ev in client.events():"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func agentActivityStatusOnlyAppearsWhileRunning() throws {
         let appState = AppState()
         appState.agentMode = .context
@@ -292,7 +313,9 @@ struct Voiyce_AgentTests {
         appState.agentMode = .off
         #expect(appState.agentActivityStatus == nil)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actModeActivitySurvivesAgentLogAndSettingsNavigation() throws {
         let appState = AppState()
         appState.agentMode = .act
@@ -312,7 +335,9 @@ struct Voiyce_AgentTests {
         appState.selectedTab = .agent
         #expect(appState.agentActivityStatus?.title == "Act active")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func nativeActNavigationFromAgentLogAndSettingsPreservesActiveActState() async throws {
         let appState = AppState()
         appState.agentMode = .act
@@ -331,7 +356,9 @@ struct Voiyce_AgentTests {
         #expect(appState.isAgentRunning)
         #expect(appState.agentActivityStatus?.detail == "Working")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func agentPermissionRecoveryMatchesModeRequirements() throws {
         #expect(AgentPermissionRecovery.recovery(
             mode: .off,
@@ -383,7 +410,9 @@ struct Voiyce_AgentTests {
         ))
         #expect(actScreenRecovery.permissionName == "Screen Recording")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func contextModeStartFailureDoesNotStayActive() throws {
         let failedContextResult = AgentToolResult(
             ok: false,
@@ -408,7 +437,9 @@ struct Voiyce_AgentTests {
         #expect(AgentSessionContextStartRecovery.nextStep(from: failedContextResult) == "Turn off Private Mode, then start Context again.")
         #expect(AgentSessionContextStartRecovery.nextStep(from: runningContextResult) == AgentSessionContextStartRecovery.defaultNextStep)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func appTerminationClearsTransientRuntimeState() throws {
         let appState = AppState()
         appState.recordingState = .processing
@@ -425,7 +456,9 @@ struct Voiyce_AgentTests {
         #expect(!appState.isAgentRunning)
         #expect(appState.agentMode == .act)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func systemSleepClearsTransientRuntimeState() throws {
         let appState = AppState()
         appState.recordingState = .listening
@@ -442,7 +475,9 @@ struct Voiyce_AgentTests {
         #expect(!appState.isAgentRunning)
         #expect(appState.agentMode == .context)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func accessLossClearsTransientRuntimeState() throws {
         let appState = AppState()
         appState.recordingState = .processing
@@ -459,6 +494,7 @@ struct Voiyce_AgentTests {
         #expect(!appState.isAgentRunning)
         #expect(appState.agentMode == .act)
     }
+    #endif
 
     @Test func accessStateRecoveryCopyTellsUsersWhatToDoNext() throws {
         #expect(AccessState.signedOut.recoveryStep.contains("Sign in again"))
@@ -469,6 +505,7 @@ struct Voiyce_AgentTests {
         #expect(!AccessState.paymentRequired.recoveryStep.localizedCaseInsensitiveContains("server"))
     }
 
+    #if VOIYCE_PRO
     @Test @MainActor func appTerminationStopsLocalSessionContextCapture() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-termination-context-test-\(UUID().uuidString)", isDirectory: true)
@@ -492,7 +529,9 @@ struct Voiyce_AgentTests {
                 && event.details.contains { $0.key == "Session" && $0.value == "termination-session" }
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func systemSleepStopsLocalSessionContextCapture() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-sleep-context-test-\(UUID().uuidString)", isDirectory: true)
@@ -516,7 +555,9 @@ struct Voiyce_AgentTests {
                 && event.details.contains { $0.key == "Session" && $0.value == "sleep-session" }
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func userStopEndsLocalSessionContextCaptureBeforeSummary() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-user-stop-context-test-\(UUID().uuidString)", isDirectory: true)
@@ -549,7 +590,9 @@ struct Voiyce_AgentTests {
                 && event.details.contains { $0.key == "Session" && $0.value == "user-stop-session" }
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func displayConfigurationRecoveryStopsOnlyActiveActMode() throws {
         #expect(!DisplayConfigurationRecovery.shouldStopAgent(mode: .off, isAgentRunning: false))
         #expect(!DisplayConfigurationRecovery.shouldStopAgent(mode: .context, isAgentRunning: true))
@@ -559,7 +602,9 @@ struct Voiyce_AgentTests {
         #expect(DisplayConfigurationRecovery.actStopSummary.localizedCaseInsensitiveContains("display layout changed"))
         #expect(DisplayConfigurationRecovery.actStopNextStep.localizedCaseInsensitiveContains("start Act again"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func displayConfigurationChangeClearsSavedFocusRegion() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-display-change-focus-test-\(UUID().uuidString)", isDirectory: true)
@@ -589,6 +634,7 @@ struct Voiyce_AgentTests {
                 && event.status == .cancelled
         })
     }
+    #endif
 
     @Test func onboardingPermissionCopyExplainsAccessInPlainLanguage() throws {
         let forbiddenTerms = [
@@ -622,7 +668,7 @@ struct Voiyce_AgentTests {
         #expect(OnboardingPermissionCopy.agentScreenAccessMessage.localizedCaseInsensitiveContains("Dictation can continue"))
     }
 
-    @Test func onboardingLaunchCopyStaysAgentContextPositioned() throws {
+    @Test func onboardingLaunchCopyStaysDictationPositioned() throws {
         let forbiddenTerms = [
             "boost productivity",
             "revolutionize",
@@ -645,13 +691,24 @@ struct Voiyce_AgentTests {
             }
         }
 
-        #expect(OnboardingLaunchCopy.overviewHeadline.localizedCaseInsensitiveContains("memory layer"))
-        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("Context"))
-        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("Talk"))
-        #expect(OnboardingLaunchCopy.overviewBody.localizedCaseInsensitiveContains("Act"))
-        #expect(OnboardingLaunchCopy.handoffDetail.localizedCaseInsensitiveContains("Codex"))
-        #expect(OnboardingLaunchCopy.handoffDetail.localizedCaseInsensitiveContains("Claude Code"))
-        #expect(OnboardingLaunchCopy.learnBodyWithPreview.localizedCaseInsensitiveContains("repeated explanations"))
+        // Voiyce is a dictation product: onboarding must not re-introduce the
+        // retired agent/memory-layer positioning.
+        let retiredPositioningTerms = [
+            "memory layer",
+            "agent handoff",
+            "Codex",
+            "Claude Code"
+        ]
+
+        for copy in OnboardingLaunchCopy.visibleStrings {
+            for retiredTerm in retiredPositioningTerms {
+                #expect(!copy.localizedCaseInsensitiveContains(retiredTerm))
+            }
+        }
+
+        #expect(OnboardingLaunchCopy.previewHeadline.localizedCaseInsensitiveContains("say one line"))
+        #expect(OnboardingLaunchCopy.learnBodyWithPreview.localizedCaseInsensitiveContains("clean text"))
+        #expect(OnboardingLaunchCopy.learnBodyWithoutPreview.localizedCaseInsensitiveContains("place finished text"))
     }
 
     @Test func menuBarLaunchCopyStaysUserFacing() throws {
@@ -754,6 +811,7 @@ struct Voiyce_AgentTests {
         #expect(SettingsLaunchCopy.supportExportedPrefix.localizedCaseInsensitiveContains("support log"))
     }
 
+    #if VOIYCE_PRO
     @Test func agentLogLaunchCopyStaysSupportFacing() throws {
         let forbiddenTerms = [
             "Open" + "AI",
@@ -781,7 +839,9 @@ struct Voiyce_AgentTests {
         #expect(AgentLogLaunchCopy.emptyLogMessage.localizedCaseInsensitiveContains("issues"))
         #expect(AgentLogLaunchCopy.emptySearchMessage.localizedCaseInsensitiveContains("next-step"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func agentRuntimeLaunchCopyStaysRecoveryOriented() throws {
         let forbiddenTerms = [
             "Open" + "AI",
@@ -804,6 +864,7 @@ struct Voiyce_AgentTests {
 
         #expect(AgentRuntimeLaunchCopy.sessionContextFailedStatus == "Needs review")
     }
+    #endif
 
     @Test func launchSupportEmailStaysConsistentAcrossAppCopy() throws {
         #expect(AppConstants.supportEmail == "aki.b@pentridgemedia.com")
@@ -985,6 +1046,7 @@ struct Voiyce_AgentTests {
         }
     }
 
+    #if VOIYCE_PRO
     @Test @MainActor func dictationServiceFailuresStayUserFacingInAgentLog() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-dictation-service-failure-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -1026,7 +1088,9 @@ struct Voiyce_AgentTests {
             #expect(!exported.localizedCaseInsensitiveContains(forbiddenTerm))
         }
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func actModeRecoveryCopyStaysUserFacing() throws {
         let userFacingStrings = [
             ActModeRecoveryCopy.taskRequired,
@@ -1094,7 +1158,9 @@ struct Voiyce_AgentTests {
             userInfo: [NSLocalizedDescriptionKey: "HTTP 500 backend OPENAI_API_KEY"]
         )) == ActModeRecoveryCopy.unexpectedFailure)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actTextTargetSafetyRejectsBlindTextInsertion() throws {
         #expect(ActTextTargetSafety.evaluate(
             role: kAXTextFieldRole as String,
@@ -1129,7 +1195,9 @@ struct Voiyce_AgentTests {
         #expect(ActModeRecoveryCopy.textTargetNotSafe.contains("focused text field"))
         #expect(ActModeRecoveryCopy.textTargetNotSafeNextStep.contains("Click into the field"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func talkModeRecoveryCopyStaysUserFacing() throws {
         let userFacingStrings = [
             TalkModeRecoveryCopy.serviceName,
@@ -1185,7 +1253,9 @@ struct Voiyce_AgentTests {
         #expect(TalkModeRecoveryCopy.serviceFailureNextStep(statusCode: 500).contains("Agent Log"))
         #expect(TalkModeRecoveryCopy.microphonePermissionRequired.contains("Microphone access is off"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func screenContextRecoveryCopyStaysUserFacing() throws {
         let userFacingStrings = [
             ScreenContextRecoveryCopy.serviceName,
@@ -1234,7 +1304,9 @@ struct Voiyce_AgentTests {
         #expect(ScreenContextProvider.screenContextData()["memory_source"] == "current_screen")
         #expect(ScreenContextProvider.screenContextData()["context_scope"] == "current_screen")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func googleWorkspaceRecoveryCopyStaysPlainAndActionable() throws {
         let userFacingStrings = [
             GoogleWorkspaceRecoveryCopy.notConfigured,
@@ -1278,6 +1350,7 @@ struct Voiyce_AgentTests {
         #expect(GoogleWorkspaceRecoveryCopy.message(for: GoogleWorkspaceError.notConnected).contains("Settings"))
         #expect(GoogleWorkspaceRecoveryCopy.message(for: GoogleWorkspaceError.invalidToken).contains("connect it again"))
     }
+    #endif
 
     @Test func authAndBillingRecoveryCopyDoNotExposeRawErrors() throws {
         let rawError = NSError(
@@ -1322,19 +1395,23 @@ struct Voiyce_AgentTests {
         #expect(BillingRecoveryCopy.message(for: rawError).contains("Try again"))
     }
 
-    @Test func billingLimitCopyExplainsAgentCapsPlainly() throws {
+    @Test func billingLimitCopyExplainsDictationPlanPlainly() throws {
         let userFacingStrings = [
             BillingLimitCopy.settingsSummary,
             BillingLimitCopy.checkoutSummary
         ]
-        let requiredTerms = ["Pro", "Context", "Talk", "Act", "beta budgets"]
+        let requiredTerms = ["Pro", "dictation"]
         let forbiddenTerms = [
             "boost productivity",
             "revolutionize",
             "unlock your potential",
             "AI-powered",
-            "unlimited agents",
-            "unlimited Act"
+            // Voiyce is dictation-only: billing copy must not resurrect the
+            // retired agent tiers.
+            "Context, Talk",
+            "beta budgets",
+            "agent tiers",
+            "Power-level Act"
         ]
 
         for copy in userFacingStrings {
@@ -1346,10 +1423,9 @@ struct Voiyce_AgentTests {
                 #expect(!copy.localizedCaseInsensitiveContains(forbiddenTerm))
             }
         }
-
-        #expect(BillingLimitCopy.checkoutSummary.contains("Power-level Act limits are not sold"))
     }
 
+    #if VOIYCE_PRO
     @Test @MainActor func agentToolBridgeFailuresStayPlainAndSupportUseful() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-tool-plain-error-test-\(UUID().uuidString)", isDirectory: true)
@@ -1422,7 +1498,9 @@ struct Voiyce_AgentTests {
             #expect(!exported.localizedCaseInsensitiveContains(forbiddenTerm))
         }
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actUnexpectedFailuresStayPlainAndSupportUseful() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-act-unexpected-plain-error-test-\(UUID().uuidString)", isDirectory: true)
@@ -1470,7 +1548,9 @@ struct Voiyce_AgentTests {
             #expect(!exported.localizedCaseInsensitiveContains(forbiddenTerm))
         }
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func talkLatencyTargetsClassifyLaunchQaThresholds() throws {
         #expect(TalkLatencyTargets.formattedDuration(milliseconds: 850) == "0.8s")
         #expect(TalkLatencyTargets.formattedDuration(milliseconds: 12_400) == "12s")
@@ -1490,7 +1570,9 @@ struct Voiyce_AgentTests {
             needsReview: TalkLatencyTargets.firstAudioNeedsReviewMilliseconds
         ) == "Needs review")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func realtimeTelemetryParsesAndWritesTalkLatencyAgentLogEvents() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-realtime-telemetry-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -1556,7 +1638,9 @@ struct Voiyce_AgentTests {
         #expect(interruptionEvent.details.contains { $0.key == "QA" && $0.value == "Needs review" })
         #expect(interruptionEvent.details.contains { $0.key == "Target" && $0.value == TalkLatencyTargets.interruptionTarget })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func realtimeConnectionFailureTelemetryStopsAndExplainsRecovery() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-realtime-connection-failure-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -1637,7 +1721,9 @@ struct Voiyce_AgentTests {
         #expect(actServiceEvents.count == 2)
         #expect(talkServiceEvent.summary.contains(TalkModeRecoveryCopy.connectionFailed))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func sessionContextCopyStaysUserFacing() async throws {
         let memory = VideoDBAgentMemory.shared
         let searchResult = await memory.search("what did we decide earlier")
@@ -1683,13 +1769,17 @@ struct Voiyce_AgentTests {
         #expect(searchResult.data?["memory_source"] == "session_context")
         #expect(summaryResult.data?["context_scope"] == "active_session")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func safetyModeCopySeparatesStrictNormalAndUnrestricted() throws {
         #expect(AgentSafetyMode.strict.subtitle.contains("Confirm most"))
         #expect(AgentSafetyMode.normal.subtitle.contains("sensitive actions"))
         #expect(AgentSafetyMode.unrestricted.subtitle.contains("except full system deletion"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func agentModeAndSafetyModePersistAcrossAppStateInstances() throws {
         let originalMode = UserDefaults.standard.string(forKey: "agentMode")
         let originalSafetyMode = UserDefaults.standard.string(forKey: "agentSafetyMode")
@@ -1728,7 +1818,9 @@ struct Voiyce_AgentTests {
         #expect(second.agentSafetyMode == .strict)
         #expect(second.hasConfirmedAgentSafetyMode)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func actSafetyModeRequiresExplicitConfirmationBeforeFirstUse() throws {
         let originalSafetyMode = UserDefaults.standard.string(forKey: "agentSafetyMode")
         let originalSafetyModeConfirmed = UserDefaults.standard.object(forKey: "agentSafetyModeConfirmed") as? Bool
@@ -1757,7 +1849,9 @@ struct Voiyce_AgentTests {
         #expect(appState.agentSafetyMode == .unrestricted)
         #expect(appState.hasConfirmedAgentSafetyMode)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func strictSafetyPolicyConfirmsDirectActionsAndSensitiveOperations() throws {
         let policy = AgentActionSafetyPolicy()
         let examples: [(name: String, arguments: [String: String])] = [
@@ -1777,7 +1871,9 @@ struct Voiyce_AgentTests {
             #expect(policy.confirmationRequest(name: example.name, arguments: example.arguments, mode: .strict) != nil)
         }
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func normalSafetyPolicyConfirmsHighImpactAndAllowsLowRiskNavigation() throws {
         let policy = AgentActionSafetyPolicy()
         let lowRiskNavigation = policy.confirmationRequest(
@@ -1805,7 +1901,9 @@ struct Voiyce_AgentTests {
             #expect(policy.confirmationRequest(name: example.name, arguments: example.arguments, mode: .normal) != nil)
         }
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func unrestrictedSafetyPolicySkipsConfirmationButBlocksProhibitedActions() throws {
         let policy = AgentActionSafetyPolicy()
         let unrestrictedConfirmation = policy.confirmationRequest(
@@ -1832,7 +1930,9 @@ struct Voiyce_AgentTests {
             #expect(result.data?["blocked"] != nil)
         }
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actionControlToolsRequireActMode() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-action-mode-boundary-test-\(UUID().uuidString)", isDirectory: true)
@@ -1864,7 +1964,9 @@ struct Voiyce_AgentTests {
 
         #expect(realtimeHTML.contains("body: JSON.stringify({ name, arguments: args, mode: currentMode })"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func confirmationCopyIncludesActionTargetAndConsequence() throws {
         let policy = AgentActionSafetyPolicy()
         let request = try #require(policy.confirmationRequest(
@@ -1880,7 +1982,9 @@ struct Voiyce_AgentTests {
         #expect(request.message.contains("founder@example.com"))
         #expect(request.message.contains("Beta update"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func cancelledConfirmationCannotExecuteLaterAndCanStopSession() async throws {
         let originalSafetyMode = UserDefaults.standard.string(forKey: "agentSafetyMode")
         let originalSafetyModeConfirmed = UserDefaults.standard.object(forKey: "agentSafetyModeConfirmed") as? Bool
@@ -1960,7 +2064,9 @@ struct Voiyce_AgentTests {
         #expect(cancelledEvent.details.contains { $0.key == "Decision" && $0.value == AgentConfirmationDecisionAction.stopSession.logTitle })
         #expect(cancelledEvent.summary.localizedCaseInsensitiveContains("before the action ran"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func staleConfirmationTimesOutAndCannotExecuteLater() async throws {
         let originalSafetyMode = UserDefaults.standard.string(forKey: "agentSafetyMode")
         let originalSafetyModeConfirmed = UserDefaults.standard.object(forKey: "agentSafetyModeConfirmed") as? Bool
@@ -2022,7 +2128,9 @@ struct Voiyce_AgentTests {
                 && event.details.contains { $0.key == "Confirmation" && $0.value == confirmationID }
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func realtimeToolSuccessWritesSupportSafeAgentLogEvent() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-realtime-tool-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -2060,7 +2168,9 @@ struct Voiyce_AgentTests {
         #expect(!event.summary.contains(result.message))
         #expect(!event.details.contains { detail in detail.value.contains(result.message) })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func agentHotkeyTogglesOnlyOnPress() throws {
         let hotkeyManager = HotkeyManager()
         var toggleCount = 0
@@ -2082,7 +2192,9 @@ struct Voiyce_AgentTests {
         hotkeyManager.pressAgentHotkey()
         #expect(toggleCount == 2)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func focusHighlightShortcutsDispatchExpectedModes() throws {
         let hotkeyManager = HotkeyManager()
         var modes: [FocusMarkMode] = []
@@ -2102,7 +2214,9 @@ struct Voiyce_AgentTests {
 
         #expect(modes == [.rectangle, .paint, .underline])
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func googleOAuthScopesMatchCurrentGmailCalendarFeatureSet() throws {
         #expect(AppConstants.googleOAuthScopes == [
             "openid",
@@ -2116,7 +2230,9 @@ struct Voiyce_AgentTests {
         ])
         #expect(Set(AppConstants.googleOAuthScopes).count == AppConstants.googleOAuthScopes.count)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func privateModeSkipsLongTermMemoryWrites() throws {
         let store = AgentLongTermMemoryStore.shared
         let originalPrivateMode = store.isPrivateModeEnabled
@@ -2143,7 +2259,9 @@ struct Voiyce_AgentTests {
         #expect(result.data?["memory_skipped"] == "true")
         #expect(store.records.count == originalRecordCount)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryExclusionsSkipMatchingAppsAndSites() throws {
         let store = AgentLongTermMemoryStore.shared
         let originalPrivateMode = store.isPrivateModeEnabled
@@ -2170,7 +2288,9 @@ struct Voiyce_AgentTests {
         #expect(result.data?["memory_skipped"] == "true")
         #expect(store.records.count == originalRecordCount)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func sensitiveContextsSkipLongTermMemoryWrites() throws {
         let store = AgentLongTermMemoryStore.shared
         let originalPrivateMode = store.isPrivateModeEnabled
@@ -2197,7 +2317,9 @@ struct Voiyce_AgentTests {
         #expect(result.data?["memory_skipped"] == "true")
         #expect(store.records.count == originalRecordCount)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryClearRemovesStructuredStorageScreenshotsAndVaultNotes() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2233,7 +2355,9 @@ struct Voiyce_AgentTests {
         #expect(!FileManager.default.fileExists(atPath: screenshotPath))
         #expect(!FileManager.default.fileExists(atPath: vaultNotePath))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryRetentionModesPruneSessionOnlyThirtyNinetyAndForever() throws {
         let now = Date()
 
@@ -2324,7 +2448,9 @@ struct Voiyce_AgentTests {
         #expect(foreverFixture.store.records.map(\.summary) == ["Forever memory."])
         #expect(FileManager.default.fileExists(atPath: foreverFixture.directory.appendingPathComponent("long-term-memory.json").path))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func screenshotRetentionIsSeparateFromSummaryRetention() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2356,7 +2482,9 @@ struct Voiyce_AgentTests {
         let retainedPath = try #require(fixture.store.records.first?.screenshotPath)
         #expect(FileManager.default.fileExists(atPath: retainedPath))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryUsageSnapshotTracksCaptureFrequencyAndStorage() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2403,7 +2531,9 @@ struct Voiyce_AgentTests {
         let eventStorageBytes = try #require(savedEvent.details.first { $0.key == "Storage bytes" }.flatMap { Int($0.value) })
         #expect(eventStorageBytes > 0)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryStorageQuotaLimitsDurableRecordsAndRawScreenshots() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2451,7 +2581,9 @@ struct Voiyce_AgentTests {
                 && event.summary.contains("local memory record limit")
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func privateModeSkipsPersistentMemoryAndScreenshots() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2477,7 +2609,9 @@ struct Voiyce_AgentTests {
         #expect(fileCount(in: fixture.directory.appendingPathComponent("Screenshots")) == 0)
         #expect(fileCount(in: fixture.directory.appendingPathComponent("Vault/Daily")) == 0)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryExclusionsSkipPersistentMemoryAndScreenshots() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2503,7 +2637,9 @@ struct Voiyce_AgentTests {
         #expect(fileCount(in: fixture.directory.appendingPathComponent("Screenshots")) == 0)
         #expect(fileCount(in: fixture.directory.appendingPathComponent("Vault/Daily")) == 0)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func privateModeAndExclusionsPauseLiveSessionContext() async throws {
         let privateFixture = try makeIsolatedMemoryStore()
         defer {
@@ -2583,7 +2719,9 @@ struct Voiyce_AgentTests {
                 && event.summary.localizedCaseInsensitiveContains("sensitive")
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memorySearchFindsRelevantRecordsAndHandlesNoResults() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2623,7 +2761,9 @@ struct Voiyce_AgentTests {
         #expect(noMatch.message.contains("I did not find that in saved memory yet."))
         #expect(!noMatch.message.localizedCaseInsensitiveContains("long-term memory"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func longTermMemoryRecordsAreIsolatedByAccount() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2669,7 +2809,9 @@ struct Voiyce_AgentTests {
         #expect(fixture.store.search("alphasentinel").data?["matches"] == "1")
         #expect(fixture.store.search("betasentinel").data?["matches"] == "0")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryPrivacySettingsAreScopedPerAccount() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2701,7 +2843,9 @@ struct Voiyce_AgentTests {
         #expect(fixture.store.isPrivateModeEnabled)
         #expect(fixture.store.excludedPatterns == ["client portal"])
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func vaultSyncCanBeDisabledWithoutDisablingStructuredMemory() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2738,7 +2882,9 @@ struct Voiyce_AgentTests {
         let vaultNotePath = try #require(syncedRecord.vaultNotePath)
         #expect(FileManager.default.fileExists(atPath: vaultNotePath))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func vaultNotesArePlainMarkdownAndDateOrganized() throws {
         let fixture = try makeIsolatedMemoryStore()
         defer {
@@ -2779,7 +2925,9 @@ struct Voiyce_AgentTests {
         #expect(content.contains("[[launch]]"))
         #expect(content.contains("[[codex]]"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func supportExportRedactionRemovesSecretsAndEmails() throws {
         let fakeOpenAIKey = ["sk", "proj"].joined(separator: "-") + "-abcdefghijklmnopqrstuvwxyz"
         let redacted = AgentEventStore.redactedForSupport(
@@ -2791,7 +2939,9 @@ struct Voiyce_AgentTests {
         #expect(!redacted.contains(fakeOpenAIKey))
         #expect(redacted.contains("[redacted]"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func agentLogStorageRedactsSensitiveEventPayloads() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-log-storage-test-\(UUID().uuidString)", isDirectory: true)
@@ -2827,7 +2977,9 @@ struct Voiyce_AgentTests {
         #expect(!storedJSON.contains(fakeOpenAIKey))
         #expect(!storedJSON.lowercased().contains("bearer abcdefghijklmnop"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func supportExportFileRedactsEventPayloads() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -2856,7 +3008,9 @@ struct Voiyce_AgentTests {
         #expect(!exported.contains(fakeOpenAIKey))
         #expect(exported.contains("[redacted]"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func supportExportIncludesStableSchemaMetadataAndEventIds() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-support-schema-test-\(UUID().uuidString)", isDirectory: true)
@@ -2896,7 +3050,9 @@ struct Voiyce_AgentTests {
         #expect(event["timestamp"] is String)
         #expect(event["details"] is [[String: Any]])
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func supportExportAndAgentLogRedactRawTranscriptAndScreenshotPayloads() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-raw-context-redaction-test-\(UUID().uuidString)", isDirectory: true)
@@ -2942,7 +3098,9 @@ struct Voiyce_AgentTests {
         #expect(exported.contains("[redacted-image]"))
         #expect(exported.contains("[redacted]"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func permissionBlocksWriteSupportUsefulAgentLogEvents() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-permission-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -2976,7 +3134,9 @@ struct Voiyce_AgentTests {
         #expect(exported.contains("Next step"))
         #expect(!exported.contains("Computer Use"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func serviceFailuresWriteSupportUsefulAgentLogEvents() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-service-failure-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -3013,7 +3173,9 @@ struct Voiyce_AgentTests {
         #expect(!exported.localizedCaseInsensitiveContains("OpenAI"))
         #expect(!exported.localizedCaseInsensitiveContains("backend"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func usageLimitServiceFailuresAreLoggedAsQuotaEvents() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-agent-usage-limit-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -3047,7 +3209,9 @@ struct Voiyce_AgentTests {
         #expect(!exported.localizedCaseInsensitiveContains("backend"))
         #expect(!exported.localizedCaseInsensitiveContains("billing credits"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actSafetyChecksWriteRecoverableAgentLogEvents() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-act-safety-check-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -3082,7 +3246,9 @@ struct Voiyce_AgentTests {
         #expect(!exported.localizedCaseInsensitiveContains("Computer Use"))
         #expect(!exported.localizedCaseInsensitiveContains("backend"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actModeAccessibilityDenialFailsSafelyAndWritesPermissionEvent() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-act-accessibility-denial-test-\(UUID().uuidString)", isDirectory: true)
@@ -3115,7 +3281,9 @@ struct Voiyce_AgentTests {
         #expect(event.summary.contains("Act mode"))
         #expect(event.details.contains { $0.key == "Next step" && $0.value.contains("Privacy & Security > Accessibility") })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actModeScreenRecordingDenialFailsSafelyAndWritesPermissionEvent() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-act-screen-denial-test-\(UUID().uuidString)", isDirectory: true)
@@ -3146,7 +3314,9 @@ struct Voiyce_AgentTests {
         #expect(event.summary.contains("Act mode"))
         #expect(event.details.contains { $0.key == "Next step" && $0.value == ActModeRecoveryCopy.screenRecordingNextStep })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func computerUseFailuresReturnStructuredNextSteps() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-act-next-step-test-\(UUID().uuidString)", isDirectory: true)
@@ -3233,7 +3403,9 @@ struct Voiyce_AgentTests {
         #expect(safetyCheckResult.data?["requires"] == "new_act_request")
         #expect(safetyCheckResult.data?["next_step"] == ActModeRecoveryCopy.safetyCheckNextStep)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func computerUseLoopSendsScreenshotsExecutesAllowedActionsAndContinues() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-computer-use-loop-test-\(UUID().uuidString)", isDirectory: true)
@@ -3308,7 +3480,9 @@ struct Voiyce_AgentTests {
         let finished = try #require(store.events.first { $0.title == "Act mode finished" && $0.summary == "Done." })
         #expect(finished.details.contains { $0.key == "Steps" && $0.value == "2" })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func computerUseLocalActionSurfaceCoversMouseScrollHotkeyAndText() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-computer-use-action-surface-test-\(UUID().uuidString)", isDirectory: true)
@@ -3425,7 +3599,9 @@ struct Voiyce_AgentTests {
                 && detail.value == "click, double_click, scroll, keypress, type"
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func nativeVoiyceActionsKeepActionCursorVisibleDuringNavigation() async throws {
         var cursorEvents: [ActionCursorOverlayEvent] = []
         ActionCursorOverlay.shared.setEventRecorder { event in
@@ -3449,7 +3625,9 @@ struct Voiyce_AgentTests {
             event.kind == .hide && event.delay == 0.45
         })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actModeCancellationStopsBeforeActionLoopAndWritesCancelledEvent() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-act-cancellation-test-\(UUID().uuidString)", isDirectory: true)
@@ -3484,7 +3662,9 @@ struct Voiyce_AgentTests {
         #expect(event.summary.contains("stopped before it finished"))
         #expect(event.details.contains { $0.key == "Next step" && $0.value == ActModeRecoveryCopy.cancelledNextStep })
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actionCursorOverlayPolicyDoesNotStealFocusOrMouseInput() throws {
         let policy = ActionCursorOverlay.panelPolicy
 
@@ -3497,7 +3677,9 @@ struct Voiyce_AgentTests {
         #expect(policy.collectionBehavior.contains(.fullScreenAuxiliary))
         #expect(policy.collectionBehavior.contains(.stationary))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func actionCursorLeadTimingGivesVisibleBeatBeforeLocalActions() throws {
         #expect(ActActionTiming.cursorLeadDelayNanoseconds >= 100_000_000)
         #expect(ActActionTiming.shortCursorLeadDelayNanoseconds >= 60_000_000)
@@ -3505,7 +3687,9 @@ struct Voiyce_AgentTests {
         #expect(ActionCursorAnimationTiming.moveDuration >= 0.12)
         #expect(ActionCursorAnimationTiming.moveDuration <= 0.35)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func actionCursorPresentationPolicyOnlyShowsDuringActOrPreview() throws {
         let policy = ActionCursorOverlay.presentationPolicy
 
@@ -3513,7 +3697,9 @@ struct Voiyce_AgentTests {
         #expect(policy.canPresent(isActModeActive: true, isPreviewModeEnabled: false))
         #expect(policy.canPresent(isActModeActive: false, isPreviewModeEnabled: true))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func actionCursorGeometryClampsBadgeInsideVisibleDisplay() throws {
         let visibleFrame = CGRect(x: 1440, y: -120, width: 1280, height: 780)
         let badgeSize = CGSize(width: 216, height: 58)
@@ -3534,7 +3720,9 @@ struct Voiyce_AgentTests {
         #expect(leftEdgeOrigin.x == visibleFrame.minX + 14)
         #expect(leftEdgeOrigin.y == visibleFrame.minY + 14)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func computerUseCoordinateMapperUsesCapturedDisplayFrameForMultiDisplayScreenshots() throws {
         let screenshot = ComputerScreenshot(
             imageBase64: "AA==",
@@ -3552,7 +3740,9 @@ struct Voiyce_AgentTests {
         #expect(point.x == 2240)
         #expect(point.y == 330)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func computerUseCoordinateMapperFallsBackWhenScreenshotHasNoDisplayFrame() throws {
         let screenshot = ComputerScreenshot(imageBase64: "AA==", width: 1000, height: 500)
         let frame = ComputerUseCoordinateMapper.displayFrame(
@@ -3564,7 +3754,9 @@ struct Voiyce_AgentTests {
         #expect(point.x == 520)
         #expect(point.y == 290)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func focusHighlightOverlayPoliciesMatchDrawingAndPassiveGuideRoles() throws {
         let selectionPolicy = FocusHighlightOverlay.panelPolicy
         let guidePolicy = AgentVisualGuideOverlay.panelPolicy
@@ -3587,7 +3779,9 @@ struct Voiyce_AgentTests {
         #expect(guidePolicy.collectionBehavior.contains(.fullScreenAuxiliary))
         #expect(guidePolicy.collectionBehavior.contains(.stationary))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func focusHighlightRectangleGeometryHandlesReverseDragAndScreenCoordinates() throws {
         let screenFrame = CGRect(x: 100, y: 50, width: 1200, height: 800)
         let annotation = try #require(FocusHighlightGeometry.rectangleAnnotation(
@@ -3605,7 +3799,9 @@ struct Voiyce_AgentTests {
             end: CGPoint(x: 20, y: 20)
         ) == nil)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func focusHighlightFreeformGeometryPadsRegionAndPreservesMarkedPoints() throws {
         let screenFrame = CGRect(x: -500, y: 100, width: 1000, height: 700)
         let points = [
@@ -3632,7 +3828,9 @@ struct Voiyce_AgentTests {
             points: [CGPoint(x: 1, y: 1), CGPoint(x: 2, y: 2)]
         ) == nil)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func focusRegionCropRectScalesClipsAndRejectsOutOfDisplayRegions() throws {
         let displayFrame = CGRect(x: -500, y: 100, width: 1000, height: 700)
         let imageSize = CGSize(width: 2000, height: 1400)
@@ -3657,7 +3855,9 @@ struct Voiyce_AgentTests {
             imageSize: imageSize
         ) == nil)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test func focusedRegionDisplaySelectionPrefersRegionDisplayThenMainDisplay() throws {
         let mainID = CGDirectDisplayID(10)
         let secondaryID = CGDirectDisplayID(20)
@@ -3693,7 +3893,9 @@ struct Voiyce_AgentTests {
         )
         #expect(fallbackSelection?.displayID == mainID)
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func focusHighlightSelectionAndClearPersistStateAndAgentLogEvents() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("voiyce-focus-highlight-log-test-\(UUID().uuidString)", isDirectory: true)
@@ -3740,7 +3942,9 @@ struct Voiyce_AgentTests {
         #expect(clearedEvent.status == .cancelled)
         #expect(clearedEvent.summary == "The saved screen focus region was cleared.")
     }
+    #endif
 
+    #if VOIYCE_PRO
     @Test @MainActor func memoryErrorsWriteSupportUsefulAgentLogEvents() throws {
         let id = UUID().uuidString
         let directory = FileManager.default.temporaryDirectory
@@ -3788,7 +3992,9 @@ struct Voiyce_AgentTests {
         #expect(exported.contains("Create memory vault"))
         #expect(exported.contains("Next step"))
     }
+    #endif
 
+    #if VOIYCE_PRO
     @MainActor
     private func makeIsolatedMemoryStore() throws -> (
         store: AgentLongTermMemoryStore,
@@ -3814,6 +4020,7 @@ struct Voiyce_AgentTests {
         store.setVault(url: directory.appendingPathComponent("Vault", isDirectory: true))
         return (store, directory, suiteName, eventStore)
     }
+    #endif
 
     private func cleanupMemoryStore(directory: URL, suiteName: String) {
         try? FileManager.default.removeItem(at: directory)

@@ -35,13 +35,13 @@ const ROUTES = [
     name: "auth",
     path: "/auth?intent=download",
     viewports: [VIEWPORTS[0], VIEWPORTS[3]],
-    expectedText: ["Create your account", "Continue to download"],
+    expectedText: ["Welcome back", "Continue with Pentridge"],
   },
   {
     name: "download",
     path: "/download?intent=download",
     viewports: [VIEWPORTS[0], VIEWPORTS[3]],
-    expectedText: ["Create your account", "Continue to download"],
+    expectedText: ["Install Voiyce on your Mac"],
   },
   {
     name: "privacy",

@@ -50,8 +50,8 @@ enum BillingPlan: String, CaseIterable, Identifiable, Decodable, Sendable {
 }
 
 enum BillingLimitCopy {
-    static let settingsSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets while agent tiers are finalized."
-    static let checkoutSummary = "Pro keeps dictation active after the trial. Context, Talk, and Act use beta budgets; Power-level Act limits are not sold in this build."
+    static let settingsSummary = "Pro keeps unlimited dictation active after the trial ends."
+    static let checkoutSummary = "Pro keeps unlimited dictation active after the trial ends. No per-word limits."
 }
 
 struct BillingStatusSnapshot: Decodable, Sendable {
