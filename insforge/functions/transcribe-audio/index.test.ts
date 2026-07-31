@@ -182,7 +182,7 @@ Deno.test("transcription auth provider failures do not call OpenAI or leak auth 
   }
 })
 
-Deno.test("transcription billing profile failures do not call OpenAI or leak database payloads", async () => {
+Deno.test("transcription billing status failures fail closed and do not leak database payloads", async () => {
   clearTranscriptionEnv()
   Deno.env.set("API_KEY", "test-api-key")
   Deno.env.set("INSFORGE_BASE_URL", "https://insforge.test")
@@ -199,8 +199,8 @@ Deno.test("transcription billing profile failures do not call OpenAI or leak dat
         headers: { "Content-Type": "application/json" },
       })
     }
-    if (url.includes("/api/database/records/billing_profiles")) {
-      calls.push("profile")
+    if (url.includes("/api/database/rpc/get_billing_status")) {
+      calls.push("billing-status")
       return new Response(JSON.stringify({ error: { message: "database failed Authorization: Bearer leaked-token" } }), {
         status: 503,
         headers: { "Content-Type": "application/json" },
@@ -232,12 +232,90 @@ Deno.test("transcription billing profile failures do not call OpenAI or leak dat
 
     assertEquals(response.status, 500)
     assertEquals(body.error, "The request failed. Please try again.")
-    assertEquals(calls, ["auth", "profile"])
+    assertEquals(calls, ["auth", "billing-status"])
     assertEquals(text.includes("Bearer"), false)
     assertEquals(text.includes("leaked-token"), false)
   } finally {
     globalThis.fetch = originalFetch
     clearTranscriptionEnv()
+  }
+})
+
+Deno.test("transcription honors the shared billing-status entitlement branches before OpenAI", async () => {
+  const cases = [
+    ["paid Stripe", { needs_subscription: false, has_active_subscription: true }, 200],
+    ["active trial", { needs_subscription: false, trial_ends_at: "2099-01-01T00:00:00Z" }, 200],
+    ["free words remaining", { needs_subscription: false, free_words_remaining: 1 }, 200],
+    ["active Pentridge entitlement", { needs_subscription: false, pentridge_subscription_active: true, pentridge_cap_reached: false }, 200],
+    ["no entitlement", { needs_subscription: true }, 402],
+  ] as const
+
+  for (const [name, billingStatus, expectedStatus] of cases) {
+    clearTranscriptionEnv()
+    Deno.env.set("API_KEY", "test-api-key")
+    Deno.env.set("INSFORGE_BASE_URL", "https://insforge.test")
+    Deno.env.set("OPENAI_API_KEY", "test-openai-key")
+
+    const calls: string[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input) => {
+      const url = String(input)
+      if (url.includes("/api/auth/sessions/current")) {
+        calls.push("auth")
+        return new Response(JSON.stringify({ user: { id: "user_123" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      if (url.includes("/api/database/rpc/get_billing_status")) {
+        calls.push("billing-status")
+        return new Response(JSON.stringify([billingStatus]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      if (url.includes("/api/database/records/billing_profiles")) {
+        calls.push("profile")
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+
+      calls.push("openai")
+      return new Response(JSON.stringify({ text: "allowed transcript" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    try {
+      const response = await handler(new Request("https://functions.test/transcribe-audio", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer user-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audioBase64: btoa("audio"),
+          fileName: "recording.wav",
+          mimeType: "audio/wav",
+        }),
+      }))
+      const body = await response.json()
+
+      assertEquals(response.status, expectedStatus, name)
+      if (expectedStatus === 402) {
+        assertEquals(body.code, "subscription_required")
+        assertEquals(calls, ["auth", "billing-status"])
+      } else {
+        assertEquals(body.text, "allowed transcript")
+        assertEquals(calls, ["auth", "billing-status", "profile", "openai"])
+      }
+    } finally {
+      globalThis.fetch = originalFetch
+      clearTranscriptionEnv()
+    }
   }
 })
 
@@ -255,6 +333,13 @@ Deno.test("transcription usage limits return clear account-limit responses befor
     if (url.includes("/api/auth/sessions/current")) {
       calls.push("auth")
       return new Response(JSON.stringify({ user: { id: "user_123" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+    if (url.includes("/api/database/rpc/get_billing_status")) {
+      calls.push("billing-status")
+      return new Response(JSON.stringify([{ needs_subscription: false }]), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       })
@@ -299,7 +384,7 @@ Deno.test("transcription usage limits return clear account-limit responses befor
     assertEquals(response.status, 402)
     assertEquals(body.code, "usage_limit_reached")
     assertEquals(body.error, "Monthly transcription usage cap reached for default tier")
-    assertEquals(calls, ["auth", "profile", "reserve"])
+    assertEquals(calls, ["auth", "billing-status", "profile", "reserve"])
   } finally {
     globalThis.fetch = originalFetch
     clearTranscriptionEnv()
@@ -318,6 +403,12 @@ Deno.test("transcription upstream errors do not expose secrets to the client", a
     const url = String(input)
     if (url.includes("/api/auth/sessions/current")) {
       return new Response(JSON.stringify({ user: { id: "user_123" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+    if (url.includes("/api/database/rpc/get_billing_status")) {
+      return new Response(JSON.stringify([{ needs_subscription: false }]), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       })
@@ -373,6 +464,12 @@ Deno.test("transcription preserves OpenAI auth and rate-limit status without lea
       const url = String(input)
       if (url.includes("/api/auth/sessions/current")) {
         return new Response(JSON.stringify({ user: { id: "user_123" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+      if (url.includes("/api/database/rpc/get_billing_status")) {
+        return new Response(JSON.stringify([{ needs_subscription: false }]), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         })
@@ -438,6 +535,14 @@ Deno.test("transcription reserves and finalizes usage caps when enabled", async 
       })
     }
 
+    if (url.includes("/api/database/rpc/get_billing_status")) {
+      calls.push({ kind: "billing-status" })
+      return new Response(JSON.stringify([{ needs_subscription: false }]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
     if (url.includes("/api/database/records/billing_profiles")) {
       calls.push({ kind: "profile" })
       return new Response(JSON.stringify([{ user_id: "user_123", subscription_status: "inactive" }]), {
@@ -489,8 +594,8 @@ Deno.test("transcription reserves and finalizes usage caps when enabled", async 
 
     assertEquals(response.status, 200)
     assertEquals(body.text, "hello world")
-    assertEquals(calls.map((call) => call.kind), ["auth", "profile", "reserve", "openai", "finalize"])
-    assertEquals(calls[2].body, {
+    assertEquals(calls.map((call) => call.kind), ["auth", "billing-status", "profile", "reserve", "openai", "finalize"])
+    assertEquals(calls[3].body, {
       p_user_id: "user_123",
       p_capability: "transcription",
       p_estimated_cost_usd: 0.006,
@@ -500,7 +605,7 @@ Deno.test("transcription reserves and finalizes usage caps when enabled", async 
         audio_bytes: 5,
       },
     })
-    assertEquals(calls[4].body, {
+    assertEquals(calls[5].body, {
       p_usage_id: "usage_123",
       p_succeeded: true,
     })
