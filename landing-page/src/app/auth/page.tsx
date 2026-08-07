@@ -5,9 +5,9 @@ import AuthPageClient from "@/components/AuthPageClient";
 import AuthRouteSkeleton from "@/components/AuthRouteSkeleton";
 
 export const metadata: Metadata = {
-  title: "Create Account",
+  title: "Sign In",
   description:
-    "Create your Voiyce account, then download the Mac app and finish setup inside the app.",
+    "Sign in to your Voiyce account, then download the Mac app and finish setup inside the app.",
 };
 
 export default function AuthPage() {

@@ -136,7 +136,7 @@ struct DashboardView: View {
                     id: "signed-out",
                     icon: "person.crop.circle.badge.exclamationmark",
                     title: "Sign-In Required",
-                    detail: "Sign in to start your \(AppConstants.trialLengthDays)-day Pro trial with up to \(AppConstants.freeWordLimit) words. No credit card required.",
+                    detail: "Sign in with your Pentridge Labs account to unlock dictation on this Mac.",
                     nextStep: "Open the app, complete sign-in, then return here and start dictating again.",
                     tone: .info,
                     actionTitle: nil,
@@ -150,7 +150,9 @@ struct DashboardView: View {
                     icon: "creditcard.trianglebadge.exclamationmark",
                     title: billingManager.paymentRequiredTitle,
                     detail: billingManager.paymentRequiredDetail,
-                    nextStep: "Click \(billingActionTitle), finish checkout in Stripe, then return to Voiyce and refresh billing access.",
+                    nextStep: billingManager.hasPentridgeSubscription
+                        ? "Click \(billingActionTitle) to update your Pentridge Labs plan, then return to Voiyce and refresh billing access."
+                        : "Click \(billingActionTitle), finish checkout in Stripe, then return to Voiyce and refresh billing access.",
                     tone: .info,
                     actionTitle: billingActionTitle,
                     action: { openBillingDestination() }
@@ -719,6 +721,11 @@ struct DashboardView: View {
     }
 
     private func openBillingDestination() {
+        if billingManager.hasPentridgeSubscription {
+            billingManager.openPentridgeLabsPage()
+            return
+        }
+
         if billingManager.canManageSubscription {
             Task {
                 await billingManager.openBillingPortal()

@@ -50,8 +50,8 @@ enum BillingPlan: String, CaseIterable, Identifiable, Decodable, Sendable {
 }
 
 enum BillingLimitCopy {
-    static let settingsSummary = "Pro keeps unlimited dictation active after the trial ends."
-    static let checkoutSummary = "Pro keeps unlimited dictation active after the trial ends. No per-word limits."
+    static let settingsSummary = "Pro keeps unlimited dictation active."
+    static let checkoutSummary = "Pro keeps unlimited dictation active. No per-word limits."
 }
 
 struct BillingStatusSnapshot: Decodable, Sendable {
@@ -301,7 +301,7 @@ final class BillingManager {
     var planSubtitle: String {
         if hasPentridgeSubscription {
             if pentridgeCapReached {
-                return "Voiyce is included in your Pentridge Labs subscription, but you've used your 10,000 monthly words. Dictation resumes next month."
+                return "Voiyce is included in your Pentridge Labs subscription, but you've used your 10,000 monthly words. Upgrade to the Pro plan for unlimited dictation, or your words reset next month."
             }
 
             if pentridgeTier == "standard", let status {
@@ -355,6 +355,10 @@ final class BillingManager {
     }
 
     var primaryActionTitle: String {
+        if hasPentridgeSubscription {
+            return pentridgeCapReached ? "Upgrade Pentridge Labs" : "Manage Pentridge Labs"
+        }
+
         if hasActiveSubscription {
             return "Manage Subscription"
         }
@@ -376,6 +380,10 @@ final class BillingManager {
     }
 
     var paymentRequiredTitle: String {
+        if hasPentridgeSubscription && pentridgeCapReached {
+            return "Monthly Word Limit Reached"
+        }
+
         guard let preferredPlanTitle else {
             return "Choose A Plan"
         }
@@ -384,6 +392,10 @@ final class BillingManager {
     }
 
     var paymentRequiredDetail: String {
+        if hasPentridgeSubscription && pentridgeCapReached {
+            return "You've used all 10,000 words on the Pentridge Labs Standard plan this month. Upgrade to the Pro plan for unlimited dictation, or your words reset next month."
+        }
+
         guard let preferredPlanTitle else {
             return "Your Pro trial has ended. Pick Monthly or Yearly to keep dictating with unlimited words."
         }
@@ -411,6 +423,10 @@ final class BillingManager {
 
     var canManageSubscription: Bool {
         hasActiveSubscription && !(status?.stripeCustomerID?.isEmpty ?? true)
+    }
+
+    func openPentridgeLabsPage() {
+        NSWorkspace.shared.open(AppConstants.pentridgeLabsURL)
     }
 
     var cancelAtPeriodEnd: Bool {

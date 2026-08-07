@@ -11,11 +11,8 @@ import {
   buildAuthHref,
   downloadUrl,
   FlowIntent,
-  intentBadge,
   normalizeIntent,
   supportEmail,
-  trialLengthDays,
-  trialWordLimit,
 } from "@/lib/voiyce-config";
 
 const PENTRIDGE_LABS_URL = "https://pentridgemedia.com/labs";
@@ -31,15 +28,8 @@ function sessionUserFromResult(result: unknown): { email?: string | null } | nul
   return payload.data?.session?.user ?? payload.data?.user ?? null;
 }
 
-function planSummary(intent: FlowIntent): string {
-  switch (intent) {
-    case "monthly":
-      return "If Voiyce fits your workflow after the trial, continue with Pro Monthly at $12/month.";
-    case "yearly":
-      return "If Voiyce fits your workflow after the trial, continue with Pro Yearly at $120/year.";
-    case "download":
-      return "Your account is ready. Install the Mac app, sign in, and then finish the in-app setup.";
-  }
+function planSummary(_intent: FlowIntent): string {
+  return "Your Pentridge Labs membership is active. Install the Mac app, sign in, and then finish the in-app setup.";
 }
 
 type DownloadHealthState = "checking" | "ready" | "degraded";
@@ -352,7 +342,7 @@ export default function DownloadPageClient() {
                 <span className="min-w-0 truncate font-medium">{accountEmail ?? "Signed in"}</span>
               </div>
               <p className="mt-3 text-sm leading-7 text-[#8E8E97]">
-                {trialLengthDays}-day trial, up to {trialWordLimit.toLocaleString()} words, and no credit card required up front.
+                Included with Pentridge Labs — Standard covers 10,000 words a month, Pro is unlimited.
               </p>
               <div className="mt-4 border-t border-white/[0.08] pt-4">
                 <button
@@ -374,7 +364,7 @@ export default function DownloadPageClient() {
           <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#13111A] via-[#101017] to-[#0B0B10] p-8 md:p-10">
             <div className="rounded-[2rem] border border-white/10 bg-black/25 p-6">
               <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#B7B7C0]">
-                {downloadHealth === "degraded" ? "Download check failed" : intentBadge(intent)}
+                {downloadHealth === "degraded" ? "Download check failed" : "Membership active"}
               </div>
 
               <h2 className="mt-6 text-3xl font-semibold tracking-tight text-white">

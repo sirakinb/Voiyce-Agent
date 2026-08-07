@@ -1,13 +1,6 @@
 import AppKit
 import SwiftUI
 
-private enum AuthMode: String, CaseIterable, Identifiable {
-    case signIn = "Sign In"
-    case signUp = "Create Account"
-
-    var id: String { rawValue }
-}
-
 enum SignInNetworkRecoveryCopy {
     static let loadingTitle = "Waiting for internet connection"
     static let loadingDetail = "Voiyce needs internet to check your sign-in. Reconnect Wi-Fi or Ethernet, then continue setup."
@@ -20,7 +13,6 @@ struct AuthView: View {
     @Environment(AuthenticationManager.self) private var authenticationManager
     @Environment(NetworkMonitor.self) private var networkMonitor
 
-    @State private var authMode: AuthMode = .signIn
     @State private var email = ""
     @State private var password = ""
     @State private var verificationCode = ""
@@ -49,7 +41,7 @@ struct AuthView: View {
 
         return isShowingVerification
             ? "Enter the 6-digit code we sent so Voiyce can continue setup on this Mac."
-            : "Use the same Google or email account you created on voiyce.com. The browser signup unlocks the download, and this sign-in unlocks permissions, mic testing, and your live shortcut."
+            : "Use the same Google or email account from your Pentridge Labs signup. This sign-in unlocks permissions, mic testing, and your live shortcut."
     }
 
     private var bundledLogoImage: NSImage? {
@@ -146,95 +138,44 @@ struct AuthView: View {
 
     private var credentialsCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Picker("", selection: $authMode) {
-                ForEach(AuthMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            googleButton
 
-            if authMode == .signUp {
-                labsSignupContent
-            } else {
-                googleButton
+            HStack(spacing: 10) {
+                Rectangle()
+                    .fill(AppTheme.ridge)
+                    .frame(height: 1)
 
-                HStack(spacing: 10) {
-                    Rectangle()
-                        .fill(AppTheme.ridge)
-                        .frame(height: 1)
-
-                    Text("or")
-                        .font(AppTheme.captionFont)
-                        .foregroundStyle(AppTheme.textSecondary)
-
-                    Rectangle()
-                        .fill(AppTheme.ridge)
-                        .frame(height: 1)
-                }
-
-                styledField {
-                    TextField("Email", text: $email)
-                        .textFieldStyle(.plain)
-                }
-
-                styledField {
-                    SecureField("Password", text: $password)
-                        .textFieldStyle(.plain)
-                }
-
-                feedbackView
-
-                Button(action: submitCredentials) {
-                    HStack(spacing: 10) {
-                        if authenticationManager.isWorking {
-                            ProgressView()
-                                .controlSize(.small)
-                                .tint(.white)
-                        }
-
-                        Text("Sign In to Voiyce")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .foregroundStyle(.white)
-                    .background(AppTheme.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-                .buttonStyle(.plain)
-                .disabled(authenticationManager.isWorking || isOffline)
-                .accessibilityIdentifier("auth-submit-button")
-
-                Text("Google opens a secure browser handoff. Email sign-in happens directly in the app.")
+                Text("or")
                     .font(AppTheme.captionFont)
                     .foregroundStyle(AppTheme.textSecondary)
+
+                Rectangle()
+                    .fill(AppTheme.ridge)
+                    .frame(height: 1)
             }
-        }
-        .padding(24)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-    }
 
-    private var labsSignupContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Accounts are created through Pentridge Labs", systemImage: "lock.shield")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(AppTheme.textPrimary)
+            styledField {
+                TextField("Email", text: $email)
+                    .textFieldStyle(.plain)
+            }
 
-            Text("Voiyce is part of the Pentridge Labs bundle. One subscription unlocks all Pentridge Labs apps. Create your account there, then come back and sign in here.")
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+            styledField {
+                SecureField("Password", text: $password)
+                    .textFieldStyle(.plain)
+            }
 
-            Button {
-                NSWorkspace.shared.open(AppConstants.pentridgeLabsURL)
-            } label: {
-                HStack(spacing: 8) {
-                    Text("Get Pentridge Labs")
+            feedbackView
+
+            Button(action: submitCredentials) {
+                HStack(spacing: 10) {
+                    if authenticationManager.isWorking {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                    }
+
+                    Text("Sign In to Voiyce")
                         .font(.system(size: 14, weight: .semibold))
-
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 12, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
@@ -243,15 +184,16 @@ struct AuthView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("auth-labs-button")
+            .disabled(authenticationManager.isWorking || isOffline)
+            .accessibilityIdentifier("auth-submit-button")
 
-            Button("Already have an account? Sign in") {
-                authMode = .signIn
-            }
-            .buttonStyle(.plain)
-            .font(AppTheme.captionFont)
-            .foregroundStyle(AppTheme.accent)
+            Text("Google opens a secure browser handoff. Email sign-in happens directly in the app.")
+                .font(AppTheme.captionFont)
+                .foregroundStyle(AppTheme.textSecondary)
         }
+        .padding(24)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private var verificationCard: some View {
@@ -308,7 +250,6 @@ struct AuthView: View {
 
                 Button("Back to Sign In") {
                     authenticationManager.cancelEmailVerification()
-                    authMode = .signIn
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(AppTheme.textSecondary)

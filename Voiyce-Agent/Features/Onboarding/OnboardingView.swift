@@ -199,7 +199,7 @@ struct OnboardingView: View {
     }
 
     private var trialTitle: String {
-        if billingManager.hasActiveSubscription {
+        if billingManager.hasPentridgeSubscription || billingManager.hasActiveSubscription {
             return "\(billingManager.planTitle) is active"
         }
 
@@ -207,7 +207,7 @@ struct OnboardingView: View {
             return billingManager.paymentRequiredTitle
         }
 
-        return "Your Pro trial is ready"
+        return "Voiyce is ready on this Mac"
     }
 
     private var trialSubtitle: String {
@@ -215,7 +215,7 @@ struct OnboardingView: View {
             return subtitle
         }
 
-        return "\(AppConstants.trialLengthDays) days and up to \(AppConstants.freeWordLimit) words are ready on this Mac. No credit card is required up front."
+        return "Your Pentridge Labs membership unlocks dictation on this Mac. Standard includes 10,000 words a month; Pro is unlimited."
     }
 
     private var discoverySummary: String {
@@ -315,7 +315,7 @@ struct OnboardingView: View {
                     id: "onboarding-signed-out",
                     icon: "person.crop.circle.badge.exclamationmark",
                     title: "Sign-In Required",
-                    detail: "Sign in to start your \(AppConstants.trialLengthDays)-day Pro trial with up to \(AppConstants.freeWordLimit) words. No credit card required.",
+                    detail: "Sign in with your Pentridge Labs account to unlock dictation on this Mac.",
                     nextStep: "Finish sign-in, then come back here and run the preview again.",
                     tone: .info,
                     actionTitle: nil,

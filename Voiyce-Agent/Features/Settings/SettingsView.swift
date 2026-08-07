@@ -846,6 +846,11 @@ struct SettingsView: View {
     }
 
     private func openBillingDestination() {
+        if billingManager.hasPentridgeSubscription {
+            billingManager.openPentridgeLabsPage()
+            return
+        }
+
         if billingManager.canManageSubscription {
             Task {
                 await billingManager.openBillingPortal()

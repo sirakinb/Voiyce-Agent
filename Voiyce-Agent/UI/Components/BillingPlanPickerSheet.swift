@@ -25,7 +25,7 @@ struct BillingPlanPickerSheet: View {
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text("Your trial includes up to \(AppConstants.freeWordLimit) words over \(AppConstants.trialLengthDays) days with no credit card required. Upgrade anytime to keep dictating without limits.")
+                Text("Pick the plan that fits how much you dictate. Upgrade anytime to keep dictating without limits.")
                     .font(AppTheme.bodyFont)
                     .foregroundStyle(AppTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
