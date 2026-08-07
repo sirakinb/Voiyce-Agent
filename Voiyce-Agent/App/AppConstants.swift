@@ -56,6 +56,7 @@ enum AppConstants {
     static let proYearlyEffectiveMonthlyPriceDisplay = "$10/month"
     static let maxDictationDuration: TimeInterval = 55
     static let supportEmail = "aki.b@pentridgemedia.com"
+    static let pentridgeLabsURL = URL(string: "https://pentridgemedia.com/labs")!
 
     #if VOIYCE_PRO
     static var googleOAuthClientID: String {

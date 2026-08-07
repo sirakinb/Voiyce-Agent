@@ -18,6 +18,8 @@ import {
   trialWordLimit,
 } from "@/lib/voiyce-config";
 
+const PENTRIDGE_LABS_URL = "https://pentridgemedia.com/labs";
+
 function sessionUserFromResult(result: unknown): { email?: string | null } | null {
   const payload = result as {
     data?: {
@@ -41,6 +43,7 @@ function planSummary(intent: FlowIntent): string {
 }
 
 type DownloadHealthState = "checking" | "ready" | "degraded";
+type SubscriptionState = "checking" | "active" | "blocked";
 
 export default function DownloadPageClient() {
   const client = getInsForgeBrowserClient();
@@ -54,6 +57,21 @@ export default function DownloadPageClient() {
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [downloadHealth, setDownloadHealth] = useState<DownloadHealthState>("checking");
+  const [subscriptionState, setSubscriptionState] = useState<SubscriptionState>("checking");
+
+  async function hasLabsSubscription(): Promise<boolean> {
+    try {
+      const { data, error } = await client.functions.invoke("check-pentridge-subscription");
+
+      if (error) {
+        return false;
+      }
+
+      return Boolean((data as { has_subscription?: boolean } | null)?.has_subscription);
+    } catch {
+      return false;
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +110,14 @@ export default function DownloadPageClient() {
       }
 
       setAccountEmail(user.email ?? null);
+
+      const subscribed = await hasLabsSubscription();
+
+      if (cancelled) {
+        return;
+      }
+
+      setSubscriptionState(subscribed ? "active" : "blocked");
       setIsCheckingSession(false);
     }
 
@@ -103,7 +129,7 @@ export default function DownloadPageClient() {
   }, [client.auth, client.functions, intent, router]);
 
   useEffect(() => {
-    if (isCheckingSession) {
+    if (isCheckingSession || subscriptionState !== "active") {
       return;
     }
 
@@ -131,10 +157,10 @@ export default function DownloadPageClient() {
     return () => {
       cancelled = true;
     };
-  }, [isCheckingSession]);
+  }, [isCheckingSession, subscriptionState]);
 
   useEffect(() => {
-    if (isCheckingSession || downloadHealth !== "ready") {
+    if (isCheckingSession || subscriptionState !== "active" || downloadHealth !== "ready") {
       return;
     }
 
@@ -158,7 +184,7 @@ export default function DownloadPageClient() {
       window.clearTimeout(cleanup);
       frame.remove();
     };
-  }, [downloadHealth, intent, isCheckingSession]);
+  }, [downloadHealth, intent, isCheckingSession, subscriptionState]);
 
   async function signOut() {
     setIsSigningOut(true);
@@ -171,7 +197,13 @@ export default function DownloadPageClient() {
     }
   }
 
-  if (isCheckingSession) {
+  async function recheckSubscription() {
+    setSubscriptionState("checking");
+    const subscribed = await hasLabsSubscription();
+    setSubscriptionState(subscribed ? "active" : "blocked");
+  }
+
+  if (isCheckingSession || subscriptionState === "checking") {
     return (
       <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-6">
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] px-8 py-10 text-center max-w-md w-full">
@@ -180,6 +212,65 @@ export default function DownloadPageClient() {
           <p className="mt-3 text-sm leading-relaxed text-[#9A9A9F]">
             Confirming your browser sign-in before we start the Mac installer.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (subscriptionState === "blocked") {
+    return (
+      <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-xl rounded-[1.5rem] border border-purple-400/15 bg-[#0B0B10] p-8 text-center shadow-[0_0_80px_-30px_rgba(168,85,247,0.35)] md:p-12">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-400/20 bg-purple-500/10">
+            <Icon icon="mdi:lock-outline" className="h-7 w-7 text-purple-300" />
+          </div>
+
+          <p className="mt-8 text-sm font-semibold uppercase tracking-[0.3em] text-purple-400">
+            Pentridge Labs
+          </p>
+
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+            Subscription required
+          </h1>
+
+          <p className="mx-auto mt-4 max-w-md text-base leading-7 text-[#A5A5AF]">
+            Voiyce is part of the Pentridge Labs bundle. One subscription unlocks
+            all Pentridge Labs apps.
+          </p>
+
+          {accountEmail ? (
+            <p className="mt-3 font-mono text-sm text-[#73737D]">
+              Signed in as {accountEmail}
+            </p>
+          ) : null}
+
+          <a
+            href={PENTRIDGE_LABS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#A855F7] px-5 py-4 text-lg font-semibold text-white shadow-[0_0_40px_-10px_rgba(168,85,247,0.7)] transition-colors hover:bg-[#B368F8]"
+          >
+            Get Pentridge Labs
+            <Icon icon="mdi:arrow-top-right" className="h-5 w-5" />
+          </a>
+
+          <button
+            type="button"
+            onClick={() => void recheckSubscription()}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-lg font-medium text-white transition-colors hover:bg-white/[0.08]"
+          >
+            <Icon icon="mdi:refresh" className="h-5 w-5" />
+            I&apos;ve subscribed — recheck
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            disabled={isSigningOut}
+            className="mt-6 text-sm text-[#8A8A94] transition-colors hover:text-white disabled:opacity-50"
+          >
+            {isSigningOut ? "Signing out…" : "Sign out and use a different account"}
+          </button>
         </div>
       </div>
     );

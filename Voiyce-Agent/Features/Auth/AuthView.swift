@@ -21,10 +21,8 @@ struct AuthView: View {
     @Environment(NetworkMonitor.self) private var networkMonitor
 
     @State private var authMode: AuthMode = .signIn
-    @State private var fullName = ""
     @State private var email = ""
     @State private var password = ""
-    @State private var confirmPassword = ""
     @State private var verificationCode = ""
     @State private var localErrorMessage: String?
 
@@ -155,58 +153,88 @@ struct AuthView: View {
             }
             .pickerStyle(.segmented)
 
-            googleButton
+            if authMode == .signUp {
+                labsSignupContent
+            } else {
+                googleButton
 
-            HStack(spacing: 10) {
-                Rectangle()
-                    .fill(AppTheme.ridge)
-                    .frame(height: 1)
+                HStack(spacing: 10) {
+                    Rectangle()
+                        .fill(AppTheme.ridge)
+                        .frame(height: 1)
 
-                Text("or")
+                    Text("or")
+                        .font(AppTheme.captionFont)
+                        .foregroundStyle(AppTheme.textSecondary)
+
+                    Rectangle()
+                        .fill(AppTheme.ridge)
+                        .frame(height: 1)
+                }
+
+                styledField {
+                    TextField("Email", text: $email)
+                        .textFieldStyle(.plain)
+                }
+
+                styledField {
+                    SecureField("Password", text: $password)
+                        .textFieldStyle(.plain)
+                }
+
+                feedbackView
+
+                Button(action: submitCredentials) {
+                    HStack(spacing: 10) {
+                        if authenticationManager.isWorking {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white)
+                        }
+
+                        Text("Sign In to Voiyce")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .foregroundStyle(.white)
+                    .background(AppTheme.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+                .disabled(authenticationManager.isWorking || isOffline)
+                .accessibilityIdentifier("auth-submit-button")
+
+                Text("Google opens a secure browser handoff. Email sign-in happens directly in the app.")
                     .font(AppTheme.captionFont)
                     .foregroundStyle(AppTheme.textSecondary)
-
-                Rectangle()
-                    .fill(AppTheme.ridge)
-                    .frame(height: 1)
             }
+        }
+        .padding(24)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
 
-            if authMode == .signUp {
-                styledField {
-                    TextField("Full name (optional)", text: $fullName)
-                        .textFieldStyle(.plain)
-                }
-            }
+    private var labsSignupContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Accounts are created through Pentridge Labs", systemImage: "lock.shield")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AppTheme.textPrimary)
 
-            styledField {
-                TextField("Email", text: $email)
-                    .textFieldStyle(.plain)
-            }
+            Text("Voiyce is part of the Pentridge Labs bundle. One subscription unlocks all Pentridge Labs apps. Create your account there, then come back and sign in here.")
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            styledField {
-                SecureField("Password", text: $password)
-                    .textFieldStyle(.plain)
-            }
-
-            if authMode == .signUp {
-                styledField {
-                    SecureField("Confirm password", text: $confirmPassword)
-                        .textFieldStyle(.plain)
-                }
-            }
-
-            feedbackView
-
-            Button(action: submitCredentials) {
-                HStack(spacing: 10) {
-                    if authenticationManager.isWorking {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.white)
-                    }
-
-                    Text(authMode == .signIn ? "Sign In to Voiyce" : "Create Account")
+            Button {
+                NSWorkspace.shared.open(AppConstants.pentridgeLabsURL)
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Get Pentridge Labs")
                         .font(.system(size: 14, weight: .semibold))
+
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
@@ -215,20 +243,15 @@ struct AuthView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
-            .disabled(authenticationManager.isWorking || isOffline)
-            .accessibilityIdentifier("auth-submit-button")
+            .accessibilityIdentifier("auth-labs-button")
 
-            Text(
-                authMode == .signUp
-                ? "Email sign-up uses a 6-digit verification code before the first session starts."
-                : "Google opens a secure browser handoff. Email sign-in happens directly in the app."
-            )
+            Button("Already have an account? Sign in") {
+                authMode = .signIn
+            }
+            .buttonStyle(.plain)
             .font(AppTheme.captionFont)
-            .foregroundStyle(AppTheme.textSecondary)
+            .foregroundStyle(AppTheme.accent)
         }
-        .padding(24)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private var verificationCard: some View {
@@ -422,23 +445,8 @@ struct AuthView: View {
             return
         }
 
-        if authMode == .signUp {
-            guard password == confirmPassword else {
-                localErrorMessage = "Passwords do not match."
-                return
-            }
-        }
-
         Task {
-            if authMode == .signIn {
-                await authenticationManager.signIn(email: trimmedEmail, password: password)
-            } else {
-                await authenticationManager.signUp(
-                    email: trimmedEmail,
-                    password: password,
-                    name: fullName
-                )
-            }
+            await authenticationManager.signIn(email: trimmedEmail, password: password)
         }
     }
 
